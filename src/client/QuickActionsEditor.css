@@ -1,0 +1,113 @@
+/* The rows of the custom menu editor (ship popup and settings app) */
+.qa-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.qa-editor-empty {
+  margin: 0;
+  color: var(--text-dim);
+  font-size: 0.85rem;
+}
+
+.qa-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--lc-periwinkle);
+  border-radius: 8px;
+  background: var(--surface-2);
+}
+
+.qa-row-main {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+.qa-row input,
+.qa-row select,
+.qa-row textarea {
+  background: var(--surface-3);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 4px 8px;
+  font: inherit;
+  font-size: 0.85rem;
+}
+
+.qa-name {
+  flex: 1;
+  min-width: 8em;
+}
+
+.qa-command {
+  width: 100%;
+  resize: vertical;
+  box-sizing: border-box;
+}
+
+.qa-row-buttons {
+  display: inline-flex;
+  gap: 4px;
+}
+
+.qa-row-buttons button {
+  padding: 3px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  background: var(--surface-3);
+  color: var(--text);
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+
+.qa-row-buttons button:hover:not(:disabled) {
+  border-color: var(--lc-periwinkle);
+  background: var(--hover);
+}
+
+.qa-row-buttons button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.qa-ships {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  margin: 0;
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 0.8rem;
+}
+
+.qa-ships legend {
+  padding: 0 4px;
+  color: var(--text-dim);
+  font-size: 0.75rem;
+}
+
+.qa-ships label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.qa-note {
+  margin: 0;
+  color: var(--text-dim);
+  font-size: 0.75rem;
+}
+
+.qa-error {
+  margin: 0;
+  color: var(--state-attention);
+  font-size: 0.8rem;
+}

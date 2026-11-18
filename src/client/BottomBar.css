@@ -1,0 +1,44 @@
+/*
+ * ===== Bottom bar (only the decorative frame. Credits moved to the Accounts section of the left pane) =====
+ */
+
+.bottom-bar {
+  position: relative;
+  padding: 6px 16px calc(var(--frame-strip) + 8px) 0;
+  background: var(--bg);
+  color: var(--text);
+  flex-shrink: 0;
+  font-size: 0.75rem;
+}
+
+/* The strip at the bottom: colored segments, mirroring the header */
+.bottom-bar::after {
+  content: "";
+  position: absolute;
+  left: calc(-1 * var(--frame-gap));
+  right: 0;
+  bottom: 0;
+  height: var(--frame-strip);
+  background: linear-gradient(
+    90deg,
+    var(--lc-peach) 0 26%,
+    transparent 26% calc(26% + var(--frame-gap)),
+    var(--lc-periwinkle) calc(26% + var(--frame-gap)) 52%,
+    transparent 52% calc(52% + var(--frame-gap)),
+    var(--lc-lilac) calc(52% + var(--frame-gap)) 78%,
+    transparent 78% calc(78% + var(--frame-gap)),
+    var(--lc-amber) calc(78% + var(--frame-gap)) 100%
+  );
+  border-radius: 0 var(--radius-pill) var(--radius-pill) 0;
+}
+
+/* Concave corner where the spine meets the strip */
+.bottom-bar::before {
+  content: "";
+  position: absolute;
+  left: calc(-1 * var(--frame-gap));
+  bottom: var(--frame-strip);
+  width: 22px;
+  height: 22px;
+  background: radial-gradient(circle at 100% 0, transparent 21px, var(--lc-peach) 22px);
+}

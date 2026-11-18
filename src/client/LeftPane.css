@@ -1,0 +1,70 @@
+/* The left column (see LeftColumn.tsx): a vertical stack of collapsible sections (missions,
+   crew status, pins). The width can be changed by dragging the right edge. */
+.left-column {
+  position: relative;
+  flex-shrink: 0;
+  background: var(--bg);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.left-column--dragging {
+  user-select: none;
+}
+
+.left-column-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--frame-gap);
+  padding-top: calc(22px + var(--frame-gap)); /* below the concave corner of the header */
+  /* Every section has an explicit height (see CollapsibleSection.tsx); if their sum is
+     larger than the column, this element scrolls as a fallback. */
+  overflow-y: auto;
+}
+
+/* Drag handle for the width: the whole vertical strip on the right edge */
+.left-column-resize-handle {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 5px;
+  height: 100%;
+  cursor: ew-resize;
+  background: transparent;
+  transition: background 0.15s;
+}
+
+.left-column-resize-handle:hover,
+.left-column--dragging .left-column-resize-handle {
+  background: var(--lc-amber);
+}
+
+/* Thin scrollbars for every scrolling area in the left column */
+.mission-panel-list,
+.left-column-body,
+.left-section-body {
+  scrollbar-width: thin;
+  scrollbar-color: var(--lc-periwinkle) transparent;
+}
+
+.mission-panel-list::-webkit-scrollbar,
+.left-column-body::-webkit-scrollbar,
+.left-section-body::-webkit-scrollbar {
+  width: 6px;
+}
+
+.mission-panel-list::-webkit-scrollbar-track,
+.left-column-body::-webkit-scrollbar-track,
+.left-section-body::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.mission-panel-list::-webkit-scrollbar-thumb,
+.left-column-body::-webkit-scrollbar-thumb,
+.left-section-body::-webkit-scrollbar-thumb {
+  background: var(--lc-periwinkle);
+  border-radius: 3px;
+}

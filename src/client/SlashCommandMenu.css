@@ -1,0 +1,79 @@
+/*
+ * Slash command candidates shown for a leading "/" in the input box. They open upward from the top left of the input box (because the input box is near the bottom of the screen)
+ */
+.slash-menu-anchor {
+  position: absolute;
+  bottom: calc(100% + 4px);
+  left: 6px;
+  width: min(560px, calc(100% - 12px));
+  z-index: 20;
+}
+
+.slash-menu {
+  max-height: 260px;
+  overflow-y: auto;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6);
+  padding: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.slash-menu-item {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 5px 10px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text);
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.slash-menu-item--active {
+  background: var(--hover);
+}
+
+.slash-menu-name {
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.slash-menu-hint {
+  font-weight: 400;
+  color: var(--lc-amber);
+}
+
+.slash-menu-description {
+  font-size: 0.72rem;
+  color: var(--text-dim);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Guidance when there are no candidates (that partner has not started yet) */
+.slash-menu--note {
+  padding: 8px 12px;
+  font-size: 0.78rem;
+  color: var(--text-dim);
+  max-height: none;
+}
+
+/* Says the list is the previous one (fixed at the end of the candidates) */
+.slash-menu-stale {
+  position: sticky;
+  bottom: -4px;
+  margin-top: 2px;
+  padding: 4px 10px;
+  font-size: 0.68rem;
+  color: var(--text-dim);
+  background: var(--surface-2);
+  border-top: 1px solid var(--border);
+}

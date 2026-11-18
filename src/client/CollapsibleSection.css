@@ -1,0 +1,118 @@
+/* A collapsible section of the left column (see CollapsibleSection.tsx). When open it has
+   an explicit height (changed by dragging, set as an inline style); when closed it shrinks
+   to the height of its header. The header is a colored label that joins the spine. */
+.left-section {
+  --section-color: var(--lc-peach);
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* Each section gets its own color, in the order they appear */
+.left-column-body > .left-section:nth-child(1) { --section-color: var(--lc-peach); }
+.left-column-body > .left-section:nth-child(2) { --section-color: var(--lc-lilac); }
+.left-column-body > .left-section:nth-child(3) { --section-color: var(--lc-periwinkle); }
+
+.left-section-header {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: calc(100% - 14px);
+  padding: 6px 14px 6px 10px;
+  border: none;
+  border-radius: 0 var(--radius-pill) var(--radius-pill) 0;
+  background: var(--section-color);
+  color: var(--text-on-accent);
+  font-family: var(--font-display);
+  font-size: 0.95rem;
+  font-weight: 400;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  text-align: left;
+  cursor: pointer;
+  transition: filter 0.1s;
+}
+
+.left-section-header:hover {
+  filter: brightness(1.12);
+}
+
+.left-section-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.left-section-chevron {
+  flex-shrink: 0;
+  font-size: 0.6rem;
+  color: var(--text-on-accent);
+  transition: transform 0.15s;
+}
+
+.left-section-chevron--open {
+  transform: rotate(0deg);
+}
+
+.left-section-chevron:not(.left-section-chevron--open) {
+  transform: rotate(-90deg);
+}
+
+.left-section-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 8px 8px 8px 12px;
+  margin-top: 4px;
+  border-left: 3px solid var(--section-color);
+  background: var(--surface);
+}
+
+/* Closed height not set yet (null): the section has no explicit height, so flex:1 would
+   squash the content to 0. Use the natural height instead (everything visible). */
+.left-section-body--auto {
+  flex: 0 0 auto;
+}
+
+/* Drag handle for the height: the whole horizontal strip at the bottom */
+.left-section-resize-handle {
+  flex-shrink: 0;
+  height: 5px;
+  cursor: ns-resize;
+  background: transparent;
+  transition: background 0.15s;
+}
+
+.left-section-resize-handle:hover,
+.left-section-resize-handle--dragging {
+  background: var(--section-color);
+}
+
+/* Count badge for approvals (shared by the section headers and the mission rows).
+   It uses the "attention" state color, which the frame never uses for decoration. */
+.pending-badge {
+  flex-shrink: 0;
+  font-family: var(--font-body);
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: var(--text-on-accent);
+  background: var(--state-attention);
+  border-radius: var(--radius-pill);
+  padding: 1px 7px;
+  white-space: nowrap;
+  animation: pending-badge-pulse 1.4s ease-in-out infinite;
+}
+@keyframes pending-badge-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+
+/* In the mission rows, leave room between the badge and the check mark on its right */
+.mission-panel-item-select .pending-badge {
+  margin: 0 6px 0 4px;
+}

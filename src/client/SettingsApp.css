@@ -1,0 +1,703 @@
+/* The frame, as on the ship's screen: a spine on the left, a strip under the header, a column of colored bars for the menu. */
+body {
+  height: 100vh;
+  overflow: hidden;
+  background: var(--bg);
+}
+
+#root {
+  height: 100vh;
+}
+
+.settings-app {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  padding-left: calc(var(--frame-spine) + var(--frame-gap));
+  background: var(--bg);
+  color: var(--text);
+}
+
+.settings-app::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: var(--frame-spine);
+  border-radius: 40px 0 0 40px;
+  background: linear-gradient(
+    to bottom,
+    var(--lc-amber) 0 130px,
+    transparent 130px calc(130px + var(--frame-gap)),
+    var(--lc-lilac) calc(130px + var(--frame-gap)) calc(100% - 130px - var(--frame-gap)),
+    transparent calc(100% - 130px - var(--frame-gap)) calc(100% - 130px),
+    var(--lc-peach) calc(100% - 130px) 100%
+  );
+}
+
+.settings-header {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  height: 56px;
+  flex-shrink: 0;
+  padding: 0 16px 0 0;
+}
+
+/* The strip under the header: colored segments */
+.settings-header::after {
+  content: "";
+  position: absolute;
+  left: calc(-1 * var(--frame-gap));
+  right: 0;
+  bottom: 0;
+  height: var(--frame-strip);
+  background: linear-gradient(
+    90deg,
+    var(--lc-amber) 0 26%,
+    transparent 26% calc(26% + var(--frame-gap)),
+    var(--lc-lilac) calc(26% + var(--frame-gap)) 52%,
+    transparent 52% calc(52% + var(--frame-gap)),
+    var(--lc-peach) calc(52% + var(--frame-gap)) 78%,
+    transparent 78% calc(78% + var(--frame-gap)),
+    var(--lc-periwinkle) calc(78% + var(--frame-gap)) 100%
+  );
+  border-radius: 0 var(--radius-pill) var(--radius-pill) 0;
+}
+
+/* Concave corner where the spine meets the strip */
+.settings-header::before {
+  content: "";
+  position: absolute;
+  left: calc(-1 * var(--frame-gap));
+  bottom: -22px;
+  width: 22px;
+  height: 22px;
+  background: radial-gradient(circle at 100% 100%, transparent 21px, var(--lc-amber) 22px);
+  z-index: 1;
+}
+
+.settings-header h1 {
+  margin: 0;
+  padding-bottom: var(--frame-strip);
+  font-family: var(--font-display);
+  font-size: 1.7rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--lc-amber);
+}
+
+.settings-title {
+  padding-bottom: var(--frame-strip);
+  font-family: var(--font-display);
+  font-size: 1.2rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--lc-peach);
+}
+
+.settings-body {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
+/* The menu: a vertical stack of bars, rounded on the right like the sections of the ship's left pane. */
+.settings-nav {
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  gap: var(--frame-gap);
+  width: 190px;
+  padding-top: calc(22px + var(--frame-gap)); /* below the concave corner of the header */
+}
+
+.settings-nav-item {
+  --bar-color: var(--lc-peach);
+  width: calc(100% - 14px);
+  padding: 9px 14px 9px 12px;
+  border: none;
+  border-radius: 0 var(--radius-pill) var(--radius-pill) 0;
+  background: var(--bar-color);
+  color: var(--text-on-accent);
+  font-family: var(--font-display);
+  font-size: 0.95rem;
+  letter-spacing: 0.1em;
+  text-align: right;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: filter 0.1s, width 0.12s;
+}
+
+.settings-nav-item:nth-child(5n + 1) { --bar-color: var(--lc-peach); }
+.settings-nav-item:nth-child(5n + 2) { --bar-color: var(--lc-lilac); }
+.settings-nav-item:nth-child(5n + 3) { --bar-color: var(--lc-periwinkle); }
+.settings-nav-item:nth-child(5n + 4) { --bar-color: var(--lc-apricot); }
+.settings-nav-item:nth-child(5n + 5) { --bar-color: var(--lc-sky); }
+
+.settings-nav-item:hover {
+  filter: brightness(1.12);
+}
+
+/* The page you are on: the bar reaches further out and is brighter than the others. */
+.settings-nav-item--active {
+  width: 100%;
+  filter: brightness(1.18);
+}
+
+.settings-main {
+  flex: 1;
+  min-width: 0;
+  padding: 20px 24px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--lc-periwinkle) transparent;
+}
+
+.settings-section {
+  margin-bottom: 24px;
+}
+
+.settings-section h2 {
+  margin: 0 0 8px;
+  font-size: 1rem;
+  color: var(--lc-lilac);
+}
+
+.settings-dir {
+  display: inline-block;
+  padding: 4px 8px;
+  background: var(--surface-2);
+  border-radius: var(--radius-sm, 4px);
+}
+
+.settings-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.settings-list li {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.settings-list code {
+  min-width: 9em;
+}
+
+.settings-notice {
+  margin: 10px 0 0;
+  color: var(--lc-peach);
+}
+
+.settings-ok {
+  color: var(--lc-sky);
+}
+
+.settings-dim {
+  color: var(--text-dim);
+}
+
+.settings-error {
+  color: var(--state-error);
+}
+
+
+.settings-field {
+  margin-bottom: 14px;
+}
+
+.settings-field label {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--lc-peach);
+}
+
+.settings-field input[type="text"],
+.settings-field input[type="number"],
+.settings-field select,
+.settings-field textarea,
+.settings-host input {
+  width: min(100%, 460px);
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm, 4px);
+  background: var(--surface-2);
+  color: var(--text);
+  font: inherit;
+}
+
+.settings-help {
+  margin: 4px 0 0;
+  color: var(--text-dim);
+  font-size: 0.9rem;
+}
+
+.settings-host {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.settings-host input {
+  width: 220px;
+}
+
+.settings-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.settings-actions button,
+.settings-host button {
+  padding: 6px 16px;
+  border: 1px solid var(--lc-periwinkle);
+  border-radius: var(--radius-pill);
+  background: var(--surface-3);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.settings-actions button:hover,
+.settings-host button:hover {
+  background: var(--hover);
+}
+
+.settings-roster {
+  display: grid;
+  grid-template-columns: 220px 1fr;
+  gap: 24px;
+}
+
+@media (max-width: 720px) {
+  .settings-roster {
+    grid-template-columns: 1fr;
+  }
+}
+
+.settings-member {
+  display: block;
+  width: 100%;
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm, 4px);
+  background: var(--surface-3);
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+}
+
+.settings-member--active {
+  border-color: var(--lc-periwinkle);
+  background: var(--surface-2);
+}
+
+.settings-add {
+  margin-top: 10px;
+  padding: 6px 16px;
+  border: 1px solid var(--lc-periwinkle);
+  border-radius: var(--radius-pill);
+  background: var(--surface-3);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.settings-icon {
+  display: block;
+  width: 96px;
+  height: 96px;
+  object-fit: cover;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm, 4px);
+}
+
+.settings-field textarea#member-persona {
+  width: 100%;
+  font-family: var(--font-mono);
+}
+
+
+/* The state of a ship: a small round lamp. Running is green and blinks, a port held by something else is red, stopped is faint. */
+.settings-dot {
+  display: inline-block;
+  flex-shrink: 0;
+  width: 9px;
+  height: 9px;
+  margin-right: 6px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.18);
+  vertical-align: 0;
+}
+
+.settings-dot--running {
+  /* A deeper green than the pale "working" color, so it stands out on the colored bars too. */
+  background: #14c04d;
+  box-shadow: 0 0 6px #14c04d;
+  animation: settings-blink 1.4s ease-in-out infinite;
+}
+
+.settings-dot--conflict {
+  background: var(--state-error);
+}
+
+@keyframes settings-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .settings-dot--running {
+    animation: none;
+  }
+}
+
+.settings-state--running {
+  color: var(--lc-sky);
+}
+
+.settings-state--conflict {
+  color: var(--state-error);
+}
+
+.settings-log {
+  max-height: 260px;
+  margin: 8px 0 0;
+  padding: 8px 10px;
+  overflow: auto;
+  background: var(--surface-2);
+  border-radius: var(--radius-sm, 4px);
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  white-space: pre-wrap;
+}
+
+/* A role of a ship: a bar with the essentials, that opens to the whole form. */
+.settings-role {
+  margin-bottom: var(--frame-gap);
+}
+
+/* A role bar right under the open-all / close-all buttons */
+.settings-actions + .settings-role {
+  margin-top: 14px;
+}
+
+.settings-role-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 7px 14px 7px 10px;
+  border: none;
+  border-radius: var(--radius-pill) var(--radius-pill) var(--radius-pill) 0;
+  background: var(--lc-lilac);
+  color: var(--text-on-accent);
+  font-family: var(--font-display);
+  letter-spacing: 0.08em;
+  text-align: left;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: filter 0.1s;
+}
+
+.settings-role--open .settings-role-bar {
+  background: var(--lc-periwinkle);
+  border-radius: var(--radius-pill) var(--radius-pill) 0 0;
+}
+
+.settings-role-bar:hover {
+  filter: brightness(1.1);
+}
+
+.settings-role-chevron {
+  font-size: 0.7rem;
+}
+
+.settings-role-name {
+  font-weight: 700;
+}
+
+.settings-role-member {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  opacity: 0.75;
+}
+
+.settings-badge {
+  padding: 1px 10px;
+  border-radius: var(--radius-pill);
+  background: rgba(0, 0, 0, 0.25);
+  color: var(--text);
+  font-size: 0.8rem;
+}
+
+.settings-badge--commander {
+  background: var(--lc-amber);
+  color: var(--text-on-accent);
+}
+
+.settings-badge--chief {
+  background: var(--lc-sky);
+  color: var(--text-on-accent);
+}
+
+.settings-badge--host {
+  background: var(--bg);
+  color: var(--lc-peach);
+}
+
+.settings-badge--error {
+  background: var(--state-error);
+  color: var(--text-on-accent);
+  font-weight: 700;
+}
+
+/* The fields sit side by side when there is room, so an open role is not a long column. */
+.settings-role-body {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  column-gap: 24px;
+  padding: 12px 14px 4px;
+  border-left: 4px solid var(--lc-periwinkle);
+  background: var(--surface);
+}
+
+.settings-role-body .settings-actions {
+  grid-column: 1 / -1;
+}
+
+.settings-field > button {
+  padding: 4px 14px;
+  border: 1px solid var(--lc-periwinkle);
+  border-radius: var(--radius-pill);
+  background: var(--surface-3);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.settings-field > button:hover {
+  background: var(--hover);
+}
+
+.settings-role-body .settings-field {
+  min-width: 0;
+}
+
+.settings-role-body .settings-field input,
+.settings-role-body .settings-field select {
+  box-sizing: border-box;
+  max-width: 100%;
+}
+
+.settings-role-body > .settings-check,
+.settings-role-body > .settings-error {
+  grid-column: 1 / -1;
+}
+
+/* ===== LCARS touches ===== */
+
+/* The status at the right of the header */
+.settings-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: 24px;
+  padding-bottom: var(--frame-strip);
+  font-family: var(--font-display);
+  font-size: 0.95rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+
+/* The content is a panel of its own, rounded at the top left like the conversation on the ship's screen. */
+.settings-main {
+  margin-left: var(--frame-gap);
+  background: var(--canvas);
+  border-top-left-radius: 28px;
+  padding: 24px 28px;
+}
+
+/* Headings are bands, like the section headers of the ship's left pane. */
+.settings-section h2,
+.settings-roster-list h2,
+.settings-form h2 {
+  --band-color: var(--lc-lilac);
+  margin: 0 0 10px;
+  padding: 4px 16px 4px 12px;
+  background: var(--band-color);
+  border-radius: 0 var(--radius-pill) var(--radius-pill) 0;
+  color: var(--text-on-accent);
+  font-family: var(--font-display);
+  font-size: 0.95rem;
+  font-weight: 400;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.settings-section:nth-of-type(3n + 1) h2 { --band-color: var(--lc-peach); }
+.settings-section:nth-of-type(3n + 2) h2 { --band-color: var(--lc-lilac); }
+.settings-section:nth-of-type(3n + 3) h2 { --band-color: var(--lc-periwinkle); }
+.settings-roster-list h2 { --band-color: var(--lc-peach); }
+.settings-form h2 { --band-color: var(--lc-periwinkle); margin-top: 20px; }
+
+/* Buttons are pills in the display font; the one that saves is amber. */
+.settings-actions button,
+.settings-host button,
+.settings-add,
+.settings-field > button {
+  padding: 5px 18px;
+  border: none;
+  border-radius: var(--radius-pill);
+  background: var(--lc-periwinkle);
+  color: var(--text-on-accent);
+  font-family: var(--font-display);
+  font-size: 0.9rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: filter 0.1s;
+}
+
+.settings-actions button[type="submit"] {
+  background: var(--lc-amber);
+}
+
+.settings-actions button:hover,
+.settings-host button:hover,
+.settings-add:hover,
+.settings-field > button:hover {
+  background: var(--lc-periwinkle);
+  filter: brightness(1.12);
+}
+
+.settings-actions button[type="submit"]:hover {
+  background: var(--lc-amber);
+}
+
+/* Buttons that remove something for good are red. */
+.settings-actions button.settings-danger,
+.settings-host button.settings-danger {
+  background: var(--state-error);
+}
+
+.settings-actions button.settings-danger:hover,
+.settings-host button.settings-danger:hover {
+  background: var(--state-error);
+}
+
+.settings-actions button:disabled,
+.settings-host button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+/* The members and ships in a list are bars. */
+.settings-roster-list .settings-list li {
+  padding: 0;
+  border-bottom: none;
+}
+
+.settings-roster-list .settings-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--frame-gap);
+  margin-bottom: 10px;
+}
+
+.settings-member {
+  --bar-color: var(--lc-lilac);
+  width: calc(100% - 12px);
+  padding: 6px 14px 6px 10px;
+  border: none;
+  border-radius: 0 var(--radius-pill) var(--radius-pill) 0;
+  background: var(--bar-color);
+  color: var(--text-on-accent);
+  font-family: var(--font-display);
+  letter-spacing: 0.06em;
+  text-align: left;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: filter 0.1s, width 0.12s;
+}
+
+.settings-roster-list .settings-list li:nth-child(3n + 1) .settings-member { --bar-color: var(--lc-lilac); }
+.settings-roster-list .settings-list li:nth-child(3n + 2) .settings-member { --bar-color: var(--lc-periwinkle); }
+.settings-roster-list .settings-list li:nth-child(3n + 3) .settings-member { --bar-color: var(--lc-apricot); }
+
+.settings-member:hover {
+  filter: brightness(1.12);
+}
+
+.settings-member--active {
+  width: 100%;
+  border: none;
+  background: var(--bar-color);
+  filter: brightness(1.2);
+}
+
+.settings-member code {
+  color: inherit;
+  font-family: inherit;
+  font-weight: 700;
+}
+
+/* In the header the lamp sits on black, so "stopped" is a faint light one there. */
+.settings-status .settings-dot:not(.settings-dot--running):not(.settings-dot--conflict) {
+  background: rgba(255, 255, 255, 0.22);
+}
+
+.settings-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 4px 0;
+  color: var(--text);
+}
+
+/* The language switch sits at the right, before the status */
+.settings-header-switch {
+  margin-left: auto;
+}
+
+/* IDs are case-sensitive, so they are never shown in upper case (the bars around them are). */
+.settings-member code,
+.settings-list code,
+.settings-dir {
+  text-transform: none;
+}
+
+/* Narrow windows: the navigation goes above the content instead of beside it. */
+@media (max-width: 720px) {
+  .settings-body {
+    flex-direction: column;
+  }
+
+  .settings-nav {
+    flex-direction: row;
+    flex-wrap: wrap;
+    width: auto;
+  }
+
+  .settings-main {
+    min-width: 0;
+  }
+
+  .settings-header {
+    flex-wrap: wrap;
+  }
+}

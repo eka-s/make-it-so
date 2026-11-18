@@ -1,0 +1,45 @@
+/* The hole between two loaded stretches of the history: a dashed rule with a button on each
+   side (above: continue the older stretch, below: go back from the newer one). */
+.gap-row {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 16px 20px;
+  /* Reach the edges of the conversation area (it has a 20px side padding): a band, not a box */
+  margin: 14px -20px;
+  /* A lighter tinted band, so the place where the history is cut stands out from the dark
+     conversation around it. */
+  background: rgba(153, 153, 204, 0.3);
+  border-top: 2px dashed var(--lc-periwinkle);
+  border-bottom: 2px dashed var(--lc-periwinkle);
+}
+
+.gap-row-hint {
+  font-size: 0.8rem;
+  color: var(--text);
+  text-align: center;
+}
+
+.gap-row-btn {
+  padding: 3px 16px;
+  border: 2px solid var(--lc-peach);
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--lc-peach);
+  font-family: var(--font-display);
+  font-size: 0.85rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.gap-row-btn:hover:not(:disabled) {
+  background: var(--lc-peach);
+  color: var(--text-on-accent);
+}
+
+.gap-row-btn:disabled {
+  opacity: 0.5;
+  cursor: wait;
+}

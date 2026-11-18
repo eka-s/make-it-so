@@ -1,0 +1,6 @@
+.pin-panel-empty {
+  font-size: 0.8rem;
+  color: var(--text-dim);
+  font-style: italic;
+  padding: 4px 8px;
+}

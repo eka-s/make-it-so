@@ -1,0 +1,484 @@
+/*
+ * ===== Conversation search (palette) =====
+ *    A wide popup at the center of the screen. Its look is matched to the personnel record popup (a heading band with a rounded elbow).
+ */
+
+.search-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 7vh 16px 16px;
+  background: rgba(0, 0, 0, 0.6);
+}
+
+/*
+ * While closed it is only hidden (so that the search terms, conditions, and results remain when it is reopened)
+ */
+.search-backdrop--hidden {
+  display: none;
+}
+
+.search-popup {
+  width: min(1040px, 100%);
+  max-height: 84vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--surface-popup);
+  border: 1px solid var(--lc-violet);
+  border-radius: 28px 10px 10px 10px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.7);
+  overflow: hidden;
+}
+
+.search-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 14px 0 28px;
+  height: 38px;
+  flex-shrink: 0;
+  background: var(--lc-amber);
+  color: #000;
+}
+
+.search-header-title {
+  flex: 1;
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.search-close {
+  border: none;
+  background: rgba(0, 0, 0, 0.2);
+  color: #000;
+  width: 26px;
+  height: 26px;
+  border-radius: var(--radius-pill);
+  font-size: 1.1rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.search-close:hover {
+  background: rgba(0, 0, 0, 0.4);
+  color: #fff;
+}
+
+.search-controls {
+  padding: 12px 16px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.search-input {
+  width: 100%;
+  padding: 9px 12px;
+  border: 2px solid var(--lc-periwinkle);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 0.95rem;
+  font-family: inherit;
+}
+
+.search-input:focus {
+  outline: none;
+  border-color: var(--lc-amber);
+}
+
+.search-filters {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  font-size: 0.8rem;
+}
+
+.search-filter {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.search-filter-label {
+  width: 84px;
+  flex-shrink: 0;
+  font-family: var(--font-display);
+  font-size: 0.78rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--lc-amber);
+}
+
+.search-filter label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+}
+
+.search-filter input[type="date"] {
+  padding: 2px 6px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 0.8rem;
+  color-scheme: dark;
+}
+
+.search-chip {
+  padding: 3px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  background: var(--surface-3);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 0.78rem;
+  cursor: pointer;
+}
+
+.search-chip:hover {
+  border-color: var(--lc-periwinkle);
+  background: var(--hover);
+}
+
+.search-missions {
+  margin-left: 94px;
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.search-missions-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.search-missions-list {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  max-height: 140px;
+  overflow-y: auto;
+}
+
+.search-missions-list label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+}
+
+.search-mission--archived {
+  color: var(--text-dim);
+}
+
+/* Switching the grouping (3 buttons) */
+.search-segmented {
+  display: inline-flex;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  overflow: hidden;
+}
+
+.search-segment {
+  padding: 3px 12px;
+  border: none;
+  background: var(--surface-3);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 0.78rem;
+  cursor: pointer;
+}
+
+.search-segment + .search-segment {
+  border-left: 1px solid var(--border);
+}
+
+.search-segment--on {
+  background: var(--lc-periwinkle);
+  color: #000;
+  font-weight: 600;
+}
+
+/*
+ * The results area: the fixed part above (the count, collapse all, the table of contents) does not move, and only the list below scrolls
+ */
+.search-results-pane {
+  flex: 1;
+  min-height: 120px;
+  display: flex;
+  flex-direction: column;
+}
+
+.search-results-fixed {
+  flex-shrink: 0;
+  padding: 6px 16px 4px;
+  border-bottom: 1px solid var(--border);
+}
+
+.search-results {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 4px 16px 14px;
+}
+
+/* The count and collapse all/open are put on the same row (the latter at the right end) to save height */
+.search-summary-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+
+.search-note,
+.search-summary {
+  margin: 4px 0;
+  font-size: 0.8rem;
+  color: var(--text-dim);
+}
+
+.search-note--error {
+  color: var(--state-error);
+}
+
+/*
+ * Groups (mission, crew): the background color is changed slightly between odd and even to make the separation easy to see
+ */
+.search-group {
+  margin-top: 8px;
+  padding: 2px 6px 6px;
+  border-radius: 8px;
+}
+
+.search-group--depth0.search-group--even {
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.search-group--depth0.search-group--odd {
+  background: rgba(255, 255, 255, 0.075);
+}
+
+.search-group--depth1 {
+  margin-left: 10px;
+  margin-top: 4px;
+}
+
+.search-group--depth1.search-group--even {
+  background: rgba(0, 0, 0, 0.12);
+}
+
+.search-group--depth1.search-group--odd {
+  background: rgba(0, 0, 0, 0.24);
+}
+
+/* Heading (click to collapse/open). To make the separation stand out, it is a colored band in light blue */
+.search-group-title {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  width: 100%;
+  margin: 0 0 4px;
+  padding: 6px 10px;
+  border: none;
+  border-left: 5px solid var(--lc-sky);
+  border-radius: 5px;
+  background: rgba(100, 175, 245, 0.45);
+  font-family: var(--font-display);
+  font-size: 0.95rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #ffffff;
+  text-align: left;
+  cursor: pointer;
+}
+
+.search-group-title:hover {
+  background: rgba(100, 175, 245, 0.62);
+}
+
+/*
+ * For mission × crew, the heading of the inner crew group is a slightly greenish light blue (cyan-ish) to tell it apart from the parent
+ */
+.search-group--depth1 .search-group-title {
+  border-left-color: #5fd8e8;
+  background: rgba(60, 200, 220, 0.34);
+  color: #eafcff;
+  font-size: 0.84rem;
+}
+
+.search-group--depth1 .search-group-title:hover {
+  background: rgba(60, 200, 220, 0.5);
+}
+
+.search-group-chevron {
+  width: 0.9em;
+  flex-shrink: 0;
+  font-size: 0.75em;
+}
+
+.search-group-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.search-group-count {
+  font-size: 0.72rem;
+  color: inherit;
+  opacity: 0.8;
+}
+
+/* Links to the groups (the table of contents), fixed at the top of the results */
+.search-nav {
+  margin-top: 4px;
+  max-height: 96px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.search-nav-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 6px;
+}
+
+.search-nav-chip {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+  max-width: 220px;
+  padding: 2px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  background: var(--surface-3);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+
+.search-nav-chip:hover {
+  border-color: var(--lc-periwinkle);
+  background: var(--hover);
+}
+
+.search-nav-chip--parent {
+  border-color: var(--lc-lilac);
+  color: var(--lc-lilac);
+  font-weight: 600;
+}
+
+.search-nav-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.search-nav-count {
+  font-size: 0.68rem;
+  color: var(--text-dim);
+}
+
+/* Collapse all / open */
+.search-bulk {
+  display: flex;
+  flex-shrink: 0;
+  gap: 10px;
+}
+
+.search-bulk-btn {
+  border: none;
+  background: none;
+  color: var(--lc-periwinkle);
+  font-family: inherit;
+  font-size: 0.72rem;
+  cursor: pointer;
+}
+
+.search-bulk-btn:hover {
+  color: var(--lc-sky);
+}
+
+.search-hit {
+  display: block;
+  width: 100%;
+  padding: 6px 10px;
+  border: none;
+  border-left: 3px solid transparent;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text);
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.search-hit--active {
+  background: var(--hover);
+  border-left-color: var(--lc-amber);
+}
+
+.search-hit-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 2px;
+  font-size: 0.7rem;
+  color: var(--text-dim);
+  flex-wrap: wrap;
+}
+
+.search-hit-who {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--text);
+  font-weight: 600;
+}
+
+.search-hit-kind {
+  padding: 0 6px;
+  border: 1px solid var(--lc-periwinkle);
+  border-radius: var(--radius-pill);
+  color: var(--lc-periwinkle);
+}
+
+.search-hit-mission {
+  color: var(--lc-lilac);
+}
+
+.search-snippet {
+  display: block;
+  font-size: 0.82rem;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.search-snippet mark {
+  background: rgba(255, 153, 0, 0.35);
+  color: inherit;
+  border-radius: 2px;
+  padding: 0 1px;
+}

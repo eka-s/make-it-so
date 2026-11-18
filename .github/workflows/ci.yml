@@ -1,0 +1,23 @@
+name: CI
+
+# Runs lint, type checks, the tests and the build on every push and pull request.
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .tool-versions
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test
+      # The build needs no configuration (nothing is read from ~/.make-it-so), so it also runs here: a broken Vite build is caught.
+      - run: npm run build

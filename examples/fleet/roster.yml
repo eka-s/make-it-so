@@ -1,0 +1,15 @@
+# The fleet roster: who the crew members are. It is shared by every ship in this fleet.
+# A member's key (alex, sam, jo) is its id; personnel/<id>.md, if present, is injected as
+# that member's persona. All names here are placeholders: rename them freely.
+crew:
+  alex:
+    name: "Alex"
+    provider: "claude"
+
+  sam:
+    name: "Sam"
+    provider: "claude"
+
+  jo:
+    name: "Jo"
+    provider: "claude"

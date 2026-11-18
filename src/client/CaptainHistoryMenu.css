@@ -1,0 +1,79 @@
+/* The captain's earlier messages, opening upward from the top left of the input box (like the slash command candidates) */
+.history-menu-anchor {
+  position: absolute;
+  bottom: calc(100% + 4px);
+  left: 6px;
+  width: min(720px, calc(100% - 12px));
+  z-index: 21;
+}
+
+.history-menu {
+  display: flex;
+  flex-direction: column;
+  background: var(--surface-2);
+  border: 1px solid var(--lc-violet);
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6);
+}
+
+.history-menu-title {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 7px 14px 6px;
+  border-bottom: 1px solid var(--border);
+  color: var(--lc-amber);
+  font-family: var(--font-display);
+  font-size: 0.95rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.history-menu-title span {
+  color: var(--text-dim);
+  font-family: inherit;
+  font-size: 0.85rem;
+  letter-spacing: 0.02em;
+  text-transform: none;
+}
+
+/* Oldest at the top, newest at the bottom (next to the input box); the list starts scrolled to the bottom */
+.history-menu-list {
+  display: flex;
+  flex-direction: column-reverse;
+  gap: 2px;
+  max-height: 320px;
+  overflow-y: auto;
+  padding: 4px;
+}
+
+.history-menu-note {
+  margin: 0;
+  padding: 8px 14px;
+  color: var(--text-dim);
+  font-size: 1rem;
+}
+
+.history-menu-item {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  flex-shrink: 0;
+  padding: 8px 12px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 1.05rem;
+  line-height: 1.45;
+  text-align: left;
+  white-space: pre-wrap;
+  cursor: pointer;
+}
+
+.history-menu-item--active {
+  background: var(--hover);
+  box-shadow: inset 3px 0 0 var(--lc-amber);
+}

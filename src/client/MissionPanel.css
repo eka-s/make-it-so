@@ -1,0 +1,272 @@
+/*
+ * Mission list and creation form (the heading part is in CollapsibleSection.css).
+ *    When open it has an explicit height (changed by dragging, specified by style from MissionPanel.tsx)
+ *    and is a vertical flex, so only the list (.mission-panel-list) is the scrolling
+ *    area, and "+ New mission" has flex-shrink:0, does not scroll, and is always fixed at the bottom
+ *    — a dedicated layout, unlike the "the whole body scrolls" of the other sections (left-section-body).
+ *    When closed no style is attached, and it has the natural height of just the one selected mission.
+ */
+.mission-panel-body {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+  padding: 8px;
+  gap: 6px;
+  /*
+   * The heading and the background had the same color so the boundary was hard to see, so only the content part
+   *      is made a little brighter and bluer. It is unified with the same blue-ish overlay color as the other two sections
+   *      (left-section-body).
+   */
+  background: transparent;
+}
+
+/* Search field (always at the top when opened; AND narrowing by space-separated terms). */
+.mission-panel-filter {
+  flex-shrink: 0;
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface-2);
+  color: var(--text);
+  font-size: 0.78rem;
+  font-family: inherit;
+  outline: none;
+}
+
+.mission-panel-filter:focus {
+  border-color: var(--lc-amber);
+}
+
+/* The "Show archived" checkbox. */
+.mission-panel-archived-toggle {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 2px;
+  color: var(--text-dim);
+  font-size: 0.72rem;
+  cursor: pointer;
+}
+
+.mission-panel-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  /*
+   * Leave room so that the glowing outline and shadow are not clipped at the edge of the list (widen outward by the same amount, so the visible position does not change)
+   */
+  padding: 6px;
+  margin: -6px;
+}
+
+/*
+ * The default state where the height has not been dragged (null). mission-panel-body itself has no explicit
+ *    height, so leaving it at flex:1 (flex-basis:0%) would collapse it
+ *    — with flex-basis:auto it opens at the natural height of the list (= the height at which everything is visible).
+ */
+.mission-panel-list--auto {
+  flex: 0 0 auto;
+}
+
+/*
+ * To put the archive button next to the select button, the whole row is a div + two inner
+ *    buttons (select/archive) (because nesting buttons is not allowed in HTML).
+ */
+.mission-panel-item {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  border-radius: 6px;
+  transition: background 0.1s;
+}
+
+.mission-panel-item:hover {
+  background: var(--hover);
+}
+
+/*
+ * Makes that row glow when another mission was switched to. The background of the whole row, not just the outline, is painted bright orange, and it glows
+ *    widely outside too. From there it slowly returns to the original background (--mission-row-bg) (the same idea as the highlight of the jump target in the conversation)
+ */
+.mission-panel-item--flash {
+  animation: mission-flash 2.4s ease-out 1;
+}
+
+.mission-panel-item--flash .mission-panel-item-name {
+  font-weight: 700;
+}
+
+@keyframes mission-flash {
+  0%, 15% {
+    background: rgba(255, 170, 40, 0.78);
+    box-shadow: 0 0 0 2px rgba(255, 190, 80, 1), 0 0 22px 6px rgba(255, 153, 0, 0.8);
+  }
+  100% {
+    background: var(--mission-row-bg, transparent);
+    box-shadow: 0 0 0 2px rgba(255, 190, 80, 0), 0 0 22px 6px rgba(255, 153, 0, 0);
+  }
+}
+
+.mission-panel-item--current {
+  --mission-row-bg: rgba(204, 153, 204, 0.22);
+  background: var(--mission-row-bg);
+}
+
+/* An archived one is shown faintly so it is not conspicuous in the list. */
+.mission-panel-item--archived .mission-panel-item-select {
+  color: var(--text-dim);
+  font-style: italic;
+}
+
+.mission-panel-item-select {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  padding: 6px 8px;
+  border: none;
+  background: transparent;
+  color: var(--text);
+  font-size: 0.78rem;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.mission-panel-item--current .mission-panel-item-select {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.mission-panel-item-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mission-panel-check {
+  color: var(--lc-peach);
+  flex-shrink: 0;
+}
+
+.mission-panel-item-archive {
+  flex-shrink: 0;
+  margin-right: 4px;
+  padding: 3px 6px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-dim);
+  font-size: 0.68rem;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.1s, color 0.1s;
+}
+
+.mission-panel-item-archive:hover:not(:disabled) {
+  background: var(--hover);
+  color: var(--text);
+}
+
+/* The selected mission cannot be archived (make it look unpressable). */
+.mission-panel-item-archive:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.mission-panel-new-btn {
+  flex-shrink: 0;
+  width: 100%;
+  padding: 7px 10px;
+  border: 1px dashed var(--border);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-dim);
+  font-size: 0.78rem;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.1s, color 0.1s;
+}
+
+.mission-panel-new-btn:hover {
+  background: var(--hover);
+  color: var(--text);
+}
+
+.mission-panel-create {
+  flex-shrink: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.mission-panel-input {
+  flex: 1 1 100%;
+  min-width: 0;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface-2);
+  color: var(--text);
+  font-size: 0.78rem;
+  font-family: inherit;
+  outline: none;
+}
+
+.mission-panel-input:focus {
+  border-color: var(--lc-amber);
+}
+
+.mission-panel-create-actions {
+  display: flex;
+  gap: 6px;
+  width: 100%;
+}
+
+.mission-panel-create-btn {
+  flex: 1;
+  padding: 6px 10px;
+  border: none;
+  border-radius: 6px;
+  background: var(--lc-peach);
+  color: var(--text-on-accent);
+  font-size: 0.78rem;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.mission-panel-create-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.mission-panel-cancel-btn {
+  flex: 1;
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-dim);
+  font-size: 0.78rem;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.mission-panel-cancel-btn:hover {
+  background: var(--hover);
+}
+
+.mission-panel-error {
+  flex-basis: 100%;
+  margin: 0;
+  font-size: 0.72rem;
+  color: var(--state-error);
+}

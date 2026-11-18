@@ -1,0 +1,169 @@
+/*
+ * The custom menu button sits last in the button column beside the message box (it looks like the other buttons,
+ * .chat-input-btn); the list opens upward from it, and the editor opens as a dialog.
+ */
+.quick-actions-menu {
+  position: relative;
+}
+
+.quick-actions-dropdown {
+  position: absolute;
+  bottom: calc(100% + 4px);
+  right: 0;
+  max-height: 60vh;
+  overflow-y: auto;
+  width: 300px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6);
+  padding: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  z-index: 20;
+}
+
+.quick-actions-item {
+  padding: 7px 10px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text);
+  font-size: 0.8rem;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s;
+  white-space: nowrap;
+}
+
+.quick-actions-item:hover:not(:disabled) {
+  background: var(--hover);
+}
+
+.quick-actions-item:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.quick-actions-item--settings {
+  margin-top: 2px;
+  border-top: 1px solid var(--border);
+  border-radius: 0 0 6px 6px;
+  color: var(--text-dim);
+}
+
+.quick-actions-item {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.quick-actions-item-command {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--text-dim);
+  font-size: 0.7rem;
+}
+
+.quick-actions-fill-mark {
+  color: var(--text-dim);
+}
+
+.quick-actions-note {
+  margin: 0;
+  padding: 6px 10px;
+  color: var(--text-dim);
+  font-size: 0.75rem;
+}
+
+/* The editor dialog */
+.qa-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(0, 0, 0, 0.6);
+}
+
+.qa-dialog {
+  width: min(720px, 100%);
+  max-height: calc(100vh - 32px);
+  display: flex;
+  flex-direction: column;
+  background: var(--surface-popup);
+  border: 1px solid var(--lc-violet);
+  border-radius: 28px 10px 10px 10px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.7);
+  overflow: hidden;
+}
+
+.qa-dialog-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 38px;
+  padding: 0 14px 0 28px;
+  flex-shrink: 0;
+  background: var(--lc-amber);
+  color: #000;
+  font-family: var(--font-display);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.qa-dialog-close {
+  border: none;
+  background: transparent;
+  color: inherit;
+  font-size: 1.3rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.qa-dialog-body {
+  padding: 12px 16px;
+  overflow-y: auto;
+}
+
+.qa-dialog-help {
+  margin: 0 0 10px;
+  color: var(--text-dim);
+  font-size: 0.8rem;
+}
+
+.qa-dialog-footer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border-top: 1px solid var(--border);
+}
+
+.qa-dialog-spacer {
+  flex: 1;
+}
+
+.qa-dialog-footer button {
+  padding: 4px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  background: var(--surface-3);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.qa-dialog-footer button:hover:not(:disabled) {
+  border-color: var(--lc-periwinkle);
+  background: var(--hover);
+}
+
+.qa-dialog-footer .qa-dialog-save {
+  background: var(--lc-amber);
+  border-color: var(--lc-amber);
+  color: var(--text-on-accent);
+}

@@ -1,0 +1,374 @@
+.crew-status-placeholder {
+  font-size: 0.8rem;
+  color: var(--text-dim);
+  font-style: italic;
+  padding: 4px 8px;
+}
+
+.crew-status-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.crew-status-row {
+  /*
+   * Do not put border-radius + overflow: hidden here: it would clip the child
+   *      icon-click restart menu (an absolutely positioned popup, see
+   *      .crew-status-icon-menu below) too, and before the task history is
+   *      expanded (the row height is only the header height) the popup would not be visible.
+   *      Rounded corners are something the background follows naturally, so
+   *      overflow: hidden is unnecessary — by giving the header (.crew-status-row-header) its own
+   *      border-radius, the same look is achieved without clipping.
+   */
+}
+
+/*
+ * Fixing the column widths with a grid aligns the X position of the status text and
+ *    badges across all rows regardless of the name length.
+ */
+.crew-status-row-header {
+  width: 100%;
+  display: grid;
+  /*
+   * Only the name column stretches and shrinks (widening the left pane makes long names visible).
+   *      The other columns have a fixed width, so the positions of the status, bar, and badge line up across all rows.
+   *      The order is icon, dot, name, status, context, unreported badge, arrow.
+   */
+  grid-template-columns: 26px 10px minmax(68px, 1fr) 54px 66px 44px 12px;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 6px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text);
+  font-size: 0.8rem;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.1s;
+}
+
+.crew-status-row-header:hover {
+  background: var(--hover);
+}
+
+/*
+ * The commander's row (which has no task history) cannot be expanded, so it is a <div> instead of a <button>
+ *    — it looks the same but does not react to clicks (cursor: default).
+ */
+.crew-status-row-header--static {
+  cursor: default;
+}
+
+.crew-status-row-header--static:hover {
+  background: transparent;
+}
+
+/*
+ * The restart menu shown by clicking the icon. To make it a target independent of
+ *    the click on the row itself (expand/collapse), only the icon is a separate element.
+ */
+.crew-status-icon-wrap {
+  position: relative;
+  display: inline-flex;
+}
+
+.crew-status-icon-btn {
+  display: inline-flex;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: box-shadow 0.15s;
+}
+
+.crew-status-icon-btn:hover,
+.crew-status-icon-btn:focus-visible {
+  box-shadow: 0 0 0 2px var(--lc-amber);
+  outline: none;
+}
+
+
+.crew-status-restart-message {
+  margin: 6px 8px 0;
+  font-size: 0.72rem;
+  color: var(--text-dim);
+  text-align: center;
+}
+
+.crew-status-dot {
+  font-size: 0.6rem;
+  line-height: 1;
+}
+
+.crew-status-dot--idle {
+  color: var(--text-dim);
+}
+
+.crew-status-dot--working {
+  color: var(--state-working);
+  animation: crew-status-pulse 1.2s ease-in-out infinite;
+}
+
+.crew-status-dot--starting,
+.crew-status-dot--restarting {
+  color: var(--state-starting);
+  animation: crew-status-pulse 0.8s ease-in-out infinite;
+}
+
+.crew-status-name {
+  font-family: "Cascadia Code", "Fira Code", Consolas, monospace;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  /*
+   * A workaround for the default min-width (auto) of CSS Grid — without it a long name widens the column
+   *      and the X positions drift.
+   */
+  min-width: 0;
+}
+
+.crew-status-label {
+  color: var(--text-dim);
+  font-size: 0.72rem;
+}
+
+.crew-status-label--working {
+  color: var(--state-working);
+  font-weight: 600;
+  animation: crew-status-label-pulse 1.6s ease-in-out infinite;
+}
+
+.crew-status-label--starting {
+  color: var(--state-starting);
+  font-weight: 700;
+  white-space: nowrap;
+  animation: crew-status-label-blink 0.8s ease-in-out infinite;
+}
+
+@keyframes crew-status-label-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.25; }
+}
+
+.crew-unreported-badge {
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: var(--lc-lilac);
+  background: rgba(204, 153, 204, 0.15);
+  border-radius: 10px;
+  padding: 1px 5px;
+  white-space: nowrap;
+}
+
+.crew-unreported-slot {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.crew-status-chevron {
+  font-size: 0.6rem;
+  color: var(--text-dim);
+  transition: transform 0.15s;
+}
+
+.crew-status-chevron--open {
+  transform: rotate(90deg);
+}
+
+@keyframes crew-status-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.4; transform: scale(0.7); }
+}
+
+@keyframes crew-status-label-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.55; }
+}
+
+/* The task history when a row is expanded */
+.crew-status-history {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 2px 4px 6px 32px;
+}
+
+.crew-status-history-loading,
+.crew-status-history-empty {
+  font-size: 0.72rem;
+  color: var(--text-dim);
+  padding: 4px 4px;
+  font-style: italic;
+}
+
+/*
+ * It was decided that it is better to know both the task name (not necessarily self-explanatory; a short English name the commander gave it) and
+ *    the taskId (unique and mechanical, but the bare ID alone does not tell what the task is),
+ *    so both are shown on two lines.
+ */
+.crew-status-history-item {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  width: 100%;
+  padding: 4px 6px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text);
+  font-size: 0.72rem;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.1s;
+}
+
+.crew-status-history-item:hover {
+  background: var(--hover);
+}
+
+.crew-status-history-item--working {
+  color: var(--state-working);
+}
+
+.crew-status-history-item--error {
+  color: var(--state-error);
+}
+
+.crew-status-history-dot {
+  font-size: 0.55rem;
+  color: var(--state-working);
+  margin-right: 4px;
+  animation: crew-status-pulse 1.2s ease-in-out infinite;
+}
+
+.crew-status-history-taskid {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/*
+ * The ID text of a running task itself also blinks (just the dot is not noticeable).
+ *    It reuses the same restrained fade as .crew-status-label--working of the row header.
+ */
+.crew-status-history-item--working .crew-status-history-taskid {
+  animation: crew-status-label-pulse 1.6s ease-in-out infinite;
+}
+
+.crew-status-history-meta {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.crew-status-history-taskname {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.66rem;
+  color: var(--text-dim);
+  font-variant-numeric: tabular-nums;
+}
+
+.crew-status-history-time {
+  flex-shrink: 0;
+  font-size: 0.66rem;
+  color: var(--text-dim);
+  font-variant-numeric: tabular-nums;
+}
+
+.crew-status-history-more {
+  margin-top: 2px;
+  padding: 4px 6px;
+  border: none;
+  border-radius: 4px;
+  background: var(--hover);
+  color: var(--lc-periwinkle);
+  font-size: 0.7rem;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.crew-status-history-more:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.14);
+}
+
+.crew-status-history-more:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Model selection inside the icon menu */
+.crew-status-model {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px 8px 4px;
+  border-top: 1px solid var(--border);
+  margin-top: 4px;
+}
+.crew-status-model-label {
+  font-size: 0.7rem;
+  color: var(--text-dim);
+}
+.crew-status-model select {
+  font-size: 0.78rem;
+  padding: 3px 4px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--surface-3);
+  color: var(--text);
+}
+
+/* The context usage next to the status (a short bar + the percentage on the right) */
+.crew-context {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  min-width: 0;
+}
+.crew-context-bar {
+  display: inline-block;
+  width: 36px;
+  height: 4px;
+  background: var(--surface-3);
+  border-radius: 2px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+.crew-context-bar-fill {
+  display: block;
+  height: 100%;
+  border-radius: 2px;
+  transition: width 0.3s ease, background-color 0.3s ease;
+}
+.crew-context-value {
+  font-size: 0.68rem;
+  color: var(--text-dim);
+  white-space: nowrap;
+}
+
+/*
+ * A crew member awaiting approval: the whole row is made prominent with an amber outline and pulsing, and the status label is replaced
+ */
+.crew-status-row-header--pending {
+  background: rgba(255, 225, 77, 0.14);
+  box-shadow: inset 0 0 0 1px var(--state-attention);
+  animation: crew-pending-glow 1.4s ease-in-out infinite;
+}
+.crew-status-label--pending {
+  color: var(--state-attention);
+  font-weight: 700;
+  white-space: nowrap;
+}
+@keyframes crew-pending-glow {
+  0%, 100% { box-shadow: inset 0 0 0 1px var(--state-attention), 0 0 0 rgba(255, 225, 77, 0); }
+  50% { box-shadow: inset 0 0 0 1px var(--state-attention), 0 0 10px rgba(255, 225, 77, 0.5); }
+}

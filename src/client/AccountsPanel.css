@@ -1,0 +1,132 @@
+/* ===== Accounts section of the left pane (credit usage) ===== */
+
+.accounts-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.accounts-placeholder {
+  font-size: 0.8rem;
+  color: var(--text-dim);
+  font-style: italic;
+  padding: 4px 8px;
+}
+
+.accounts-card {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 7px 9px;
+  border: 1px solid var(--surface-3);
+  border-left: 3px solid var(--lc-amber);
+  border-radius: 6px;
+}
+
+.accounts-card--untracked {
+  border-left-color: var(--text-dim);
+}
+
+.accounts-card-title {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+}
+
+.accounts-card-name {
+  font-size: 0.8rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.accounts-card-name--unknown {
+  color: var(--text-dim);
+}
+
+.accounts-card-plan {
+  flex-shrink: 0;
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--lc-amber);
+}
+
+.accounts-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: -4px;
+}
+
+.accounts-refresh {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 0.7rem;
+  padding: 2px;
+  opacity: 0.7;
+  transition: opacity 0.2s, transform 0.15s;
+}
+
+.accounts-refresh:hover:not(:disabled) {
+  opacity: 1;
+  transform: scale(1.2);
+}
+
+.accounts-refresh:disabled {
+  cursor: default;
+  opacity: 0.3;
+}
+
+.accounts-usage {
+  display: grid;
+  grid-template-columns: 52px 80px 1fr;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.7rem;
+}
+
+.accounts-usage-label {
+  font-family: var(--font-display);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--lc-amber);
+  white-space: nowrap;
+}
+
+.accounts-usage-bar {
+  height: 8px;
+  background: var(--surface-3);
+  border-radius: var(--radius-pill);
+  overflow: hidden;
+}
+
+.accounts-usage-bar-fill {
+  height: 100%;
+  border-radius: var(--radius-pill);
+  transition: width 0.3s ease, background-color 0.3s ease;
+}
+
+.accounts-usage-value {
+  white-space: nowrap;
+}
+
+.accounts-usage-resets {
+  font-size: 0.65rem;
+  color: var(--text-dim);
+}
+
+.accounts-usage--waiting .accounts-usage-value {
+  color: var(--text-dim);
+}
+
+.accounts-crews {
+  font-size: 0.72rem;
+  color: var(--text-dim);
+}
+
+.accounts-note {
+  font-size: 0.68rem;
+  color: var(--text-dim);
+}

@@ -1,0 +1,11 @@
+node_modules/
+dist/
+config.yml
+*.log
+data/
+MEMO.md
+.claude/
+.env
+.DS_Store
+coverage/
+tmp/

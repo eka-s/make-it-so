@@ -1,0 +1,36 @@
+# One ship: its port, and which roster member (../../roster.yml) holds which role.
+# A role's name is free. What a crew member may do with tasks is set by its `rank`:
+#   commander  delegates tasks (dispatch_task) and oversees every task's report. At most one per ship.
+#   chief      delegates tasks and reports on the tasks it delegated itself.
+#   crew       (the default) does the work; it cannot delegate.
+# The crew member you talk to by default is the commander, or else the first one listed.
+port: 3939
+name: "Example Ship"
+
+# Rules injected in full into every crew member's briefing (path relative to this directory).
+rules:
+  - rules/working-agreement.md
+
+# Directories this ship works on, given a name. A crew member's `access` below says which of
+# them it may read or write. This is a convention told to the model, not an access control.
+# targets:
+#   app: /path/to/your/project
+
+crew:
+  first_officer:
+    member: alex
+    rank: commander
+
+  chief_engineer:
+    member: sam
+    rank: chief
+    # access:
+    #   app: readwrite     # or readonly
+
+  ensign:
+    member: jo
+    # Ask for confirmation before every action that changes something.
+    permission_mode: default
+    # Other optional keys: model (e.g. "sonnet"), cwd (the working directory; default: this directory),
+    # agent (use the provider's own agent definition as the persona instead of personnel/jo.md),
+    # host (run on a remote host defined in hosts.yml; see README).

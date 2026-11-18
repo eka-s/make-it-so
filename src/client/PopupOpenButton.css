@@ -1,0 +1,52 @@
+/* The "show in popup" button that appears at the top right of a list item when the mouse is over it */
+.popup-row {
+  position: relative;
+}
+
+.popup-open-btn {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 1px solid var(--lc-periwinkle);
+  border-radius: 5px;
+  background: var(--surface-2);
+  color: var(--text);
+  cursor: pointer;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.12s ease, background 0.12s ease;
+  z-index: 2;
+}
+
+.popup-row:hover .popup-open-btn,
+.popup-row:focus-within .popup-open-btn {
+  opacity: 0.85;
+  pointer-events: auto;
+}
+
+.popup-open-btn:hover {
+  opacity: 1;
+  background: var(--hover);
+}
+
+/*
+ * The version placed within a row of headings (the task card in the conversation). Visible when the mouse is over the card
+ */
+.popup-open-btn--inline {
+  position: static;
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+}
+
+.message:hover .popup-open-btn--inline,
+.message:focus-within .popup-open-btn--inline {
+  opacity: 0.85;
+  pointer-events: auto;
+}

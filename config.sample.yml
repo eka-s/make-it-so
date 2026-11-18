@@ -1,0 +1,113 @@
+server:
+  # host: "127.0.0.1"  # Loopback only by default (the server has no authentication). Change only if you need to expose it on the LAN.
+
+# UI language: "en" | "ja" (default: "en").
+# A language chosen in the UI is saved in the ship's database and overrides this.
+language: "en"
+# The language the crew speaks: "en" | "ja" (default: the value of `language`).
+# Set it to talk to the crew in another language than the UI, e.g. an English UI with a Japanese crew.
+# A language chosen in the UI is saved in the ship's database and overrides this.
+# crew_language: "ja"
+
+acp:
+  provider: "claude" # The global fallback. Used when roster.yml does not specify a provider for a crew member (a ship.yml cannot set it).
+  kiro:
+    command: "kiro-cli"
+    # kiro-cli's tool-call leak (an intermittent bug) cannot be avoided by switching --agent-engine
+    # (it recurs with v1, v2, and v3). Do not specify the engine for that purpose
+    # (docs/KNOWN_ISSUE_kiro-cli_tool_call.md).
+    args: ["acp"]
+  claude:
+    command: "npx"
+    args: ["--yes", "@agentclientprotocol/claude-agent-acp@0.106.0"]
+
+# Everything lives in ~/.make-it-so/ (the fleet): this file (config.yml; optional), the roster
+# (roster.yml + personnel/: the crew members' persona definitions), hosts.yml, and ships/.
+# The location is fixed. ~/.make-it-so/roster.yml (the crew: list) is required — if it is not found, startup
+# fails with an error (there is no silent fallback to a default composition: the roster is
+# an essential setting, and it is more dangerous to start without noticing that it is missing).
+# `npm run init` creates a minimal one.
+#
+# The list of ships is not kept here — it is decided automatically by scanning under
+# ~/.make-it-so/ships/ (a directory with a ship.yml is a ship candidate), so that adding a ship
+# only means adding a directory there.
+#
+# One make-it-so process always handles exactly one ship — to run several ships at the same time,
+# start a separate process per ship. Which ship to start as is chosen with the
+# `--ship <id>` argument (it can be omitted if there is only one ship; if there are several
+# and it is not given, an error lists the candidates). There is deliberately no override of the ship's
+# settings by environment variables — it could be a trap that silently breaks the data separation between ships.
+#
+# Each ship's port is written in that ship's own ship.yml (it is part of what makes a ship a ship)
+# — omitting it is a startup error. The agents/ skills/ turns/ data/ directories under it are all
+# paths fixed by convention — there is nothing to specify individually.
+#
+# Example: ~/.make-it-so/ships/my-ship/ship.yml
+#   port: 3939
+#   targets: {}
+#   crew: { first_officer: { member: alex, rank: commander }, ... }
+#
+# cwd (where to work) and agent (who holds the persona) are separate settings:
+# - cwd: the working directory of the crew member's process and session. The ship root if omitted.
+# - agent: the name of the provider-side agent definition (kiro's .kiro/agents/{name}.json,
+#   claude's .claude/agents/{name}.md). For a crew member that has it, that definition is the persona,
+#   and make-it-so does not inject a persona (personnel/). If omitted, make-it-so injects
+#   personnel/{member}.md (no persona if it does not exist).
+#   If the name is not found, it is an error when that crew member is started.
+# Rules, skills, and the system guidance are always injected by make-it-so in either case.
+#
+#   cwd: /path/to/workspace          # per ship (the ship root if omitted)
+#   rules:  [rules/common.md]        # rules effective within the ship (injected in full, relative to the ship root)
+#   skills: [skills_extra/foo.md]    # skills effective within the ship (announced as a list, relative to the ship root)
+#   crew:
+#     first_officer:
+#       member: alex
+#       rank: commander              # rank (optional; crew if omitted): commander (oversees the reports of all tasks; at most one per ship) /
+#                                    #   chief (can issue tasks and handle those it issued) / crew (cannot issue)
+#       agent: alex_mis              # name of the provider-side agent definition (optional; if given, it holds the persona)
+#       model: opus                  # model used for this role (optional; takes priority over the roster's model; claude only)
+#       cwd: /other/dir                  # per-member override (optional)
+#
+# In ~/.make-it-so/roster.yml, rules/skills tied to an individual can be kept (relative to ~/.make-it-so):
+#   crew:
+#     sam: { name: "Sam", provider: "kiro", rules: [...], skills: [...] }
+#     jo: { name: "Jo", provider: "claude", model: sonnet }   # model: the member's default model (optional)
+
+# Settings for running an agent on a remote host (another PC or server).
+# They are written not in this file (config.yml) but in ~/.make-it-so/hosts.yml (a table of
+# host name → destination, shared via git together with the fleet). It is referenced from the crew in ship.yml with
+# `host: {name}`, in which case `cwd` must be an absolute path on the remote side.
+#
+# ~/.make-it-so/hosts.yml:
+#   hosts:
+#     dev-server:
+#       destination: dev-server    # a Host name in ~/.ssh/config, or user@host
+#
+# Only destination can be written. Connection details such as key paths, ports, users, and host key
+# handling go in each PC's ~/.ssh/config (so that information that would be trouble if it were left in git
+# by mistake cannot be put here; an unknown key is a startup error):
+#   Host dev-server
+#     HostName 192.0.2.10
+#     User me
+#     IdentityFile ~/.ssh/id_ed25519
+#
+# Authentication and encryption are left to SSH (key authentication is assumed). The remote only needs the agent
+# (kiro-cli / claude-agent-acp) and bash; no make-it-so-specific executable is required.
+# The main MCP bulletin board is reached through the reverse tunnel (ssh -R) that make-it-so
+# keeps, one per host.
+#
+# In ship.yml:
+#   crew:
+#     chief_engineer:
+#       member: sam
+#       host: dev-server
+#       cwd: /srv/project                # an absolute path on the remote side (required)
+
+debug: false
+
+# Logging (see src/server/logger.ts). Written to {ship root}/logs/app.log, at the same time as
+# the console. When unset: level: info, rotation at 5 MB
+# (app.log → app.log.1, only one generation is kept).
+# logging:
+#   level: info          # debug | info | warn | error
+#   maxFileSizeMb: 5

@@ -1,0 +1,192 @@
+/*
+ * The conversation-partner selection bar above the input box. Crew members are lined up as buttons, and those that do not fit the width are gathered into the "»" at the right end.
+ */
+.chat-target-bar {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.chat-target-label {
+  flex-shrink: 0;
+  color: var(--text-dim);
+  font-size: 0.72rem;
+}
+
+/*
+ * The area where the buttons line up. Those that do not fit the width are measured in an invisible row and moved to "»" (ChatTargetBar.tsx)
+ */
+.chat-target-track {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px; /* kept equal to GAP in ChatTargetBar.tsx */
+  overflow: hidden;
+  outline: none;
+  /*
+   * Leave room so that the selected outline is not clipped at the edge of the area (widen outward by the same amount, so the position does not change)
+   */
+  padding: 4px;
+  margin: -4px;
+}
+
+.chat-target-btn,
+.chat-target-more {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  gap: 6px;
+  padding: 4px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-2);
+  color: var(--text);
+  font-size: 0.8rem;
+  font-family: inherit;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.chat-target-btn:hover:not(:disabled),
+.chat-target-more:hover:not(:disabled) {
+  background: var(--hover);
+  border-color: var(--lc-periwinkle);
+}
+
+.chat-target-btn:disabled,
+.chat-target-more:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* The current partner */
+.chat-target-btn--current,
+.chat-target-more--current {
+  background: rgba(204, 153, 204, 0.22);
+  border-color: var(--lc-periwinkle);
+  font-weight: 600;
+}
+
+/*
+ * The destination of the next message only (selected while holding Shift): an amber dashed outline. It is cancelled when sent, going back to the one to return to (●)
+ */
+.chat-target-btn--once,
+.chat-target-more--once,
+.chat-target-menu-item--once {
+  border: 1px dashed var(--lc-amber);
+  background: rgba(255, 153, 0, 0.14);
+}
+
+.chat-target-once-tag {
+  flex-shrink: 0;
+  font-size: 0.65rem;
+  letter-spacing: 0.04em;
+  color: var(--lc-amber);
+}
+
+/* Mark of the one to return to (the base partner) */
+.chat-target-home {
+  flex-shrink: 0;
+  font-size: 0.6rem;
+  color: var(--lc-periwinkle);
+}
+
+/* The position selected with the keyboard (while selecting was started with "@") */
+.chat-target-btn--highlight,
+.chat-target-more--highlight,
+.chat-target-menu-item--highlight {
+  outline: 2px solid var(--lc-amber);
+  outline-offset: 1px;
+}
+
+/* The button being dragged, and the marker of the drop target */
+.chat-target-btn--dragging,
+.chat-target-menu-item--dragging {
+  opacity: 0.4;
+}
+
+.chat-target-btn--drop,
+.chat-target-menu-item--drop {
+  border-color: var(--lc-amber);
+  box-shadow: -3px 0 0 var(--lc-amber);
+}
+
+.chat-target-more {
+  margin-left: auto;
+  padding: 4px 10px;
+  font-weight: 700;
+}
+
+.chat-target-btn-name {
+  min-width: 0;
+}
+
+/* The invisible row for measuring widths. It must not affect the layout */
+.chat-target-measure {
+  position: absolute;
+  left: 4px;
+  top: 0;
+  height: 0;
+  overflow: hidden;
+  visibility: hidden;
+  pointer-events: none;
+  display: flex;
+  gap: 6px;
+}
+
+/* The "»" list. It opens upward from the right end of the bar */
+.chat-target-menu {
+  position: absolute;
+  bottom: calc(100% + 4px);
+  right: 0;
+  min-width: 190px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6);
+  padding: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  z-index: 20;
+}
+
+.chat-target-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 10px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text);
+  font-size: 0.8rem;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.chat-target-menu-item:hover:not(:disabled) {
+  background: var(--hover);
+}
+
+.chat-target-menu-item:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.chat-target-menu-item--current {
+  background: rgba(204, 153, 204, 0.22);
+  font-weight: 600;
+}
+
+.chat-target-current-mark {
+  margin-left: auto;
+  color: var(--lc-peach);
+}

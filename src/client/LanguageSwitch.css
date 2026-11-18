@@ -1,0 +1,141 @@
+/* Language switch in the header (right side): a pill with two segments */
+/* Header control: a quiet label in the same colors as the search/split buttons; the switches are in a popup */
+.language-menu {
+  position: relative;
+  z-index: 3;
+}
+
+.language-menu-btn {
+  padding: 4px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  background: var(--surface-3);
+  color: var(--text);
+  font-family: var(--font-display);
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  line-height: 1.2;
+  cursor: pointer;
+}
+
+.language-menu-btn:hover {
+  border-color: var(--lc-periwinkle);
+  background: var(--hover);
+}
+
+.language-menu-popup {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px 14px;
+  background: var(--surface-2);
+  border: 2px solid var(--lc-violet);
+  border-radius: 12px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+  white-space: nowrap;
+}
+
+.language-menu-popup .language-switch {
+  padding-bottom: 0;
+}
+
+/* The tag sits at the left and the two-segment toggles line up at the right edge of the popup */
+.language-menu-popup .language-switch-tag {
+  margin-right: auto;
+  padding-right: 14px;
+}
+
+.language-switch {
+  display: inline-flex;
+  align-items: center;
+  padding-bottom: var(--frame-strip);
+}
+
+.language-switch-tag {
+  margin-right: 6px;
+  color: var(--lc-peach);
+  font-family: var(--font-display);
+  font-size: 0.75rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  opacity: 0.8;
+}
+
+.language-switch-btn {
+  padding: 3px 14px;
+  border: 2px solid var(--lc-peach);
+  background: transparent;
+  color: var(--lc-peach);
+  font-family: var(--font-display);
+  font-size: 0.85rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.language-switch-btn:first-child {
+  border-radius: var(--radius-pill) 0 0 var(--radius-pill);
+}
+
+.language-switch-btn:last-child {
+  border-radius: 0 var(--radius-pill) var(--radius-pill) 0;
+  border-left-width: 0;
+}
+
+.language-switch-btn:hover {
+  background: var(--hover);
+}
+
+/* Also on hover: the plain hover rule above has the same weight and would otherwise paint over the selected segment. */
+.language-switch-btn--active,
+.language-switch-btn--active:hover {
+  background: var(--lc-peach);
+  color: var(--text-on-accent);
+  cursor: default;
+}
+
+/* Notice under the header after switching the language. It must not be missed, so it is a
+   bright band in the attention color. */
+.language-notice {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 8px 20px;
+  margin: 0 16px var(--frame-gap) 0;
+  background: var(--state-attention);
+  color: var(--text-on-accent);
+  border-radius: 0 var(--radius-pill) var(--radius-pill) 0;
+  font-size: 0.85rem;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.language-notice::before {
+  content: "⚠";
+  font-size: 1.1rem;
+}
+
+.language-notice span {
+  flex: 1;
+}
+
+.language-notice-close {
+  border: 2px solid var(--text-on-accent);
+  background: transparent;
+  color: var(--text-on-accent);
+  border-radius: var(--radius-pill);
+  padding: 1px 14px;
+  font-family: var(--font-display);
+  font-size: 0.85rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.language-notice-close:hover {
+  background: var(--text-on-accent);
+  color: var(--state-attention);
+}

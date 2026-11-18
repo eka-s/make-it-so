@@ -1,0 +1,1657 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: var(--font-body);
+  background: var(--bg);
+  color: var(--text);
+  height: 100vh;
+  overflow: hidden;
+}
+
+#root {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* The frame: a vertical spine on the left, a strip along the top (header) and along the
+   bottom (bottom bar). The strips join the spine with concave corners. */
+.app {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  padding-left: calc(var(--frame-spine) + var(--frame-gap));
+  background: var(--bg);
+}
+
+.app::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: var(--frame-spine);
+  border-radius: 40px 0 0 40px;
+  background: linear-gradient(
+    to bottom,
+    var(--lc-amber) 0 130px,
+    transparent 130px calc(130px + var(--frame-gap)),
+    var(--lc-lilac) calc(130px + var(--frame-gap)) calc(100% - 130px - var(--frame-gap)),
+    transparent calc(100% - 130px - var(--frame-gap)) calc(100% - 130px),
+    var(--lc-peach) calc(100% - 130px) 100%
+  );
+}
+
+.app-search-btn {
+  padding: 4px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  background: var(--surface-3);
+  color: var(--text);
+  font-size: 0.95rem;
+  line-height: 1;
+  cursor: pointer;
+  z-index: 1;
+}
+
+.app-search-btn:hover {
+  border-color: var(--lc-periwinkle);
+  background: var(--hover);
+}
+
+.app-header {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  height: 56px;
+  padding: 0 16px 0 0;
+  background: var(--bg);
+  color: var(--text);
+  flex-shrink: 0;
+}
+
+/* The strip under the header: colored segments */
+.app-header::after {
+  content: "";
+  position: absolute;
+  left: calc(-1 * var(--frame-gap));
+  right: 0;
+  bottom: 0;
+  height: var(--frame-strip);
+  background: linear-gradient(
+    90deg,
+    var(--lc-amber) 0 26%,
+    transparent 26% calc(26% + var(--frame-gap)),
+    var(--lc-lilac) calc(26% + var(--frame-gap)) 52%,
+    transparent 52% calc(52% + var(--frame-gap)),
+    var(--lc-peach) calc(52% + var(--frame-gap)) 78%,
+    transparent 78% calc(78% + var(--frame-gap)),
+    var(--lc-periwinkle) calc(78% + var(--frame-gap)) 100%
+  );
+  border-radius: 0 var(--radius-pill) var(--radius-pill) 0;
+}
+
+/* Concave corner where the spine meets the strip */
+.app-header::before {
+  content: "";
+  position: absolute;
+  left: calc(-1 * var(--frame-gap));
+  bottom: calc(-1 * 22px);
+  width: 22px;
+  height: 22px;
+  background: radial-gradient(circle at 100% 100%, transparent 21px, var(--lc-amber) 22px);
+  z-index: 1;
+}
+
+.app-header h1 {
+  font-family: var(--font-display);
+  font-size: 1.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--lc-amber);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding-bottom: var(--frame-strip);
+}
+
+/* A badge to tell which ship you are looking at when several ships are open in different tabs */
+.app-title-sub {
+  font-size: 1.2rem;
+  font-weight: 400;
+  color: var(--lc-peach);
+}
+
+/* The ship name at the right end of the header: same size as the title, in a different color, so you can tell
+   which ship a tab belongs to when several ships are open */
+.app-ship-name {
+  margin-left: auto;
+  padding-bottom: var(--frame-strip);
+  font-family: var(--font-display);
+  font-size: 1.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  text-align: right;
+  color: var(--lc-lilac);
+  white-space: nowrap;
+}
+
+.app-subtitle {
+  font-size: 0.8rem;
+  color: var(--text-dim);
+}
+
+/*
+ * Two blocks: the activity bar + panel (left) and the main area (right). There is no right pane;
+ *    all views, including pins, are gathered in the left pane. flex is used instead of a fixed two-column grid
+ *    so that more can be added to the left pane — .app-main fills the rest with flex:1.
+ */
+.app-body {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+}
+
+.app-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  /* A panel of its own, so the conversation is told apart from the black frame and left pane */
+  background: var(--canvas);
+  border-top-left-radius: 28px;
+  margin-left: var(--frame-gap);
+}
+
+/* Chat container */
+.chat-container {
+  position: relative; /* so the scroll buttons can float at the bottom right */
+  flex: 1;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
+.messages {
+  flex: 1;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--lc-periwinkle) transparent;
+  padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* Message bubbles */
+.message {
+  display: flex;
+}
+
+/* Load older messages button */
+.load-older {
+  display: flex;
+  justify-content: center;
+  padding: 8px 0 4px;
+}
+
+.load-older-btn {
+  padding: 6px 16px;
+  font-size: 0.78rem;
+  color: var(--lc-peach);
+  background: transparent;
+  border: 2px solid var(--lc-peach);
+  border-radius: var(--radius-pill);
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s;
+}
+
+.load-older-btn:hover:not(:disabled) {
+  background: var(--lc-peach);
+  color: var(--text-on-accent);
+}
+
+.load-older-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.message-captain {
+  justify-content: flex-end;
+}
+
+.message-crew {
+  justify-content: flex-start;
+}
+
+.message-bubble {
+  max-width: 100%;
+  padding: 10px 14px;
+  border-radius: 12px;
+  position: relative;
+}
+
+.message-captain .message-bubble {
+  max-width: 70%;
+  background: var(--surface-captain);
+  color: var(--text);
+  border-bottom-right-radius: 4px;
+  border: 1px solid rgba(204, 153, 204, 0.35);
+  border-right: 3px solid var(--lc-lilac);
+}
+
+.message-crew .message-bubble {
+  background: var(--surface-2);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-bottom-left-radius: 4px;
+}
+
+.message-sender {
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 4px;
+  opacity: 0.7;
+}
+
+/*
+ * A small icon that lets you see at a glance who the speaker is in a direct chat
+ *    with a crew member.
+ */
+.message-sender svg {
+  vertical-align: middle;
+  margin-right: 4px;
+  border-radius: 3px;
+}
+
+.message-id-badge {
+  font-size: 0.6rem;
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: 0;
+  opacity: 0.5;
+  margin-left: 6px;
+}
+
+.message-text {
+  font-size: 0.9rem;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/*
+ * Collapsing in normal display. The top is cut at about 30 lines (648px), and the
+ *    rest is expanded with the "show full text" button. A fade at the bottom edge shows there is more.
+ */
+.message-text--collapsed {
+  max-height: var(--message-collapsed-max, 648px); /* a task card is half of the normal (TASK_COLLAPSED_MAX_PX in ChatMessage.tsx) */
+  overflow: hidden;
+  position: relative;
+}
+
+.message-text--collapsed::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 48px;
+  background: linear-gradient(to bottom, rgba(19, 19, 31, 0), var(--surface-2));
+  pointer-events: none;
+}
+
+/*
+ * While streaming, a window of at most about 20 lines (432px) scrolls internally
+ *    and follows the end (the text being generated). After it ends, it goes back to the normal (collapsed) display.
+ */
+.message-text--streaming {
+  max-height: 432px;
+  overflow-y: auto;
+}
+
+/* The "show full text / collapse" toggle. Shown only when the threshold is exceeded. */
+.message-expand-btn {
+  margin-top: 6px;
+  padding: 2px 10px;
+  font-size: 0.75rem;
+  font-family: inherit;
+  color: var(--lc-peach);
+  background: transparent;
+  border: 1px solid var(--lc-peach);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.message-expand-btn:hover {
+  background: var(--hover);
+  border-color: var(--lc-peach);
+}
+
+/*
+ * The captain's bubble is dark navy (#1a237e) with white text, so the fade and button colors
+ *    are matched to it (the default above is for the white bubble = the crew's messages).
+ */
+.message-captain .message-text--collapsed::after {
+  background: linear-gradient(to bottom, rgba(30, 23, 39, 0), var(--surface-captain));
+}
+
+.message-captain .message-expand-btn {
+  color: var(--lc-lilac);
+  border-color: var(--lc-lilac);
+}
+
+.message-captain .message-expand-btn:hover {
+  background: var(--hover);
+  border-color: var(--lc-lilac);
+}
+
+.message-time-inline {
+  font-size: 0.65rem;
+  opacity: 0.5;
+  margin-left: 8px;
+}
+
+/* Streaming cursor */
+.streaming-cursor {
+  animation: blink 0.8s step-end infinite;
+  opacity: 0.7;
+}
+
+@keyframes blink {
+  50% {
+    opacity: 0;
+  }
+}
+
+/* Input area */
+.chat-input {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px 20px;
+  background: var(--canvas);
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+/* Lower row: the textarea, the send button, and the column of buttons, side by side (the partner selector is the row above). */
+.chat-input-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+/* Container for the textarea and the lists that open over it (slash command candidates, the ↑ history). */
+.chat-input-field-wrapper {
+  position: relative;
+  flex: 1;
+}
+
+.chat-input-field {
+  width: 100%;
+  padding: 10px 14px;
+  border: 2px solid var(--lc-periwinkle);
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-family: inherit;
+  resize: none;
+  min-height: 7.2em;
+  max-height: 50vh;
+  overflow: hidden;
+  outline: none;
+  transition: border-color 0.2s, height 0.1s ease;
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+.chat-input-field:focus {
+  border-color: var(--lc-amber);
+}
+
+.chat-input-field--dragover {
+  border-color: var(--state-starting);
+  border-style: dashed;
+  background: var(--surface-3);
+}
+
+.chat-input-field:disabled {
+  background: var(--surface);
+  color: var(--text-dim);
+}
+
+/* Button column beside the send button (Make it so, Engage!, Report, Menu) */
+.chat-input-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: stretch;
+  width: 90px;
+  flex-shrink: 0;
+}
+
+.chat-input-btn {
+  padding: 6px 8px;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s, opacity 0.2s, transform 0.1s;
+  white-space: nowrap;
+  text-align: center;
+}
+
+.chat-input-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.chat-input-btn--report {
+  background: var(--lc-periwinkle);
+  color: var(--text-on-accent);
+}
+
+.chat-input-btn--report:hover:not(:disabled) {
+  background: var(--lc-sky);
+  transform: scale(1.02);
+}
+
+.chat-input-btn--makeitso {
+  background: var(--lc-lilac);
+  color: var(--text-on-accent);
+}
+
+.chat-input-btn--makeitso:hover:not(:disabled) {
+  background: var(--lc-rose);
+  transform: scale(1.02);
+}
+
+.chat-input-btn--menu {
+  width: 100%;
+  background: var(--surface-3);
+  color: var(--text);
+  border: 1px solid var(--border);
+}
+
+.chat-input-btn--menu:hover:not(:disabled) {
+  border-color: var(--lc-periwinkle);
+  background: var(--hover);
+}
+
+.chat-input-btn--engage {
+  background: var(--lc-amber);
+  color: var(--text-on-accent);
+}
+
+.chat-input-btn--engage:hover:not(:disabled) {
+  background: var(--lc-apricot);
+  transform: scale(1.02);
+}
+
+.chat-input-send {
+  align-self: stretch;
+  width: 84px;
+  flex-shrink: 0;
+  padding: 10px 12px;
+  background: var(--lc-peach);
+  color: var(--text-on-accent);
+  border: none;
+  border-radius: 8px;
+  font-size: 1.1rem;
+  cursor: pointer;
+  transition: background 0.2s, opacity 0.2s;
+}
+
+.chat-input-send:hover:not(:disabled) {
+  background: var(--lc-amber);
+}
+
+/* Not clickable: a washed-out version of the button's own color, so it still reads as the send button but plainly as one
+   that cannot be pressed (a flat dark fill blended into the background) */
+.chat-input-send:disabled {
+  background: color-mix(in srgb, var(--lc-peach) 22%, var(--surface-2));
+  color: color-mix(in srgb, var(--lc-peach) 60%, var(--surface-2));
+  cursor: not-allowed;
+}
+
+
+/* Markdown body styles */
+.markdown-body {
+  white-space: normal;
+}
+
+.markdown-body p {
+  margin: 0.4em 0;
+}
+
+.markdown-body p:first-child {
+  margin-top: 0;
+}
+
+.markdown-body p:last-child {
+  margin-bottom: 0;
+}
+
+.markdown-body h1,
+.markdown-body h2,
+.markdown-body h3,
+.markdown-body h4,
+.markdown-body h5,
+.markdown-body h6 {
+  margin: 0.8em 0 0.4em;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.markdown-body h1 { font-size: 1.3em; }
+.markdown-body h2 { font-size: 1.15em; }
+.markdown-body h3 { font-size: 1.05em; }
+
+.markdown-body ul,
+.markdown-body ol {
+  margin: 0.4em 0;
+  padding-left: 1.5em;
+}
+
+.markdown-body li {
+  margin: 0.2em 0;
+}
+
+.markdown-body code {
+  font-family: "Cascadia Code", "Fira Code", Consolas, monospace;
+  font-size: 0.85em;
+  padding: 0.15em 0.4em;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.message-captain .markdown-body code {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.markdown-body pre {
+  margin: 0.6em 0;
+  padding: 0.8em 1em;
+  border-radius: 6px;
+  background: #000000;
+  color: #e6e1d8;
+  overflow-x: auto;
+  font-size: 0.82em;
+  line-height: 1.5;
+  border: 1px solid var(--border);
+}
+
+.markdown-body pre code {
+  background: none;
+  padding: 0;
+  font-size: inherit;
+  color: inherit;
+}
+
+.message-captain .markdown-body pre {
+  background: #000000;
+  color: #e6e1d8;
+}
+
+.markdown-body blockquote {
+  margin: 0.4em 0;
+  padding: 0.2em 0.8em;
+  border-left: 3px solid var(--lc-periwinkle);
+  opacity: 0.85;
+}
+
+.message-captain .markdown-body blockquote {
+  border-left-color: var(--lc-lilac);
+}
+
+.markdown-body table {
+  border-collapse: collapse;
+  margin: 0.6em 0;
+  font-size: 0.85em;
+  width: 100%;
+}
+
+.markdown-body th,
+.markdown-body td {
+  border: 1px solid var(--border);
+  padding: 0.4em 0.7em;
+  text-align: left;
+}
+
+.message-captain .markdown-body th,
+.message-captain .markdown-body td {
+  border-color: var(--border);
+}
+
+.markdown-body th {
+  font-weight: 600;
+  background: var(--surface-3);
+}
+
+.message-captain .markdown-body th {
+  background: var(--surface-3);
+}
+
+.markdown-body a {
+  color: var(--lc-sky);
+  text-decoration: underline;
+}
+
+.message-captain .markdown-body a {
+  color: var(--lc-sky);
+}
+
+.markdown-body hr {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 0.8em 0;
+}
+
+.message-captain .markdown-body hr {
+  border-top-color: var(--border);
+}
+
+
+
+
+
+
+/* Response group: thinking + response with tight spacing */
+.response-group {
+  max-width: 100%; /* upper cap */
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start; /* align children to the left edge */
+  gap: 4px;
+}
+
+.response-group > .message {
+  width: fit-content; /* width according to the content */
+  max-width: 100%; /* do not exceed the group width */
+}
+
+.response-group .message-bubble {
+  max-width: 100%; /* the group width is the upper limit */
+}
+
+.response-group .thinking-bubble {
+  width: auto;
+  max-width: 100%;
+}
+
+.response-group > .message-thinking {
+  margin-left: 24px; /* indented a little from the main response */
+}
+
+/* Thinking bubble (tool calls / thinking) */
+.thinking-bubble {
+  max-width: 100%;
+  padding: 6px 10px;
+  border-radius: 8px;
+  border-bottom-left-radius: 4px;
+  background: var(--surface);
+  border-left: 2px solid var(--lc-periwinkle);
+}
+
+.thinking-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--lc-periwinkle);
+  text-align: left;
+}
+
+.thinking-header:hover {
+  color: var(--lc-sky);
+}
+
+.thinking-header-text {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.thinking-gear {
+  flex-shrink: 0;
+  color: var(--lc-periwinkle);
+}
+
+.thinking-gear--turning {
+  animation: thinking-gear-spin 2.4s linear infinite;
+}
+
+@keyframes thinking-gear-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Whoever asks for less motion gets a gear that stands still. */
+@media (prefers-reduced-motion: reduce) {
+  .thinking-gear--turning {
+    animation: none;
+  }
+}
+
+
+.thinking-toggle {
+  font-size: 0.75rem;
+  opacity: 0.6;
+}
+
+.thinking-preview {
+  margin-top: 4px;
+  font-size: 0.7rem;
+  color: var(--text-dim);
+  line-height: 1.4;
+}
+
+.thinking-preview-line {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+.thinking-details {
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.thinking-operation {
+  border-top: 1px solid var(--border);
+  padding-top: 6px;
+}
+
+.thinking-op-title {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 4px;
+}
+
+.thinking-op-output {
+  font-family: "Cascadia Code", "Fira Code", Consolas, monospace;
+  font-size: 0.7rem;
+  line-height: 1.4;
+  background: #000000;
+  color: #e6e1d8;
+  padding: 6px 8px;
+  border-radius: 4px;
+  overflow-x: auto;
+  max-height: 200px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  word-break: break-all;
+  margin: 0;
+}
+
+.thinking-bubble .message-time {
+  font-size: 0.65rem;
+  color: var(--text-dim);
+  margin-top: 4px;
+  text-align: right;
+}
+
+/* --- Streaming / Cancel styles --- */
+
+.message-bubble-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.message-bubble--streaming {
+  border-color: var(--state-starting);
+  border-width: 1.5px;
+  box-shadow: 0 0 6px rgba(77, 208, 225, 0.35);
+}
+
+.message-bubble--cancelled {
+  border-color: var(--state-error);
+  background: #1f1214;
+}
+
+.message-stop-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: 1px solid var(--state-error);
+  border-radius: 3px;
+  background: transparent;
+  color: var(--state-error);
+  cursor: pointer;
+  transition: background 0.15s, transform 0.1s, color 0.15s, border-color 0.15s;
+  flex-shrink: 0;
+}
+
+.message-stop-btn:hover {
+  background: var(--state-error);
+  color: var(--text-on-accent);
+  border-color: var(--state-error);
+  transform: scale(1.1);
+}
+
+.message-stop-btn:active {
+  transform: scale(0.95);
+}
+
+/*
+ * Right after Stop was pressed (the turn has not ended yet): it cannot be pressed, and it blinks to show it is stopping
+ */
+.message-stop-btn--stopping,
+.message-stop-btn--stopping:hover {
+  background: transparent;
+  color: var(--state-error);
+  transform: none;
+  cursor: progress;
+  opacity: 0.7;
+  animation: message-stopping-pulse 1s ease-in-out infinite;
+}
+
+@keyframes message-stopping-pulse {
+  50% { opacity: 0.25; }
+}
+
+.message-cancelled-badge {
+  font-size: 0.65rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--state-error);
+  background: rgba(255, 107, 107, 0.15);
+  padding: 2px 6px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+
+
+/* ===== PIN Feature Styles ===== */
+
+/* PIN button on messages */
+.message-bubble-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.message-pin-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  font-size: 12px;
+  cursor: pointer;
+  opacity: 0.3;
+  transition: opacity 0.2s, transform 0.15s;
+}
+
+.message-pin-btn:hover {
+  opacity: 0.8;
+  transform: scale(1.15);
+}
+
+.message-pin-btn--active {
+  opacity: 1;
+}
+
+/* Copy-to-clipboard button — used in message bubbles and the crew popup header */
+.copy-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  font-size: 12px;
+  cursor: pointer;
+  opacity: 0.4;
+  transition: opacity 0.2s, transform 0.15s;
+  flex-shrink: 0;
+}
+
+.copy-btn:hover {
+  opacity: 0.9;
+  transform: scale(1.1);
+}
+
+.copy-btn--copied {
+  opacity: 1;
+  color: var(--state-working);
+}
+
+/* Pinned message bubble highlight */
+.message-bubble--pinned {
+  border-left: 3px solid var(--lc-amber);
+}
+
+.message-captain .message-bubble--pinned {
+  border-left: 3px solid var(--lc-amber);
+}
+
+/* PIN list in sidebar */
+.pin-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 300px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--lc-periwinkle) transparent;
+}
+
+.pin-list-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 6px 8px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  text-align: left;
+  font-family: inherit;
+  cursor: pointer;
+  font-size: 0.75rem;
+  color: var(--text);
+  transition: background 0.15s;
+}
+
+.pin-list-item:hover {
+  background: var(--hover);
+}
+
+.pin-list-role {
+  flex-shrink: 0;
+  font-size: 0.8rem;
+}
+
+.pin-list-text {
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Message highlight animation (scroll-to target) */
+.message--highlight .message-bubble,
+.message-report-badge.message--highlight {
+  /* Glows once and fades slowly (2.4 seconds. scrollToMessage in App.tsx removes the class after this) */
+  animation: highlight-flash 2.4s ease-out 1;
+}
+
+@keyframes highlight-flash {
+  /* Glows clearly for the first moment, and then slowly becomes transparent */
+  0%, 15% { box-shadow: 0 0 0 3px rgba(255, 153, 0, 0.8), 0 0 16px 4px rgba(255, 153, 0, 0.45); }
+  100% { box-shadow: 0 0 0 3px rgba(255, 153, 0, 0), 0 0 16px 4px rgba(255, 153, 0, 0); }
+}
+
+@keyframes popup-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes popup-slide-up {
+  from { transform: translateY(16px); opacity: 0.8; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+/* ===== Report Result Popup ===== */
+
+.report-popup-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: var(--overlay);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: popup-fade-in 0.15s ease;
+}
+
+.report-popup {
+  /* A deep violet panel with a violet edge: the title sits on it, the content in a black inner panel */
+  background: var(--surface-popup);
+  border: 2px solid var(--lc-violet);
+  border-radius: 16px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.7);
+  width: 90%;
+  max-width: min(1350px, 90vw);
+  height: 80vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: popup-slide-up 0.2s ease;
+}
+
+.report-popup-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 16px 20px 10px;
+  color: var(--lc-amber);
+}
+
+.report-popup-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  font-weight: 400;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  line-height: 1.2;
+}
+
+.report-popup-credits {
+  display: inline-flex;
+  align-items: center;
+  align-self: center;
+  font-size: 0.78rem;
+  line-height: 1.2;
+  color: var(--lc-lilac);
+  white-space: nowrap;
+}
+
+.report-popup-close {
+  width: 38px;
+  height: 38px;
+  border: none;
+  border-radius: 8px;
+  background: var(--lc-violet);
+  font-size: 16px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+  transition: filter 0.15s;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+.report-popup-close:hover {
+  filter: brightness(1.2);
+}
+
+.report-popup-tabs {
+  display: flex;
+  gap: 8px;
+  padding: 0 20px 12px;
+}
+
+.report-popup-tab {
+  padding: 4px 16px;
+  border: 1px solid var(--lc-periwinkle);
+  border-radius: 8px;
+  background: rgba(153, 153, 204, 0.18);
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--text);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.report-popup-tab:hover {
+  background: rgba(153, 153, 204, 0.35);
+}
+
+.report-popup-tab--active {
+  background: var(--lc-amber);
+  border-color: var(--lc-amber);
+  color: var(--text-on-accent);
+}
+
+.report-popup-header .copy-btn {
+  color: var(--text);
+  opacity: 0.8;
+}
+
+.report-popup-header .copy-btn:hover {
+  opacity: 1;
+}
+
+/* The content: a black inner panel */
+.report-popup-body {
+  flex: 1;
+  overflow-y: auto;
+  margin: 0 20px 20px;
+  padding: 18px 20px;
+  background: var(--bg);
+  border-radius: 10px;
+  font-size: 0.85rem;
+  line-height: 1.6;
+  scrollbar-width: thin;
+  scrollbar-color: var(--lc-violet) transparent;
+}
+
+/* Headings of the report: orange, like the title */
+.report-popup-body.markdown-body h1,
+.report-popup-body.markdown-body h2 {
+  font-family: var(--font-display);
+  font-weight: 400;
+  letter-spacing: 0.06em;
+  color: var(--lc-amber);
+}
+
+.report-popup-loading {
+  text-align: center;
+  color: var(--text-dim);
+  padding: 40px 0;
+}
+
+.report-popup-error {
+  text-align: center;
+  color: var(--state-error);
+  padding: 40px 0;
+}
+
+/* ===== Report Badge Links (in ChatMessage) ===== */
+
+.message-report-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+
+.message-report-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px 10px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface-3);
+  font-size: 0.72rem;
+  color: var(--text);
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.message-report-badge:hover {
+  background: var(--hover);
+  border-color: var(--lc-periwinkle);
+  color: var(--lc-sky);
+}
+
+.message-report-badge--error {
+  background: rgba(255, 107, 107, 0.15);
+  border-color: var(--state-error);
+  color: var(--state-error);
+}
+
+.message-report-badge--error:hover {
+  background: rgba(255, 107, 107, 0.28);
+  border-color: var(--state-error);
+  color: var(--state-error);
+}
+
+.message-report-badge-id {
+  margin-left: 4px;
+  font-size: 0.68rem;
+  color: var(--text-dim);
+  font-variant-numeric: tabular-nums;
+}
+
+.report-popup-title-id {
+  margin-left: 4px;
+  font-family: var(--font-body);
+  font-size: 0.78rem;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--lc-lilac);
+}
+
+/* ===== Credits in Chat Message ===== */
+
+.message-credits {
+  font-size: 0.7rem;
+  color: var(--text-dim);
+  opacity: 0.6;
+  text-align: right;
+  margin-top: 4px;
+}
+/* Crew task streaming group — parallel activity below main conversation */
+/* Live crew tasks (streaming) — brighter violet while active, settling to
+   the deeper tone above once everyone's finished. */
+.crew-tasks-live .crew-report-group-header {
+  background: var(--lc-sky);
+}
+
+/* Instruction pane: the commander's directives */
+.crew-task-instruction {
+  max-height: 13.5rem; /* about 10 lines, then it scrolls */
+  overflow-y: auto;
+  padding: 8px 16px 12px;
+  font-size: 0.82rem;
+  line-height: 1.6;
+  border-top: 1px solid var(--border);
+}
+
+/* Permission dialog */
+.permission-btn {
+  padding: 10px 16px;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  text-align: left;
+}
+
+.permission-btn--allow {
+  background: rgba(107, 229, 160, 0.16);
+  color: var(--state-working);
+}
+
+.permission-btn--allow:hover {
+  background: rgba(107, 229, 160, 0.3);
+}
+
+.permission-btn--deny {
+  background: rgba(255, 107, 107, 0.15);
+  color: var(--state-error);
+}
+
+.permission-btn--deny:hover {
+  background: rgba(255, 107, 107, 0.28);
+}
+
+/* Permission tray — a fixed, always-visible list of pending approvals above
+   the input box. Independent of the message list on purpose: a request must
+   stay visible and answerable no matter whether it could be correlated to a
+   specific chat bubble or crew card. */
+.permission-tray {
+  flex-shrink: 0;
+  margin: 0 16px 8px;
+  padding: 10px 12px;
+  /* A thick border in the attention color that glows slowly, so it is not missed */
+  border-radius: 10px;
+  background: var(--surface-2);
+  max-height: 40vh;
+  overflow-y: auto;
+  animation: permission-tray-glow 1.6s ease-in-out infinite;
+  border: 2px solid var(--state-attention);
+}
+
+@keyframes permission-tray-glow {
+  0%, 100% { box-shadow: 0 0 0 rgba(255, 225, 77, 0); }
+  50% { box-shadow: 0 0 14px rgba(255, 225, 77, 0.6); }
+}
+
+.permission-tray-title {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--state-attention);
+  margin-bottom: 8px;
+}
+
+.permission-tray-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.permission-tray-card {
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-3);
+}
+
+.permission-tray-card-header {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.permission-tray-card-agent {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--state-attention);
+}
+
+.permission-tray-card-task {
+  font-size: 0.68rem;
+  color: var(--text-dim);
+  font-variant-numeric: tabular-nums;
+}
+
+.permission-tray-card-tool {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 0.8rem;
+  margin-bottom: 6px;
+}
+
+.permission-tray-card-toggle {
+  border: none;
+  background: none;
+  color: var(--state-attention);
+  font-size: 0.72rem;
+  cursor: pointer;
+  padding: 0;
+  flex-shrink: 0;
+}
+
+.permission-tray-card-input {
+  font-size: 0.72rem;
+  background: var(--surface);
+  border-radius: 6px;
+  padding: 6px 8px;
+  margin-bottom: 6px;
+  max-height: 120px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.permission-tray-card-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.permission-tray-card-options .permission-btn {
+  padding: 6px 12px;
+  font-size: 0.78rem;
+}
+
+/* Crew report group — distinct violet identity, set apart from the captain's
+   navy bubble and the commander's white one so a crew report reads as a third,
+   unmistakable "voice" at a glance. */
+.crew-report-group {
+  flex-shrink: 0;
+  margin: 8px 0 12px;
+  border: 1px solid var(--lc-periwinkle);
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--surface);
+}
+
+.crew-report-group-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  background: var(--lc-periwinkle);
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-on-accent);
+}
+
+.crew-report-group-title {
+  flex: 1;
+}
+
+.crew-report-group-count {
+  font-weight: normal;
+  color: rgba(0, 0, 0, 0.65);
+  font-size: 0.78rem;
+}
+
+.crew-report-group-items {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px 14px;
+}
+
+/* A task that is running is drawn like a message of the normal conversation, nested in the card.
+   Its text window is at most about 10 lines (1.5 line height x 0.9rem), then it scrolls. */
+.crew-task-running .message-text--streaming {
+  max-height: 13.5rem;
+}
+
+.crew-task-instruction-toggle {
+  padding: 2px 8px;
+  border: none;
+  background: none;
+  color: var(--lc-periwinkle);
+  font-family: inherit;
+  font-size: 0.78rem;
+  cursor: pointer;
+}
+
+.crew-task-instruction-toggle:hover {
+  color: var(--lc-sky);
+}
+
+.crew-task-instruction-block {
+  width: 100%;
+}
+
+/*
+ * The instruction inside the card (above the body). An opened instruction is shown in a window inside the card
+ */
+.message-instruction-block {
+  margin: 0 0 6px;
+}
+
+.message-instruction-block .crew-task-instruction-toggle {
+  padding-left: 0;
+}
+
+.message-instruction-block .crew-task-instruction {
+  padding: 6px 10px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+.crew-report-group-links {
+  margin-top: 0;
+  padding: 10px 14px;
+  border-top: none;
+}
+
+/* Retint badges to match the crew card's violet identity (scoped here so the
+   unrelated report-link badges under the commander's own messages stay as-is). */
+.crew-report-group-links .message-report-badge {
+  background: var(--surface-3);
+  border-color: var(--lc-periwinkle);
+  color: var(--text);
+}
+
+.crew-report-group-links .message-report-badge:hover {
+  background: var(--hover);
+  border-color: var(--lc-sky);
+  color: var(--lc-sky);
+}
+
+/* The group heading per host in the crew status panel */
+.crew-host-group + .crew-host-group { margin-top: 10px; }
+.crew-host-header {
+  display: flex; align-items: center; gap: 6px;
+  margin: 0 0 4px; padding: 2px 4px;
+  font-size: 11px; font-weight: 600; letter-spacing: 0.02em;
+  color: var(--text-dim);
+}
+.crew-host-label { color: var(--text, inherit); }
+.crew-host-address { font-weight: 400; opacity: 0.8; }
+.crew-host-tunnel { margin-left: auto; font-weight: 500; }
+.crew-host-tunnel--ok { color: var(--state-working); }
+.crew-host-tunnel--wait { color: var(--lc-apricot); }
+
+/* A mark for a crew member running on a remote host (speaker name, partner selector) */
+.host-badge {
+  display: inline-block; margin-left: 4px; padding: 0 6px;
+  font-size: 10px; font-weight: 500; line-height: 16px;
+  border-radius: 8px; border: 1px solid currentColor;
+  color: var(--lc-sky); vertical-align: middle; white-space: nowrap;
+}
+.crew-host-local { font-weight: 400; opacity: 0.7; }
+
+/* Popup of an ordinary conversation message (MessagePopup). It uses the same screen as the task popup */
+.report-popup-jump {
+  padding: 3px 10px;
+  border: 1px solid var(--lc-periwinkle);
+  border-radius: var(--radius-pill);
+  background: var(--surface-3);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 0.75rem;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.report-popup-jump:hover {
+  background: var(--hover);
+}
+
+/* The captain's messages are shown with the line breaks as written, not as Markdown */
+.report-popup-body--plain {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/* The top/bottom split of the conversation */
+.app-split-btn {
+  padding: 4px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  background: var(--surface-3);
+  color: var(--text);
+  font-size: 0.95rem;
+  line-height: 1;
+  cursor: pointer;
+  z-index: 1;
+}
+
+.app-split-btn:hover {
+  border-color: var(--lc-periwinkle);
+  background: var(--hover);
+}
+
+.app-split-btn--on {
+  border-color: var(--lc-periwinkle);
+}
+
+/* The top pane has a fixed share of the height (set inline); the bottom pane takes the rest.
+   The wrapper holds the scroll buttons, which float at the bottom right of the pane. */
+.split-top {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.messages--top {
+  flex: 1;
+  min-height: 0;
+}
+
+.split-divider {
+  flex: 0 0 6px;
+  cursor: row-resize;
+  background: var(--border);
+}
+
+.split-divider:hover,
+.split-divider--dragging {
+  background: var(--lc-periwinkle);
+}
+
+/* An image in agent output is not loaded (see markdown.tsx): its alt text stands in for it. */
+.markdown-image-blocked {
+  color: var(--text-dim);
+  font-style: italic;
+}
+
+/* Shown while the live connection to the ship is down. */
+.connection-notice {
+  padding: 8px 20px;
+  margin: 0 16px var(--frame-gap) 0;
+  background: var(--state-error);
+  color: var(--text-on-accent);
+  border-radius: 0 var(--radius-pill) var(--radius-pill) 0;
+  font-size: 0.85rem;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+/* What was written before a turn or task was interrupted: dimmer, above the notice that says it is kept. */
+.message-partial {
+  margin-bottom: 8px;
+  padding-left: 10px;
+  border-left: 3px solid var(--lc-periwinkle);
+  opacity: 0.85;
+}
+
+/* The tool-call activity inside the message card of the turn or task it belongs to. */
+.message-thinking-inline {
+  margin-bottom: 8px;
+}
+
+.thinking-bubble--embedded {
+  padding: 4px 8px;
+  border-radius: 4px;
+  background: transparent;
+  border-left: 2px solid var(--lc-periwinkle);
+}
+
+.message-thinking-inline > .thinking-bubble--embedded + .thinking-bubble--embedded {
+  margin-top: 4px;
+}
+
+.thinking-saved-note {
+  margin: 6px 0 0;
+  font-size: 0.65rem;
+  color: var(--text-dim);
+}
+
+/* The line pictograms of the top bar: one stroke weight, drawn in the text color of the button. */
+.app-icon {
+  display: block;
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}

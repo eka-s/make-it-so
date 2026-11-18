@@ -1,0 +1,66 @@
+/*
+ * Design tokens. Every color, radius and font used by the UI comes from here, so the look
+ * can be changed in one place.
+ *
+ * The palette has two separate families on purpose:
+ *  - "lc" (decoration): the warm / violet / blue blocks that make up the frame and the
+ *    labels. They are used a lot, so they must NOT be the colors that mean something.
+ *  - "state": colors that carry meaning (needs attention, error, working, starting). They
+ *    are not used for decoration, so they stand out against the frame.
+ */
+:root {
+  color-scheme: dark; /* form controls, scrollbars and the like follow the dark theme */
+
+  /* decoration */
+  --lc-amber: #ff9900;
+  --lc-peach: #ffcc99;
+  --lc-apricot: #ff9966;
+  --lc-lilac: #cc99cc;
+  --lc-periwinkle: #9999cc;
+  --lc-sky: #99ccff;
+  --lc-rose: #cc6699;
+  --lc-violet: #8f6cd6; /* edges of the popups */
+
+  /* surfaces (darkest to lightest) */
+  --bg: #000000;
+  --canvas: #101022; /* the conversation area: lighter than the frame and the left pane, which are black */
+  --surface: #0a0a12;
+  --surface-2: #1a1a2e;
+  --surface-3: #1c1c2c;
+  --border: #33334a;
+  --surface-popup: #26183f; /* popups: a deep violet panel with a violet edge */
+  --surface-captain: #1e1727; /* the captain's own messages: dark violet, quieter than a filled block */
+  --hover: rgba(255, 255, 255, 0.08);
+  --overlay: rgba(0, 0, 0, 0.6);
+
+  /* text */
+  --text: #f2eadf;
+  --text-dim: #b4aa9c;
+  --text-on-accent: #000000;
+
+  /* state (meaning) */
+  --state-attention: #ffe14d;
+  --state-error: #ff6b6b;
+  --state-working: #6be5a0;
+  --state-starting: #4dd0e1;
+
+  /* shape */
+  --radius-pill: 999px;
+  --radius-md: 12px;
+  --radius-sm: 6px;
+  --frame-spine: 26px;
+  --frame-strip: 8px;
+  --frame-gap: 6px;
+
+  /* type */
+  --font-display: "Antonio", "Arial Narrow", "Helvetica Neue", Arial, sans-serif;
+  --font-body: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-mono: "Cascadia Code", "Fira Code", Consolas, monospace;
+}
+
+/* Section / label colors, in the order they are used */
+.u-display {
+  font-family: var(--font-display);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
