@@ -200,10 +200,10 @@ This is the range we were able to verify locally. **We cannot guarantee that it 
 | Linux + claude (`claude-agent-acp@0.106.0`) | The environment used for development. Verified |
 | Remote host (SSH. a Docker container standing in for a remote Linux machine) | Verified |
 | kiro-cli | The code for it exists, but operation with the current version is unverified (verified with v3.1.0 in the past). The kiro side of "From a project" in the settings screen (reading `.kiro`) was only built to the spec and has not been verified on a real machine |
-| macOS | Unverified |
+| macOS + claude (`claude-agent-acp@0.106.0`, Node 24.3.0) | Verified: local crew (delegation, report, approval, search) and a remote crew (a Docker container over SSH). The abnormal-exit check below is not done on macOS |
 | Windows | Unverified (likely does not work) |
 
-- We verified on Linux + claude (both local and remote) that no agent processes are left behind after an abnormal exit: even if you `kill -9` the parent, the agents exit along with any commands in progress. This is unverified with kiro-cli and on Windows.
+- We verified on Linux + claude (both local and remote) that no agent processes are left behind after an abnormal exit: even if you `kill -9` the parent, the agents exit along with any commands in progress. This is unverified with kiro-cli, on macOS and on Windows.
 - Slash commands were verified only with claude. kiro is unverified. While you have not yet talked to the crew member (while there is no session), no candidates appear.
 - Per-account usage can identify **only locally running claude crew members** (`claude auth status`). kiro is shown in an "account unknown" slot, and crew on remote hosts as "Not tracked".
 - For remote crew members, `targets` (`access`) cannot be specified. Content that points to local paths on the main side (workspace, Skill list, and so on) is not given to them. If the connection drops, it does not reconnect and resume where it left off (the next time you call out to them, they start up in a new session). Remote hosts are limited to Unix-like systems with bash.
