@@ -2,6 +2,7 @@ import path from "node:path";
 import { isNode, type Document } from "yaml";
 import { CONFIG_DEFAULTS, LOG_LEVELS, PROVIDERS } from "../config-defaults.js";
 import { DEFAULT_LANGUAGE, LANGUAGES } from "../language.js";
+import { DEFAULT_THEME, THEMES } from "../theme.js";
 import { deleteValue, editYamlFile, readYamlDocument, setValue } from "./yaml-edit.js";
 
 // The form for config.yml. The fields (their kind, choices and defaults) are defined here, and the screen only draws
@@ -19,6 +20,7 @@ export type ConfigField = FieldBase & FieldKind;
 export const CONFIG_FIELDS: ConfigField[] = [
   { key: "language", group: "general", type: "enum", options: LANGUAGES, default: DEFAULT_LANGUAGE },
   { key: "crew_language", group: "general", type: "enum", options: LANGUAGES, default: null },
+  { key: "theme", group: "general", type: "enum", options: THEMES, default: DEFAULT_THEME },
   { key: "acp.provider", group: "acp", type: "enum", options: PROVIDERS, default: CONFIG_DEFAULTS.provider },
   { key: "acp.kiro.command", group: "acp", type: "text", default: CONFIG_DEFAULTS.kiro.command },
   { key: "acp.kiro.args", group: "acp", type: "list", default: CONFIG_DEFAULTS.kiro.args },

@@ -5,6 +5,7 @@ import "@fontsource/antonio/700.css";
 import "./theme.css";
 import { SettingsApp } from "./SettingsApp";
 import { I18nProvider } from "./i18n/I18nProvider";
+import "./theme-light-dark.css";
 
 const rootElement = document.getElementById("root");
 if (!rootElement) throw new Error("Root element not found");

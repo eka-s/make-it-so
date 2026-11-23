@@ -110,7 +110,7 @@
   padding: 0 14px 0 28px;
   flex-shrink: 0;
   background: var(--lc-amber);
-  color: #000;
+  color: var(--text-on-accent);
   font-family: var(--font-display);
   text-transform: uppercase;
   letter-spacing: 0.08em;

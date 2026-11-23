@@ -1,5 +1,6 @@
 import { DEFAULT_MISSION_ID } from "./constants";
 import { GROUP_MODES, type GroupMode } from "./search-group";
+import type { Theme } from "./types";
 
 // Personal display settings kept in the browser (localStorage) (the left pane width, the height of each section,
 // the conversation partner per mission, the selected mission). All of them are "nice to have" state, and the screen works fine even if reading or writing fails (private
@@ -140,3 +141,34 @@ export function persistSplitEnabled(enabled: boolean): void {
     // Ignore (when localStorage is unavailable, e.g. in private browsing)
   }
 }
+
+// The look of the screen. The server only gives the default (config.yml); a choice made with the switch is kept
+// here, per browser, and wins over it. The default is cached too, so the first paint does not flash the wrong look.
+const THEME_CHOICE_KEY = "theme-choice";
+const THEME_DEFAULT_KEY = "theme-default-cache";
+
+export function isTheme(value: unknown): value is Theme {
+  return value === "classic" || value === "light" || value === "dark";
+}
+
+function loadStoredTheme(key: string): Theme | null {
+  try {
+    const saved = localStorage.getItem(key);
+    return isTheme(saved) ? saved : null;
+  } catch {
+    return null;
+  }
+}
+
+function persistTheme(key: string, theme: Theme): void {
+  try {
+    localStorage.setItem(key, theme);
+  } catch {
+    // Ignore (when localStorage is unavailable, e.g. in private browsing)
+  }
+}
+
+export const loadThemeChoice = () => loadStoredTheme(THEME_CHOICE_KEY);
+export const persistThemeChoice = (theme: Theme) => persistTheme(THEME_CHOICE_KEY, theme);
+export const loadThemeDefault = () => loadStoredTheme(THEME_DEFAULT_KEY);
+export const persistThemeDefault = (theme: Theme) => persistTheme(THEME_DEFAULT_KEY, theme);

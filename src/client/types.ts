@@ -290,6 +290,9 @@ export type SettingsSaveErrors = { error: "invalid"; errors: Record<string, stri
 /** A supported language. The UI language and the crew language are separate settings kept on the server. */
 export type Language = "en" | "ja";
 
+/** The look of the screen. The default comes from config.yml; a choice made in a browser wins over it in that browser. */
+export type Theme = "classic" | "light" | "dark";
+
 // --- Types of API responses ---
 
 /** Running state of one crew member (GET /api/crew/status). */

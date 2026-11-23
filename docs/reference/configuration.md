@@ -113,6 +113,7 @@ Settings common to make-it-so itself. A template is in the repository at [`confi
 |---|---|---|---|
 | `language` | `en` \| `ja` | `en` | The UI language. A value changed on the screen is saved in the ship's DB and takes precedence over this |
 | `crew_language` | `en` \| `ja` | same as `language` | The language the crew speaks. A value changed on the screen is saved in the DB and takes precedence over this |
+| `theme` | `classic` \| `light` \| `dark` | `classic` | The default look of the screen. A choice made with the theme switch in a browser is kept in that browser and takes precedence over this |
 | `acp.provider` | `kiro` \| `claude` | `claude` | The default provider for crew members whose provider is not specified in `roster.yml` |
 | `acp.kiro.command` | string | `kiro-cli` | The launch command for kiro |
 | `acp.kiro.args` | array of strings | `["acp"]` | The launch arguments for kiro |
@@ -124,7 +125,7 @@ Settings common to make-it-so itself. A template is in the repository at [`confi
 | `logging.maxFileSizeMb` | number | `5` | The log file size limit. When exceeded, `app.log` is moved to `app.log.1` (only one generation is kept) |
 
 - The `config.yml` that `init` creates contains `language` and `acp.provider`.
-- An unsupported `language` / `crew_language` value is an error.
+- An unsupported `language` / `crew_language` / `theme` value is an error.
 
 ## `roster.yml`
 

@@ -1,0 +1,75 @@
+/* Header control for the theme: the same quiet button as the language menu, with a short list under it. */
+.theme-menu {
+  position: relative;
+  z-index: 3;
+}
+
+.theme-menu-btn {
+  padding: 4px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  background: var(--surface-3);
+  color: var(--text);
+  font-family: var(--font-display);
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  line-height: 1.2;
+  cursor: pointer;
+}
+
+.theme-menu-btn:hover {
+  border-color: var(--lc-periwinkle);
+  background: var(--hover);
+}
+
+.theme-menu-popup {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 130px;
+  padding: 8px;
+  background: var(--surface-popup);
+  border: 2px solid var(--lc-violet);
+  border-radius: 12px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+  white-space: nowrap;
+}
+
+.theme-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 10px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text);
+  font-size: 0.85rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+/* A swatch of each theme's own ground, so the choice can be recognized before it is made. */
+.theme-menu-item::before {
+  content: "";
+  width: 14px;
+  height: 14px;
+  border: 1px solid var(--border-strong);
+  border-radius: 50%;
+  background: var(--swatch);
+}
+
+.theme-menu-item--classic { --swatch: linear-gradient(135deg, #000 50%, #ff9900 50%); }
+.theme-menu-item--light { --swatch: linear-gradient(135deg, #e4e7fb 50%, #0ea5e9 50%); }
+.theme-menu-item--dark { --swatch: linear-gradient(135deg, #0f1220 50%, #0369a1 50%); }
+
+.theme-menu-item:hover {
+  background: var(--hover);
+}
+
+.theme-menu-item--active {
+  font-weight: 700;
+}

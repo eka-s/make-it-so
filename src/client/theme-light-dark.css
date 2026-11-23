@@ -1,0 +1,337 @@
+/*
+ * The light and dark themes (the dark tokens follow the light ones): a quiet look. It only overrides the tokens of theme.css and, where the classic look is
+ * built from shapes (the frame, the pill-ended bars) rather than colors, those shapes. Every rule is scoped to
+ * the light and dark themes, so the classic look is untouched.
+ *
+ * The "lc" family keeps its names but means "accent" here: one indigo-led set that is dark enough to carry white text,
+ * because the classic labels put dark text on light blocks and this theme puts white text on strong ones.
+ */
+:root[data-theme="light"] {
+  color-scheme: light;
+
+  /* decoration (accents) */
+  --lc-amber: #4f46e5;
+  --lc-peach: #6366f1;
+  --lc-apricot: #6d72f2;
+  --lc-lilac: #8b5cf6;
+  --lc-periwinkle: #6b7280;
+  --lc-sky: #2563eb;
+  --lc-rose: #db2777;
+  --lc-violet: #7c3aed;
+
+  /* surfaces (the darkest is now the page, the lightest the raised cards) */
+  --bg: #e4e7fb;
+  --canvas: #f3f4ff;
+  --surface: #eceefd;
+  --surface-2: #e0e3f8;
+  --surface-3: #fbfbff;
+  --surface-raised: #eef0ff;
+  --border: #cfd3f0;
+  --border-strong: #aab0e0;
+  --surface-popup: #f6f6ff;
+  --surface-captain: #dfe3ff;
+  --hover: rgba(79, 70, 229, 0.08);
+  --overlay: rgba(20, 20, 40, 0.35);
+
+  /* text */
+  --text: #1b1b33;
+  --text-dim: #5e6090;
+  --text-on-accent: #ffffff;
+
+  /* state (meaning) */
+  --state-attention: #d97706;
+  --state-error: #dc2626;
+  --state-working: #16a34a;
+  --state-starting: #0891b2;
+
+  /* shape: no frame, softer corners */
+  --radius-pill: 8px;
+  --radius-md: 12px;
+  --radius-sm: 6px;
+  --frame-spine: 0px;
+  --frame-strip: 0px;
+  --frame-gap: 8px;
+
+  /* type */
+  --font-display: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+/* The dark palette: the same shapes, with the surfaces dark and the accents lightened to stay readable on them. */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  --lc-amber: #818cf8;
+  --lc-peach: #a5b4fc;
+  --lc-apricot: #93a0fb;
+  --lc-lilac: #c4b5fd;
+  --lc-periwinkle: #94a3b8;
+  --lc-sky: #7dd3fc;
+  --lc-rose: #f9a8d4;
+  --lc-violet: #8b5cf6;
+
+  --bg: #0f1220;
+  --canvas: #161a2e;
+  --surface: #12162a;
+  --surface-2: #1e2340;
+  --surface-3: #1a1f38;
+  --surface-raised: #232948;
+  --border: #2c3354;
+  --border-strong: #444d7a;
+  --surface-popup: #1b2040;
+  --surface-captain: #232a55;
+  --hover: rgba(255, 255, 255, 0.07);
+  --overlay: rgba(0, 0, 0, 0.6);
+
+  --text: #e8eaf6;
+  --text-dim: #9aa0c8;
+  --text-on-accent: #0b0d1a;
+
+  --state-attention: #fbbf24;
+  --state-error: #f87171;
+  --state-working: #4ade80;
+  --state-starting: #22d3ee;
+
+  --radius-pill: 8px;
+  --radius-md: 12px;
+  --radius-sm: 6px;
+  --frame-spine: 0px;
+  --frame-strip: 0px;
+  --frame-gap: 8px;
+
+  --font-display: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+/* ===== Shapes ===== */
+
+/* The frame (spine, strips, concave corners) is the LCARS look itself: gone here. */
+:is([data-theme="light"], [data-theme="dark"]) .app::before,
+:is([data-theme="light"], [data-theme="dark"]) .app-header::before,
+:is([data-theme="light"], [data-theme="dark"]) .app-header::after,
+:is([data-theme="light"], [data-theme="dark"]) .bottom-bar::before,
+:is([data-theme="light"], [data-theme="dark"]) .bottom-bar::after {
+  display: none;
+}
+
+:is([data-theme="light"], [data-theme="dark"]) .app {
+  padding-left: 0;
+}
+
+:is([data-theme="light"], [data-theme="dark"]) .app-header {
+  border-bottom: 1px solid var(--border);
+}
+
+:is([data-theme="light"], [data-theme="dark"]) .left-column {
+  border-right: 1px solid var(--border);
+}
+
+:is([data-theme="light"], [data-theme="dark"]) .left-column-body {
+  padding-top: var(--frame-gap);
+}
+
+:is([data-theme="light"], [data-theme="dark"]) .app-main {
+  margin-left: 0;
+  border-top-left-radius: 0;
+}
+
+/* The title and the ship name: plain text instead of big spaced capitals. */
+:is([data-theme="light"], [data-theme="dark"]) .app-header h1,
+:is([data-theme="light"], [data-theme="dark"]) .app-ship-name {
+  padding-bottom: 0;
+  font-size: 1.05rem;
+  font-weight: 600;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+:is([data-theme="light"], [data-theme="dark"]) .app-header h1 {
+  padding-left: 16px;
+  color: var(--text);
+}
+
+:is([data-theme="light"], [data-theme="dark"]) .app-title-sub {
+  font-size: 0.85rem;
+  color: var(--text-dim);
+}
+
+:is([data-theme="light"], [data-theme="dark"]) .app-ship-name {
+  color: var(--text-dim);
+}
+
+/* Section headings of the left column: a filled band in the section's color, so it stands apart from the content below. */
+:is([data-theme="light"], [data-theme="dark"]) .left-section-header {
+  width: 100%;
+  padding: 7px 14px;
+  border-radius: 0;
+  background: var(--section-color);
+  color: var(--text-on-accent);
+  font-size: 0.82rem;
+  font-weight: 600;
+  text-transform: none;
+  letter-spacing: 0.02em;
+}
+
+:is([data-theme="light"], [data-theme="dark"]) .left-section-chevron {
+  color: var(--text-on-accent);
+}
+
+/* The labels in capitals of LCARS (display font) are plain text here. */
+:is([data-theme="light"], [data-theme="dark"]) .u-display,
+:is([data-theme="light"], [data-theme="dark"]) [class*="-btn"],
+:is([data-theme="light"], [data-theme="dark"]) [class*="label"] {
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+/* The bar on top of a form: a light tint of the accent instead of a strong block. */
+:is([data-theme="light"], [data-theme="dark"]) .a2ui-bar {
+  background: color-mix(in srgb, var(--lc-peach) 12%, var(--surface-3));
+  color: var(--lc-amber);
+}
+
+:is([data-theme="light"], [data-theme="dark"]) .a2ui-dismiss {
+  border-color: var(--border-strong);
+  color: var(--text-dim);
+}
+
+:is([data-theme="light"], [data-theme="dark"]) .a2ui-dismiss:hover {
+  background: var(--hover);
+}
+
+/* Fields and panels: a hairline border instead of a colored one. */
+:is([data-theme="light"], [data-theme="dark"]) .chat-input-field {
+  border-width: 1px;
+  border-color: var(--border-strong);
+  background: var(--surface-3);
+}
+
+:is([data-theme="light"], [data-theme="dark"]) .chat-input-field:focus {
+  border-color: var(--lc-amber);
+}
+
+:is([data-theme="light"], [data-theme="dark"]) .left-section-body {
+  border-left: none;
+}
+
+/* ===== The settings screen ===== */
+
+:is([data-theme="light"], [data-theme="dark"]) .settings-app {
+  padding-left: 0;
+}
+
+:is([data-theme="light"], [data-theme="dark"]) .settings-app::before,
+:is([data-theme="light"], [data-theme="dark"]) .settings-header::before,
+:is([data-theme="light"], [data-theme="dark"]) .settings-header::after {
+  display: none;
+}
+
+:is([data-theme="light"], [data-theme="dark"]) .settings-header {
+  border-bottom: 1px solid var(--border);
+}
+
+:is([data-theme="light"], [data-theme="dark"]) .settings-header h1,
+:is([data-theme="light"], [data-theme="dark"]) .settings-title {
+  font-size: 1.05rem;
+  font-weight: 600;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+:is([data-theme="light"], [data-theme="dark"]) .settings-header h1 {
+  color: var(--text);
+}
+
+/* The menu: a plain vertical list; the page you are on is a tinted row. */
+:is([data-theme="light"], [data-theme="dark"]) .settings-nav {
+  gap: 2px;
+  padding: 12px 8px 0;
+}
+
+:is([data-theme="light"], [data-theme="dark"]) .settings-nav-item {
+  width: 100%;
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-dim);
+  font-size: 0.9rem;
+  letter-spacing: 0;
+  text-align: left;
+  text-transform: none;
+}
+
+:is([data-theme="light"], [data-theme="dark"]) .settings-nav-item:hover {
+  filter: none;
+  background: var(--hover);
+}
+
+:is([data-theme="light"], [data-theme="dark"]) .settings-nav-item--active,
+:is([data-theme="light"], [data-theme="dark"]) .settings-nav-item--active:hover {
+  filter: none;
+  background: color-mix(in srgb, var(--lc-peach) 12%, var(--surface-3));
+  color: var(--lc-amber);
+}
+
+/* Section headings: bold text with a hairline, not colored bands. */
+:is([data-theme="light"], [data-theme="dark"]) .settings-section h2,
+:is([data-theme="light"], [data-theme="dark"]) .settings-roster-list h2,
+:is([data-theme="light"], [data-theme="dark"]) .settings-form h2 {
+  padding: 0 0 6px;
+  border-bottom: 1px solid var(--border);
+  border-radius: 0;
+  background: transparent;
+  color: var(--text);
+  font-size: 0.95rem;
+  font-weight: 600;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+:is([data-theme="light"], [data-theme="dark"]) .settings-header h1 {
+  padding-left: 16px;
+}
+
+:is([data-theme="light"], [data-theme="dark"]) .settings-main {
+  border-top-left-radius: 0;
+}
+
+/* A band of color across the header, and a tinted title, so the page is not just white. */
+:is([data-theme="light"], [data-theme="dark"]) .app-header,
+:is([data-theme="light"], [data-theme="dark"]) .settings-header {
+  background: #0ea5e9;
+  border-bottom: none;
+  color: #ffffff;
+}
+
+:is([data-theme="light"], [data-theme="dark"]) .app-header h1,
+:is([data-theme="light"], [data-theme="dark"]) .settings-header h1,
+:is([data-theme="light"], [data-theme="dark"]) .app-title-sub,
+:is([data-theme="light"], [data-theme="dark"]) .app-ship-name,
+:is([data-theme="light"], [data-theme="dark"]) .settings-title {
+  color: #ffffff;
+}
+
+:is([data-theme="light"], [data-theme="dark"]) .app-title-sub,
+:is([data-theme="light"], [data-theme="dark"]) .settings-title {
+  opacity: 0.8;
+}
+
+
+/* Titles of the popups: plain text instead of spaced capitals. */
+:is([data-theme="light"], [data-theme="dark"]) .profile-header-title,
+:is([data-theme="light"], [data-theme="dark"]) .search-header-title {
+  font-size: 1rem;
+  font-weight: 600;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+/* The band across the top is a deeper blue in the dark theme. */
+:root[data-theme="dark"] .app-header,
+:root[data-theme="dark"] .settings-header {
+  background: #0369a1;
+}
+
+/* Table headers: a tint of the accent, so they stand apart from the cells (the plain surface is almost white in the light theme). */
+:is([data-theme="light"], [data-theme="dark"]) .markdown-body th,
+:is([data-theme="light"], [data-theme="dark"]) .message-captain .markdown-body th {
+  background: color-mix(in srgb, var(--lc-amber) 16%, var(--surface-3));
+}

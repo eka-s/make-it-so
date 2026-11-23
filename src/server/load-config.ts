@@ -1,6 +1,7 @@
 import path from "node:path";
 import { loadYaml, loadCrew, resolveShip } from "./fleet-config.js";
 import { DEFAULT_LANGUAGE, LANGUAGES, isLanguage, type Language } from "./language.js";
+import { DEFAULT_THEME, THEMES, isTheme, type Theme } from "./theme.js";
 import { CONFIG_DEFAULTS, LOG_LEVELS, PROVIDERS, type LogLevel, type Provider } from "./config-defaults.js";
 
 interface RawConfig {
@@ -16,6 +17,8 @@ interface RawConfig {
   // The language the crew speaks ("en" | "ja"). Default: the value of `language`.
   // A value saved from the UI overrides this at runtime.
   crew_language?: string;
+  // The default look of the screen ("classic" | "light"). Default: "classic". A choice made in a browser wins over this in that browser.
+  theme?: string;
   debug?: boolean;
   // Logging (see logger.ts). A global setting shared by all ship processes —
   // it is one process per ship, so there is no point in separating it per ship; it lives in the same place as debug.
@@ -49,6 +52,14 @@ function parseLanguage(value: unknown, key: string, fallback: Language = DEFAULT
   if (value === undefined) return fallback;
   if (!isLanguage(value)) {
     throw new Error(`[Config] "${key}" must be one of ${LANGUAGES.join(", ")} (got ${JSON.stringify(value)}).`);
+  }
+  return value;
+}
+
+function parseTheme(value: unknown): Theme {
+  if (value === undefined) return DEFAULT_THEME;
+  if (!isTheme(value)) {
+    throw new Error(`[Config] "theme" must be one of ${THEMES.join(", ")} (got ${JSON.stringify(value)}).`);
   }
   return value;
 }
@@ -118,6 +129,7 @@ export function loadConfig({ shipId, homeDir, log }: LoadConfigDeps) {
     fleetRoot,
     language:    uiLanguage,
     crewLanguage: parseLanguage(raw.crew_language, "crew_language", uiLanguage),
+    theme:       parseTheme(raw.theme),
     debug:       raw.debug ?? CONFIG_DEFAULTS.debug,
 
     // Logging (see logger.ts). When unset: info level, rotation at 5 MB.

@@ -50,6 +50,7 @@ beforeEach(async () => {
     shipId: "test-ship",
     defaultProvider: "kiro",
     language: () => "en",
+    theme: "classic",
     crewLanguage: () => "ja",
     bridge: { isAgentBusy: (role, missionId) => busy(role, missionId) },
     crewRunner: { isRunning: (role) => running(role), getCurrentTaskId: (role, missionId) => currentTask(role, missionId) },
@@ -90,7 +91,7 @@ describe("GET /api/health", () => {
 describe("GET /api/config", () => {
   it("returns the ship name and the default partner (the commander if there is one, otherwise the first crew member). Not decided by role name", async () => {
     deps.crew.chief_engineer = { ...member("Sam"), rank: "commander" };
-    expect((await server.get("/api/config")).body).toEqual({ defaultTarget: "chief_engineer", shipName: "USS Test", language: "en", crewLanguage: "ja" });
+    expect((await server.get("/api/config")).body).toEqual({ defaultTarget: "chief_engineer", shipName: "USS Test", language: "en", crewLanguage: "ja", theme: "classic" });
   });
 
   it("without a commander, the first crew member written is the default partner (even one named first_officer is not special-cased)", async () => {

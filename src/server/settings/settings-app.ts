@@ -19,6 +19,7 @@ import { scanProject } from "./project-scan.js";
 import { deleteShip, isShipFileReadable, newShipFields, parseShipFields, readShipState, saveShip } from "./ship-settings.js";
 import { deleteCrewIcon, findCrewIcon, MAX_ICON_BYTES, saveCrewIcon } from "../crew-icons.js";
 import { isLanguage, DEFAULT_LANGUAGE } from "../language.js";
+import { DEFAULT_THEME, isTheme, type Theme } from "../theme.js";
 
 /** What is needed to assemble the settings app. settings-main.ts wires it in production; tests pass fakes. */
 export type SettingsAppDeps = {
@@ -42,6 +43,16 @@ function readLanguage(dir: string): "en" | "ja" {
     return isLanguage(raw?.language) ? raw.language : DEFAULT_LANGUAGE;
   } catch {
     return DEFAULT_LANGUAGE;
+  }
+}
+
+/** The default look, from config.yml (like the language: the settings screen has no ship database). */
+function readTheme(dir: string): Theme {
+  try {
+    const raw = parse(fs.readFileSync(path.join(dir, "config.yml"), "utf-8")) as { theme?: unknown } | null;
+    return isTheme(raw?.theme) ? raw.theme : DEFAULT_THEME;
+  } catch {
+    return DEFAULT_THEME;
   }
 }
 
@@ -369,7 +380,7 @@ export function createSettingsApp(deps: SettingsAppDeps): express.Express {
   // The language for the UI (the same URL the ship app answers, so the shared UI code works unchanged).
   app.get("/api/config", (_req, res) => {
     const language = readLanguage(deps.dir);
-    res.json({ language, crewLanguage: language });
+    res.json({ language, crewLanguage: language, theme: readTheme(deps.dir) });
   });
 
   if (deps.clientDir) {
