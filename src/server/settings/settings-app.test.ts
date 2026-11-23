@@ -47,16 +47,25 @@ describe("settings app", () => {
 
   it("GET /api/config gives the UI language from config.yml, English by default", async () => {
     const s = await start();
-    expect((await s.get("/api/config")).body).toEqual({ language: "en", crewLanguage: "en" });
+    expect((await s.get("/api/config")).body).toEqual({ language: "en", crewLanguage: "en", theme: "classic" });
     fs.mkdirSync(dir, { recursive: true });
     fs.writeFileSync(path.join(dir, "config.yml"), "language: ja\n");
-    expect((await s.get("/api/config")).body).toEqual({ language: "ja", crewLanguage: "ja" });
+    expect((await s.get("/api/config")).body).toEqual({ language: "ja", crewLanguage: "ja", theme: "classic" });
+  });
+
+  it("GET /api/config gives the default theme from config.yml, classic by default", async () => {
+    const s = await start();
+    expect((await s.get("/api/config")).body).toMatchObject({ theme: "classic" });
+
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(path.join(dir, "config.yml"), "theme: light\n");
+    expect((await s.get("/api/config")).body).toMatchObject({ theme: "light" });
   });
 
   it("a broken config.yml falls back to English instead of failing", async () => {
     fs.mkdirSync(dir, { recursive: true });
     fs.writeFileSync(path.join(dir, "config.yml"), "language: [unclosed\n");
-    expect((await (await start()).get("/api/config")).body).toEqual({ language: "en", crewLanguage: "en" });
+    expect((await (await start()).get("/api/config")).body).toEqual({ language: "en", crewLanguage: "en", theme: "classic" });
   });
 
   it("serves the settings page (not the ship UI's index.html) at / when the built client is given", async () => {

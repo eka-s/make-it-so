@@ -10,6 +10,8 @@ import { SettingsQuickActionsForm } from "./SettingsQuickActionsForm";
 import { SettingsRosterForm } from "./SettingsRosterForm";
 import { SettingsShipsForm } from "./SettingsShipsForm";
 import { SettingsImportForm } from "./SettingsImportForm";
+import { ThemeMenu } from "./ThemeMenu";
+import { useTheme } from "./use-theme";
 import { confirmDiscard, type DirtyRegistry } from "./use-unsaved";
 import "./SettingsApp.css";
 
@@ -19,6 +21,7 @@ type Tab = (typeof TABS)[number];
 // The settings screen (served by `--settings`). It draws what the settings server reports.
 export function SettingsApp() {
   const t = useT();
+  const { theme, setTheme } = useTheme();
   const [overview, setOverview] = useState<SettingsOverview | null>(null);
   const [failed, setFailed] = useState(false);
   const [tab, setTab] = useState<Tab>("overview");
@@ -63,7 +66,7 @@ export function SettingsApp() {
       <header className="settings-header">
         <h1>Make-It-So</h1>
         <span className="settings-title">{t("settings.title")}</span>
-        <div className="settings-header-switch"><LanguageSwitch target="ui" /></div>
+        <div className="settings-header-switch"><ThemeMenu theme={theme} onSelect={setTheme} /><LanguageSwitch target="ui" /></div>
         <span className="settings-status">
           <span className={runtime.some((s) => s.state === "running") ? "settings-dot settings-dot--running" : "settings-dot"} aria-hidden="true" />
           {t("settings.status.running", { running: runtime.filter((s) => s.state === "running").length, total: runtime.length })}

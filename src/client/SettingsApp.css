@@ -671,6 +671,9 @@ body {
 
 /* The language switch sits at the right, before the status */
 .settings-header-switch {
+  display: flex;
+  align-items: center;
+  gap: 12px;
   margin-left: auto;
 }
 

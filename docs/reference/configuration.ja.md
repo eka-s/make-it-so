@@ -113,6 +113,7 @@ make-it-so 本体の共通設定です。雛形は、リポジトリの [`config
 |---|---|---|---|
 | `language` | `en` \| `ja` | `en` | UIの言語。画面から変えた値は艦のDBに保存され、こちらより優先される |
 | `crew_language` | `en` \| `ja` | `language` と同じ | クルーが話す言語。画面から変えた値はDBに保存され、こちらより優先される |
+| `theme` | `classic` \| `light` \| `dark` | `classic` | 画面の既定の見た目。ブラウザのテーマ切替スイッチで選んだ値は、そのブラウザに保存され、こちらより優先される |
 | `acp.provider` | `kiro` \| `claude` | `claude` | `roster.yml` でプロバイダーを指定していないクルーに使う、既定のプロバイダー |
 | `acp.kiro.command` | 文字列 | `kiro-cli` | kiro の起動コマンド |
 | `acp.kiro.args` | 文字列の配列 | `["acp"]` | kiro の起動引数 |
@@ -124,7 +125,7 @@ make-it-so 本体の共通設定です。雛形は、リポジトリの [`config
 | `logging.maxFileSizeMb` | 数値 | `5` | ログファイルの上限。超えると `app.log` を `app.log.1` へ退避する（1世代だけ保持） |
 
 - `init` が作る `config.yml` には、`language`・`acp.provider` が入ります。
-- 未対応の `language` / `crew_language` の値は、エラーになります。
+- 未対応の `language` / `crew_language` / `theme` の値は、エラーになります。
 
 ## `roster.yml`
 

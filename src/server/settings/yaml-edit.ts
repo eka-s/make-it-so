@@ -62,11 +62,17 @@ function actualKeyPath(doc: Document, keyPath: string[]): (string | number | boo
 }
 
 /**
- * Makes sure every parent of `keyPath` is a map. A parent written as an empty key (`crew:` with nothing under it, or only
+ * Makes sure the document and every parent of `keyPath` is a map. A parent written as an empty key (`crew:` with nothing under it, or only
  * comments) parses as null, and setIn refuses to go through it; it is replaced by an empty map (keeping its comments).
  * A parent that holds a real value (a list, a text) is left alone, so the edit fails visibly instead of destroying data.
  */
 function ensureMapParents(doc: Document, keyPath: (string | number | boolean)[]): void {
+  // A file with nothing in it (or only comments, or a bare `null`) has no root map to put a key in.
+  if (doc.contents === null || (isScalar(doc.contents) && doc.contents.value === null)) {
+    const map = doc.createNode({});
+    map.commentBefore = doc.contents?.commentBefore ?? doc.commentBefore;
+    doc.contents = map;
+  }
   for (let depth = 1; depth < keyPath.length; depth++) {
     const prefix = keyPath.slice(0, depth);
     const node = doc.getIn(prefix, true);

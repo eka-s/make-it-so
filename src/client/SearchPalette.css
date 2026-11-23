@@ -41,7 +41,7 @@
   height: 38px;
   flex-shrink: 0;
   background: var(--lc-amber);
-  color: #000;
+  color: var(--text-on-accent);
 }
 
 .search-header-title {
@@ -55,7 +55,7 @@
 .search-close {
   border: none;
   background: rgba(0, 0, 0, 0.2);
-  color: #000;
+  color: var(--text-on-accent);
   width: 26px;
   height: 26px;
   border-radius: var(--radius-pill);
@@ -211,7 +211,7 @@
 
 .search-segment--on {
   background: var(--lc-periwinkle);
-  color: #000;
+  color: var(--text-on-accent);
   font-weight: 600;
 }
 

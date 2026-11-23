@@ -120,6 +120,16 @@ describe("ship selection and defaults", () => {
     expect(() => load("alpha")).toThrow(/"crew_language" must be one of en, ja/);
   });
 
+  it("theme defaults to classic and can be set in config.yml. An unsupported value is an error", () => {
+    expect(load("alpha").theme).toBe("classic");
+
+    write(".make-it-so/config.yml", "theme: light\n");
+    expect(load("alpha").theme).toBe("light");
+
+    write(".make-it-so/config.yml", "theme: neon\n");
+    expect(() => load("alpha")).toThrow(/"theme" must be one of classic, light, dark/);
+  });
+
   it("language can be specified in config.yml. An unsupported value is an error", () => {
     write(".make-it-so/config.yml", "language: ja\n");
     expect(load("alpha").language).toBe("ja");

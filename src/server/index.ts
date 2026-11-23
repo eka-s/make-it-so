@@ -182,6 +182,7 @@ async function start(): Promise<void> {
     defaultProvider: config.acp.provider,
     language: currentLanguage,
     crewLanguage: currentCrewLanguage,
+    theme: config.theme,
     bridge,
     crewRunner,
     contextPercent: (role, missionId) => liveCrewManager.getContextPercent(role, missionId),

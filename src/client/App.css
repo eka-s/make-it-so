@@ -1443,7 +1443,7 @@ body {
 
 .crew-report-group-count {
   font-weight: normal;
-  color: rgba(0, 0, 0, 0.65);
+  color: color-mix(in srgb, var(--text-on-accent) 65%, transparent);
   font-size: 0.78rem;
 }
 

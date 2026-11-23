@@ -81,6 +81,13 @@ describe("setValue through an empty parent key", () => {
     expect(parse(edit("a:\n  b:\n", (doc) => setValue(doc, ["a", "b", "c"], 1)))).toEqual({ a: { b: { c: 1 } } });
   });
 
+  it("a file with nothing in it (empty, only comments, or a bare `null`) takes a top-level key", () => {
+    for (const text of ["", "# my settings\n", "null\n"]) {
+      expect(parse(edit(text, (doc) => setValue(doc, ["theme"], "light")))).toEqual({ theme: "light" });
+    }
+    expect(edit("# my settings\n", (doc) => setValue(doc, ["theme"], "light"))).toContain("# my settings");
+  });
+
   it("a parent that holds a real value is not overwritten", () => {
     expect(() => edit("crew: text\n", (doc) => setValue(doc, ["crew", "sam", "name"], "Sam"))).toThrow();
   });

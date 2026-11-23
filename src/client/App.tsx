@@ -19,6 +19,8 @@ import { useSSE } from "./useSSE";
 import { useCrewStatus } from "./useCrewStatus";
 import type { SearchHit } from "./types";
 import { consumeOnce, effectiveTarget, pruneTargets, selectTarget, type TargetState } from "./target-state";
+import { useTheme } from "./use-theme";
+import { ThemeMenu } from "./ThemeMenu";
 import { usePendingAttention } from "./usePendingAttention";
 import { countByMission, countByRole, permissionsOfMission } from "./permission-summary";
 import { usePermissions } from "./usePermissions";
@@ -43,6 +45,7 @@ import { useI18n } from "./i18n/I18nProvider";
 
 export function App() {
   const { t, tError } = useI18n();
+  const { theme, setTheme } = useTheme();
   // Open/closed state of the collapsible sections of the left pane (crew status/pins). Unlike missions,
   // they are not mutually exclusive (both can be kept open at the same time).
   const [isCrewOpen, setIsCrewOpen] = useState(true);
@@ -876,6 +879,7 @@ export function App() {
             <line x1="2" y1="8" x2="14" y2="8" />
           </svg>
         </button>
+        <ThemeMenu theme={theme} onSelect={setTheme} />
         <LanguageMenu />
         {shipName && <span className="app-ship-name">{shipName}</span>}
       </header>

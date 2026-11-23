@@ -6,6 +6,7 @@ import { defaultCrewRole, type CrewMemberConfig } from "../fleet-config.js";
 import { getTaskHistory, getTaskStarted, getUnreportedTasks } from "../database.js";
 import type { HealthResponse } from "../types.js";
 import type { Language } from "../language.js";
+import type { Theme } from "../theme.js";
 import type { SlashCommand } from "../slash-commands.js";
 
 // Routes that return the health check, the app config, and the crew's composition and running state.
@@ -25,6 +26,8 @@ export type StatusRouterDeps = {
   language: () => Language;
   /** The language the crew speaks. Read on every request, like `language`. */
   crewLanguage: () => Language;
+  /** The default look from config.yml (a browser's own choice wins over it). */
+  theme: Theme;
   bridge: Pick<Bridge, "isAgentBusy">;
   crewRunner: Pick<CrewRunner, "isRunning" | "getCurrentTaskId">;
   /** Stage of the conversation session coming up (starting or restarting). undefined if neither. */
@@ -102,6 +105,7 @@ export function createStatusRouter(deps: StatusRouterDeps): {
       shipName: deps.shipName,
       language: deps.language(),
       crewLanguage: deps.crewLanguage(),
+      theme: deps.theme,
     });
   });
 

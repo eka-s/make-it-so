@@ -26,6 +26,7 @@ import type {
   SettingsShipRuntime,
   SettingsShipState,
   TaskDetail,
+  Theme,
 } from "./types";
 
 // The only place that calls the server's API. (Do not start the file name with "api" — Vite's dev server
@@ -99,7 +100,7 @@ export function createApi(options: ApiOptions = {}) {
       request<{ items: Message[]; hasMore: boolean }>(`/api/timeline/older?before=${enc(before)}&missionId=${enc(missionId)}`),
 
     // --- Ship config ---
-    getConfig: (signal?: AbortSignal) => request<{ defaultTarget: string | null; shipName: string; language: Language; crewLanguage: Language }>("/api/config", { signal }),
+    getConfig: (signal?: AbortSignal) => request<{ defaultTarget: string | null; shipName: string; language: Language; crewLanguage: Language; theme: Theme }>("/api/config", { signal }),
     /** Saves the UI language on the server. */
     setLanguage: (language: Language) => send<{ language: Language }>("PUT", "/api/config/language", { language }),
     /** Saves the language the crew speaks on the server (separate from the UI language). */
