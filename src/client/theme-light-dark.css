@@ -335,3 +335,8 @@
 :is([data-theme="light"], [data-theme="dark"]) .message-captain .markdown-body th {
   background: color-mix(in srgb, var(--lc-amber) 16%, var(--surface-3));
 }
+
+/* "Engage!" is a flourish of the classic look; the other themes do not show it. */
+:is([data-theme="light"], [data-theme="dark"]) .chat-input-btn--engage {
+  display: none;
+}
