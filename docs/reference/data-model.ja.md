@@ -28,9 +28,10 @@
 
 | グループ | テーブル |
 |---|---|
-| タイムライン | `timeline_events`（幹）、各イベント種別の詳細テーブル（11 種） |
+| タイムライン | `timeline_events`（幹）、各イベント種別の詳細テーブル（14 種） |
 | ミッション | `missions`、`pinned_messages`、`mission_crew_model` |
 | タスク | `task_started_events`、`task_completed_events`、`task_error_events`、`task_reported_events`、`task_id_counters` |
+| A2UI のフォーム | `ui_shown_events`、`ui_answered_events`、`ui_dismissed_events` |
 | 設定・キャッシュ | `app_settings`、`provider_model_options`、`provider_commands` |
 
 ## タイムラインのイベント
@@ -67,8 +68,11 @@
 | `task_completed` | `task_completed_events` | タスクの完了 | 同上 |
 | `task_error` | `task_error_events` | タスクの失敗 | 同上 |
 | `task_reported` | `task_reported_events` | タスクの結果を副長へ報告した | 同上 |
+| `ui_shown` | `ui_shown_events` | クルーが、返信の下に、A2UI のフォームを見せた | [A2UI のフォーム](#a2ui-のフォーム) |
+| `ui_answered` | `ui_answered_events` | 艦長が、A2UI のフォームに回答した | 同上 |
+| `ui_dismissed` | `ui_dismissed_events` | 艦長が、A2UI のフォームを、回答せずに閉じた | 同上 |
 
-画面に項目として出るのは、`captain_message`、`turn_completed`、`turn_cancelled`、`turn_error`、`system_notice`、`task_completed`、`task_error` です。`turn_started`、`turn_recovery_started`、`task_started`、`task_reported` は、履歴を完全に保つための記録で、単独では項目になりません。
+画面に項目として出るのは、`captain_message`、`turn_completed`、`turn_cancelled`、`turn_error`、`system_notice`、`task_completed`、`task_error` です。`turn_started`、`turn_recovery_started`、`task_started`、`task_reported`、`ui_shown`、`ui_answered`、`ui_dismissed` は、履歴を完全に保つための記録で、単独では項目になりません。
 
 ### 列の意味
 
@@ -127,6 +131,25 @@
 - タスク ID は `<役職名>_<4桁の連番>`（例: `chief_engineer_0001`。担当者を、メンバーIDで指定しても、役職名にそろえます）です。連番は `task_id_counters` の 1 行を UPSERT して払い出します。並行して発行しても重複しません。
 - 「報告済み」は、完了・失敗の行を書き換えず、`task_reported_events` に行を足して表します。**未報告のタスクは、`task_reported_events` に行がないタスク**です。
 
+## A2UI のフォーム
+
+クルーは、`render_ui` で、返信の下に、操作できるフォーム（A2UI）を出せます。フォームは、**その返信（ターン）の項目の一部**で、独立した項目ではありません。フォームがどうなったかは、別々の事実として記録します。
+
+| テーブル | 列 | 意味 |
+|---|---|---|
+| `ui_shown_events` | `turn_id`（一意）, `agent`, `messages_json` | クルーがフォームを見せた。`turn_id` は、フォームが出る返信（1つのターンに、フォームは1つまで）で、ほかの2つのテーブルでも、フォームを指す。`messages_json` は、A2UI v1.0 のメッセージ（surface は1つだけ） |
+| `ui_answered_events` | `turn_id`（一意）, `action_json`, `data_model_json`, `comment` | 艦長がフォームに回答した（ボタンを押した）。どのフォームか（`turn_id`）、押したことで生じた A2UI のアクション（`action_json`: `name`、`surfaceId`、`sourceComponentId`、`timestamp`、`context`）、その時点のフォームの surface の値、フォームのコメント欄に書いたコメント（なければ空）。クルーが受け取った文面は、保存しない。会話の経緯を作るときに、`action_json` と `comment` から作る |
+| `ui_dismissed_events` | `turn_id`（一意） | 艦長がフォームを、回答せずに閉じた |
+
+- タスクの「報告済み」と同じく、フォームがどうなったかは、フォームの行を書き換えず、行を足して表します。**`ui_answered_events` に行があるフォームは回答済み、`ui_dismissed_events` に行があれば閉じた、どちらもなければ未回答（open）**です。
+- フォームを載せるのは、**完了した**（`turn_completed`）返信だけです。キャンセルされた、失敗した、終了せずに壊れた返信で出したフォームは、表示されず、ミッションをロックすることもありません。
+- 返信の項目は、フォームを `a2ui: { state, messages, comment?, actionName?, locksInput? }` として持ちます。
+  - `state: "open"` — 艦長の回答待ち。`messages` は、クルーが送ったとおりのフォームです。`locksInput: true` が付きます。このフォームが、ミッションの入力をロックすることは、サーバーが決め、クライアントは、項目のとおりに受け取ります。
+  - `state: "answered"` — `messages` の末尾に、`data_model_json` の値を設定する `updateDataModel` が付くので、フォームは、回答したときの状態で表示されます。`actionName` は押した操作、`comment` は回答と一緒に書いたコメント（なければありません）。
+  - `state: "dismissed"` — 回答せずに閉じた。`messages` は空（描くものがない）で、返信には、閉じたことを示す印が残ります。
+- ミッションに未回答のフォームがある間は、そのミッションでメッセージを送れません（入力欄がロックされ、サーバーも `409` で断ります）。どの返信にあるかは、`GET /api/timeline` が `openUiItemId` で返すので、クライアントが、読み込み済みの項目から探す必要はありません。
+- 回答のときにクルーが受け取るメッセージは、保存しません。読むときに、`action_json` と `comment` から作ります。`a2ui-action` と印を付けたコードブロックに、A2UI v1.0 の action メッセージを入れ、コメントがあれば、`Captain's comment:` とコメントが続きます（ほかのクルーに渡す会話の経緯にも、これが入ります）。文面ではなく、事実を保存するので、文面を作る箇所を変えても、古い行は、そのまま使えます。
+
 ## 設定とキャッシュ
 
 | テーブル | 列 | 意味 |
@@ -155,6 +178,7 @@
 | 3 | `task-dispatcher` | `task_started_events.dispatched_by` を追加。既存行は `first_officer` で埋める |
 | 4 | `provider-commands` | `provider_commands` を追加 |
 | 5 | `task-cancelled` | `task_completed_events.cancelled` を追加。既存行は 0（中止ではない） |
+| 6 | `ui-events` | `ui_shown_events`、`ui_answered_events`、`ui_dismissed_events` を追加 |
 
 ### 規則
 

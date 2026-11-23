@@ -14,6 +14,7 @@ let bridge: {
 };
 let broadcast: ReturnType<typeof vi.fn>;
 let fetchCredits: ReturnType<typeof vi.fn>;
+let openUiItemId: ReturnType<typeof vi.fn>;
 
 beforeEach(async () => {
   vi.spyOn(console, "log").mockImplementation(() => {});
@@ -28,11 +29,13 @@ beforeEach(async () => {
   };
   broadcast = vi.fn();
   fetchCredits = vi.fn(async () => null);
+  openUiItemId = vi.fn(() => null);
   const deps: ConversationRouterDeps = {
     crew: { first_officer: {}, chief_engineer: {} },
     bridge,
     fetchCredits,
     broadcast,
+    openUiItemId,
   };
   server = await startTestServer((app) => app.use(createConversationRouter(deps)));
 });
@@ -40,6 +43,21 @@ afterEach(async () => {
   await server.close();
   closeDatabase();
   vi.restoreAllMocks();
+});
+
+describe("while an A2UI form is waiting for the captain", () => {
+  it("a message and a report are refused (409) and nothing is sent: the form is answered or closed first", async () => {
+    openUiItemId.mockReturnValue("turn-1");
+    const message = await server.send("POST", "/api/crew/chief_engineer/message", { text: "hi", missionId: "m1" });
+    const report = await server.send("POST", "/api/crew/chief_engineer/report", { missionId: "m1" });
+    expect(message.status).toBe(409);
+    expect(report.status).toBe(409);
+    expect(message.body).toMatchObject({ error: "form_open" });
+    expect(report.body).toMatchObject({ error: "form_open" });
+    expect(openUiItemId).toHaveBeenCalledWith("m1");
+    expect(bridge.sendMessage).not.toHaveBeenCalled();
+    expect(bridge.sendReport).not.toHaveBeenCalled();
+  });
 });
 
 describe("POST /api/crew/:role/message", () => {

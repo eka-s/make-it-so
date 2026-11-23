@@ -341,12 +341,50 @@ function addTaskCancelled(db: DatabaseSync): void {
   addColumnIfMissing(db, "task_completed_events", "cancelled INTEGER NOT NULL DEFAULT 0");
 }
 
+/**
+ * Migration 6: the A2UI form a crew member shows the captain (render_ui) inside its reply, and what became of it. All three tables
+ * are keyed by `turn_id`, the turn (the reply) the form appears in; a turn has at most one form, so it is UNIQUE in each.
+ *  - `ui_shown_events`: the fact that a crew member showed a form. It is record-only: the form is part of the turn's item.
+ *  - `ui_answered_events`: the fact that the captain answered it (record-only, like task_reported). It keeps the A2UI `action` the
+ *    captain's press produced (`action_json`: name, surfaceId, sourceComponentId, timestamp, context) and the form's values at that
+ *    moment (`data_model_json`), so the form can be shown as it was when it was answered, and the comment the captain wrote with the
+ *    answer (`comment`, empty if none).
+ *  - `ui_dismissed_events`: the fact that the captain closed the form without answering (record-only).
+ * Whether a form is open, answered or dismissed is read from the existence of these rows; the form's own row is never updated.
+ */
+function addUiEvents(db: DatabaseSync): void {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS ui_shown_events (
+      event_id INTEGER PRIMARY KEY REFERENCES timeline_events(id),
+      turn_id TEXT NOT NULL UNIQUE,
+      agent TEXT NOT NULL,
+      messages_json TEXT NOT NULL
+    )
+  `);
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS ui_answered_events (
+      event_id INTEGER PRIMARY KEY REFERENCES timeline_events(id),
+      turn_id TEXT NOT NULL UNIQUE,
+      action_json TEXT NOT NULL,
+      data_model_json TEXT NOT NULL,
+      comment TEXT NOT NULL
+    )
+  `);
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS ui_dismissed_events (
+      event_id INTEGER PRIMARY KEY REFERENCES timeline_events(id),
+      turn_id TEXT NOT NULL UNIQUE
+    )
+  `);
+}
+
 export const MIGRATIONS: Migration[] = [
   { version: 1, name: "baseline", up: baseline },
   { version: 2, name: "backfill-legacy-agents", up: backfillLegacyAgents },
   { version: 3, name: "task-dispatcher", up: addTaskDispatcher },
   { version: 4, name: "provider-commands", up: addProviderCommands },
   { version: 5, name: "task-cancelled", up: addTaskCancelled },
+  { version: 6, name: "ui-events", up: addUiEvents },
 ];
 
 export function getSchemaVersion(db: DatabaseSync): number {

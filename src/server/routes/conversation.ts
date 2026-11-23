@@ -17,6 +17,8 @@ export type ConversationRouterDeps = {
   /** The ship's crew (used to check that a role name exists). */
   crew: Record<string, unknown>;
   bridge: Pick<Bridge, "isMissionBusy" | "sendMessage" | "sendReport" | "cancelMessage">;
+  /** The id of the reply with an A2UI form the captain has neither answered nor closed, in the mission (null if none): nothing can be sent until then. */
+  openUiItemId: (missionId: string) => string | null;
   /** Forces a re-fetch of the credit usage. */
   fetchCredits: () => Promise<AccountsSnapshot>;
   /** Broadcasts to all clients over SSE. */
@@ -25,6 +27,13 @@ export type ConversationRouterDeps = {
 
 export function createConversationRouter(deps: ConversationRouterDeps): express.Router {
   const router = express.Router();
+
+  /** While a form a crew member showed is waiting for the captain, nothing else can be sent: it is answered or closed first. */
+  function formIsOpen(missionId: string, res: express.Response): boolean {
+    if (deps.openUiItemId(missionId) === null) return false;
+    res.status(409).json({ error: "form_open", message: "A form is waiting for your answer: answer it, or close it without answering, first." });
+    return true;
+  }
 
   // --- Conversation with the crew ---
   // The captain talks to any one crew member of the ship (every crew member has the same entry point; there are no special crew members).
@@ -51,6 +60,7 @@ export function createConversationRouter(deps: ConversationRouterDeps): express.
         res.status(429).json({ error: "This mission is busy processing a previous message" });
         return;
       }
+      if (formIsOpen(missionId, res)) return;
       const messageId = deps.bridge.sendMessage(text, role, missionId);
       const response: BridgeMessageResponse = { messageId, status: "accepted" };
       res.status(202).json(response);
@@ -78,6 +88,8 @@ export function createConversationRouter(deps: ConversationRouterDeps): express.
         res.status(429).json({ error: "This mission is busy processing a previous message" });
         return;
       }
+
+      if (formIsOpen(missionId, res)) return;
 
       const { messageId } = deps.bridge.sendReport(role, missionId);
       res.status(202).json({ messageId, status: "accepted" });

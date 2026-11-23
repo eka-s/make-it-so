@@ -9,12 +9,13 @@ import { z } from "zod";
 import type { Request, Response } from "express";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
-import { getUnreportedTasks, getTaskOutcome, isTaskCancelled, getTaskStarted, nextTaskId } from "./database.js";
+import { getUnreportedTasks, getTaskOutcome, isTaskCancelled, getTaskStarted, nextTaskId, type UiState } from "./database.js";
 import { MCP_AGENT_HEADER, MCP_MISSION_HEADER } from "./crew-manager.js";
 import { canDispatch, type CrewRank } from "./fleet-config.js";
 import { missionFromTaskScope } from "./crew-runner.js";
 import type { CrewRunner } from "./crew-runner.js";
 import { logger } from "./logger.js";
+import { a2uiProblems } from "./a2ui-validate.js";
 
 /** External dependencies of the bulletin-board MCP. index.ts wires them in production; tests pass fakes. */
 export type McpBoardDeps = {
@@ -40,7 +41,29 @@ export type McpBoardDeps = {
    * The rank of the role. undefined if not in the ship. Issuing tasks and what reports are visible are decided by rank alone.
    */
   rankOf: (role: string) => CrewRank | undefined;
+  /** The turn in progress in a mission and the crew member it is with (undefined if none). */
+  currentTurn: (missionId: string) => { turnId: string; agentName: string } | undefined;
+  /** What became of the A2UI form in the reply of the turn `turnId` ("pending" while the reply is in progress; undefined if the turn has none). */
+  uiStateOf: (turnId: string) => UiState | undefined;
+  /** Records the A2UI form of the reply of the turn `turnId` (the form appears when the turn ends). */
+  recordUi: (ui: { turnId: string; role: string; missionId: string; messages: Array<Record<string, unknown>> }) => void;
 };
+
+/** A minimal complete form, shown to the model in the tool description: a text field bound to the data model, and a button whose action carries its value. */
+const A2UI_EXAMPLE = [{
+  version: "1.0",
+  createSurface: {
+    surfaceId: "form",
+    catalogId: "https://a2ui.org/specification/v1_0/catalogs/basic/catalog.json",
+    components: [
+      { id: "root", component: "Column", children: ["name", "go"] },
+      { id: "name", component: "TextField", label: "Name", value: { "@path": "/name" } },
+      { id: "label", component: "Text", text: "OK" },
+      { id: "go", component: "Button", child: "label", variant: "primary", action: { event: { name: "submit", context: { name: { "@path": "/name" } } } } },
+    ],
+    dataModel: { name: "" },
+  },
+}];
 
 /**
  * Identification of the calling session (from the HTTP header that base-acp-client.ts put in when creating the session).
@@ -159,6 +182,45 @@ export function createBoardServer(deps: McpBoardDeps, caller?: CallerIdentity): 
         ...(outcome ? ["", "### Result", outcome] : ["", "(not completed yet)"]),
       ].join("\n");
       return { content: [{ type: "text" as const, text }] };
+    }
+  );
+
+  server.registerTool(
+    "render_ui",
+    {
+      description: "Shows an interactive form (A2UI v1.0) to the captain, under your reply in the conversation. Use it when a form or a choice is clearer than text, and only in a reply to the captain (not while working on a delegated task); one form per reply. " +
+        "Pass the A2UI messages as `messages`: each is an object with \"version\": \"1.0\" and exactly one of createSurface / updateComponents / updateDataModel, together making exactly one surface. " +
+        "Each call must be self-contained: start with createSurface, carrying the components and the dataModel. Bind inputs to the data model with {\"@path\": \"/x\"} (not {\"path\": ...}), and send their values back by binding the same paths in the button's action context. A complete example: " + JSON.stringify(A2UI_EXAMPLE) + " " +
+        "The messages are validated; on an error nothing is shown and the error is returned, so fix it and call again. " +
+        "Use the basic catalog (catalogId \"https://a2ui.org/specification/v1_0/catalogs/basic/catalog.json\"; components such as Text (variant: caption | body only), Column, Row, Card, Button, TextField, CheckBox, ChoicePicker, Divider). " +
+        "A Button's `action` is {\"event\": {\"name\": ..., \"context\": {...}}}: when the captain presses it you get a message with a fenced block marked `a2ui-action`, holding the A2UI action message ({\"version\":\"1.0\",\"action\":{name, surfaceId, sourceComponentId, timestamp, context}}), followed by the captain's free comment (\"Captain's comment:\") if they wrote one (every form has a comment field at its bottom, so you need not add one). The form can be used only once, and the captain cannot send other messages until they answer it or close it without answering. " +
+        "This tool returns at once and does not wait for the captain: write your message and end your turn after calling it; the form appears under it when the turn ends.",
+      inputSchema: {
+        messages: z.array(z.record(z.string(), z.unknown())).min(1).describe("The A2UI v1.0 messages, in order (normally one createSurface that carries the components and the dataModel)"),
+      },
+    },
+    async ({ messages }) => {
+      const missionId = resolveCallerMission(caller);
+      const role = caller ? deps.roleOf(caller.agent) : undefined;
+      if (!missionId || role === undefined) {
+        logger.error("[MCP] render_ui: the caller could not be identified (headers are missing or it is not in the ship)");
+        return { content: [{ type: "text" as const, text: "Error: the caller could not be identified. Nothing was shown." }], isError: true };
+      }
+      const problem = a2uiProblems(messages);
+      if (problem) return { content: [{ type: "text" as const, text: `Error: ${problem} Nothing was shown.` }], isError: true };
+      // The form lives in the reply of the turn the captain started with this crew member: not in a delegated task, nor in someone else's turn.
+      const turn = deps.currentTurn(missionId);
+      if (!turn || turn.agentName !== role) {
+        return { content: [{ type: "text" as const, text: "Error: render_ui can be used only in a reply to the captain. Nothing was shown." }], isError: true };
+      }
+      // One form per reply: a second one is refused with the reason, so the model does not retry in vain.
+      const existing = deps.uiStateOf(turn.turnId);
+      if (existing) {
+        const why = existing === "pending" ? "This reply already has a form: it appears when the reply ends (one per reply)." : "This reply already had a form (one per reply).";
+        return { content: [{ type: "text" as const, text: `Error: ${why} Nothing was shown.` }], isError: true };
+      }
+      deps.recordUi({ turnId: turn.turnId, role, missionId, messages });
+      return { content: [{ type: "text" as const, text: "The form will appear under your reply when this turn ends. The captain's answer will come later as a message with an a2ui-action block; write your message and end your turn now." }] };
     }
   );
 

@@ -23,10 +23,10 @@ import { usePendingAttention } from "./usePendingAttention";
 import { countByMission, countByRole, permissionsOfMission } from "./permission-summary";
 import { usePermissions } from "./usePermissions";
 import { usePinnedMessages } from "./usePinnedMessages";
-import type { AccountsSnapshot, Message, PinnedMessage, CrewMemberConfig, Mission, ThinkingEntry } from "./types";
+import type { A2uiAnswer, AccountsSnapshot, Message, PinnedMessage, CrewMemberConfig, Mission, ThinkingEntry } from "./types";
 import { DEFAULT_MISSION_ID } from "./constants";
 import { chatReducer, initialChatState, type Gap } from "./chat-state";
-import { api } from "./server-api";
+import { api, type ApiResponse } from "./server-api";
 import { DEFAULT_SPLIT_RATIO, clampSplitRatio, splitRatioFromPointer } from "./split-layout";
 import {
   loadStoredNumber,
@@ -70,7 +70,9 @@ export function App() {
   // The state of the chat screen (conversation, thinking display, sending state, etc.) is gathered in a reducer that
   // reflects what arrives from the server as is (see chat-state.ts).
   const [chat, dispatch] = useReducer(chatReducer, initialChatState);
-  const { messages, isSending, crewActivitySignal, hasMore, isLoadingOlder } = chat;
+  const { messages, isSending, crewActivitySignal, hasMore, isLoadingOlder, openUiItemId } = chat;
+  // A form a crew member showed is waiting for the captain: nothing can be sent until it is answered or closed (the server refuses too).
+  const uiOpen = openUiItemId !== null;
   // Missions (= the boundary of a conversation). Only the conversation of the mission open now is shown,
   // and this ID is always passed to the API as well. SSE events of turns running in parallel in other missions are
   // dropped by looking at missionId.
@@ -270,11 +272,11 @@ export function App() {
     try {
       const res = await api.getTimeline(missionId, signal);
       if (!res.ok) return;
-      const data: { items: Message[]; hasMore: boolean } = await res.json();
+      const data = await res.json();
       // Keeping the older pages that had already been loaded by scrolling back, and deciding hasMore and isSending, are done by
       // the reducer (see chat-state.ts). While there is a request in flight,
       // isSending is not overwritten with the server's state.
-      dispatch({ type: "snapshot-loaded", items: data.items, hasMore: data.hasMore, resolveSending: pendingSendCountRef.current === 0 });
+      dispatch({ type: "snapshot-loaded", items: data.items, hasMore: data.hasMore, openUiItemId: data.openUiItemId, resolveSending: pendingSendCountRef.current === 0 });
     } catch (err) {
       if (err instanceof Error && err.name !== "AbortError") {
         console.error("Failed to load timeline snapshot:", err);
@@ -625,6 +627,26 @@ export function App() {
     messagesEndRef.current?.scrollIntoView({ behavior: "instant" });
   }, [messages]);
 
+  // Content that grows after it was added keeps a view that was at the very bottom there: an A2UI form is drawn by its renderer a moment
+  // after its reply arrives, so the effect above has already run by then. A view the user scrolled away from stays where it is.
+  useEffect(() => {
+    const container = messagesContainerRef.current;
+    if (!container) return;
+    let frame = 0;
+    const follow = () => {
+      frame = 0;
+      if (isAtBottomRef.current) messagesEndRef.current?.scrollIntoView({ behavior: "instant" });
+    };
+    const observer = new MutationObserver(() => {
+      if (frame === 0) frame = requestAnimationFrame(follow);
+    });
+    observer.observe(container, { childList: true, subtree: true });
+    return () => {
+      if (frame !== 0) cancelAnimationFrame(frame);
+      observer.disconnect();
+    };
+  }, []);
+
   // After a jump to an old pin, scroll to it once the loaded page is on screen (this runs after the
   // auto-scroll above, so it wins).
   useEffect(() => {
@@ -789,6 +811,31 @@ export function App() {
     [isSending, sendTarget, activeMissionId, t, tError]
   );
 
+  // An action on an A2UI form (answering it, or closing it without answering): the server does the rest (sends the answer to the crew member,
+  // records it, and sends the reply again with the form's new state), so only a failure is shown here — in the conversation, without
+  // touching the waiting state, since no send is in progress.
+  const runA2uiRequest = useCallback(async (request: () => Promise<ApiResponse>) => {
+    let failure: string | null = null;
+    try {
+      const res = await request();
+      if (res.ok) return;
+      const errData = (await res.json().catch(() => undefined)) as { error?: string; message?: string } | undefined;
+      failure = tError(errData, `HTTP ${res.status}`);
+    } catch (err) {
+      failure = err instanceof Error ? err.message : "Request failed";
+    }
+    dispatch({
+      type: "a2ui-failed",
+      message: { id: `error_${Date.now()}`, missionId: activeMissionId, role: "captain", text: `⚠️ Error: ${failure}`, timestamp: new Date().toISOString() },
+    });
+  }, [activeMissionId, tError]);
+
+  const handleA2uiAction = useCallback(
+    (itemId: string, answer: A2uiAnswer) => runA2uiRequest(() => api.answerA2ui(itemId, answer)),
+    [runA2uiRequest],
+  );
+  const handleA2uiDismiss = useCallback((itemId: string) => runA2uiRequest(() => api.dismissA2ui(itemId)), [runA2uiRequest]);
+
   const listProps = {
     messages,
     gaps: chat.gaps,
@@ -800,6 +847,8 @@ export function App() {
     onCrewCancel: handleCrewCancel,
     isStopping,
     onFillGap: fillGap,
+    onA2uiAction: handleA2uiAction,
+    onA2uiDismiss: handleA2uiDismiss,
   };
 
   return (
@@ -916,7 +965,8 @@ export function App() {
           <ChatInput
             onSend={handleSend}
             onReport={handleReport}
-            disabled={isSending}
+            disabled={isSending || uiOpen}
+            waitingForUi={uiOpen && !isSending}
             missionId={activeMissionId}
             crewConfig={crewConfig}
             baseTarget={targetState.base}

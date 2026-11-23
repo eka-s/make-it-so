@@ -8,6 +8,7 @@ import { escapeLike } from "./search.js";
 import { logger } from "./logger.js";
 import { SERVER_MESSAGES, type ServerMessageKey } from "./messages.js";
 import { migrate } from "./migrations.js";
+import { a2uiAnswerText, a2uiSurfaceId, type A2uiAction } from "./a2ui-action.js";
 
 // The DB is completely separated per ship —
 // it is placed under the selected ship's directory, not under make-it-so's own directory. With a structural
@@ -171,9 +172,10 @@ export function deletePinnedMessage(messageId: string): boolean {
 // between the two INSERTs, no orphaned spine row without a corresponding detail row is left.
 // Callers (bridge.ts etc.) never INSERT directly into timeline_events or the detail tables.
 //
-// All 11 event_types (captain_message/turn_started/turn_completed/
+// All 14 event_types (captain_message/turn_started/turn_completed/
 // turn_cancelled/turn_error/turn_recovery_started/system_notice/
-// task_started/task_completed/task_error/task_reported) are implemented.
+// task_started/task_completed/task_error/task_reported/
+// ui_shown/ui_answered/ui_dismissed) are implemented.
 
 function withTransaction<T>(fn: () => T): T {
   const d = getDb();
@@ -653,6 +655,100 @@ export function recordTaskStarted(
   });
 }
 
+/**
+ * Recorded when a crew member shows an A2UI form to the captain with render_ui, inside the reply of the turn `turnId` (at most one
+ * form per turn: a second one violates the UNIQUE constraint). It never produces a chat item by itself: the form is part of the item
+ * of that turn (see rowsToItems). `messages` are the A2UI v1.0 messages, already validated.
+ */
+export function recordUiShown(turnId: string, missionId: string, agent: string, messages: Array<Record<string, unknown>>): { timestamp: string } {
+  return withTransaction(() => {
+    const timestamp = new Date().toISOString();
+    const eventId = insertEvent("ui_shown", timestamp, missionId);
+    getDb().prepare("INSERT INTO ui_shown_events (event_id, turn_id, agent, messages_json) VALUES (?, ?, ?, ?)")
+      .run(eventId, turnId, agent, JSON.stringify(messages));
+    return { timestamp };
+  });
+}
+
+/** The captain's answer to the A2UI form of the reply `turnId`, as it is recorded (see recordUiAnswered). */
+export type UiAnswerRecord = { turnId: string; action: A2uiAction; dataModel: Record<string, unknown>; comment: string };
+
+/**
+ * Recorded when the captain answers an A2UI form (presses its button): the A2UI action that press produced, the values of the form's
+ * surface at that moment (`dataModel`), and the comment the captain wrote with it. Like task_reported, it never produces a chat item
+ * of its own: the form reads "answered" from this row's existence. A second answer to the same form violates the UNIQUE constraint.
+ */
+export function recordUiAnswered(answer: UiAnswerRecord, missionId: string): { timestamp: string } {
+  return withTransaction(() => {
+    const timestamp = new Date().toISOString();
+    const eventId = insertEvent("ui_answered", timestamp, missionId);
+    getDb().prepare("INSERT INTO ui_answered_events (event_id, turn_id, action_json, data_model_json, comment) VALUES (?, ?, ?, ?, ?)")
+      .run(eventId, answer.turnId, JSON.stringify(answer.action), JSON.stringify(answer.dataModel), answer.comment);
+    return { timestamp };
+  });
+}
+
+/** Recorded when the captain closes the A2UI form of the reply `turnId` without answering it (record-only, like ui_answered). */
+export function recordUiDismissed(turnId: string, missionId: string): { timestamp: string } {
+  return withTransaction(() => {
+    const timestamp = new Date().toISOString();
+    const eventId = insertEvent("ui_dismissed", timestamp, missionId);
+    getDb().prepare("INSERT INTO ui_dismissed_events (event_id, turn_id) VALUES (?, ?)").run(eventId, turnId);
+    return { timestamp };
+  });
+}
+
+/**
+ * What became of the A2UI form of a reply. "pending": the reply has not completed yet, so the form is not shown (a reply that was
+ * cancelled or failed never shows it). "open": shown and waiting for the captain. "answered" / "dismissed": the captain dealt with it.
+ */
+export type UiState = "pending" | "open" | "answered" | "dismissed";
+
+/** The state of the form `us` (a row of ui_shown_events) as one SQL expression, so every reader derives it the same way from the rows that exist. */
+const UI_STATE_SQL = `CASE
+  WHEN EXISTS (SELECT 1 FROM ui_answered_events ua WHERE ua.turn_id = us.turn_id) THEN 'answered'
+  WHEN EXISTS (SELECT 1 FROM ui_dismissed_events ud WHERE ud.turn_id = us.turn_id) THEN 'dismissed'
+  WHEN EXISTS (SELECT 1 FROM turn_completed_events tc WHERE tc.turn_id = us.turn_id) THEN 'open'
+  ELSE 'pending' END`;
+
+/** The A2UI form in the reply of a turn, as the routes and the MCP tool need it. */
+export type UiOfTurn = { missionId: string; role: CrewRole; surfaceId: string | undefined; state: UiState };
+
+/** The A2UI form shown in the reply of this turn: where it is, who drew it, the id of its surface and what became of it (undefined if the turn has none). */
+export function getUiOfTurn(turnId: string): UiOfTurn | undefined {
+  const row = getDb().prepare(`
+    SELECT te.mission_id AS mission_id, us.agent AS agent, us.messages_json AS messages_json, ${UI_STATE_SQL} AS state
+    FROM ui_shown_events us JOIN timeline_events te ON te.id = us.event_id
+    WHERE us.turn_id = ?
+  `).get(turnId) as { mission_id: string | null; agent: string; messages_json: string; state: UiState } | undefined;
+  if (!row) return undefined;
+  return {
+    missionId: row.mission_id ?? DEFAULT_MISSION_ID,
+    role: agentToRole(row.agent),
+    surfaceId: a2uiSurfaceId(JSON.parse(row.messages_json) as Array<Record<string, unknown>>),
+    state: row.state,
+  };
+}
+
+/**
+ * The id of the reply (turn) that carries an A2UI form the captain has neither answered nor closed, in this mission (null if none):
+ * the input box is locked while there is one.
+ */
+export function getOpenUiTurnId(missionId: string): string | null {
+  const row = getDb().prepare(`
+    SELECT us.turn_id AS turn_id FROM ui_shown_events us JOIN timeline_events te ON te.id = us.event_id
+    WHERE te.mission_id = ? AND ${UI_STATE_SQL} = 'open'
+    ORDER BY te.id DESC LIMIT 1
+  `).get(missionId) as { turn_id: string } | undefined;
+  return row?.turn_id ?? null;
+}
+
+/** The chat item of a turn, as the history gives it (undefined if the turn is not in the history). */
+export function getTurnItem(turnId: string): TimelineItem | undefined {
+  const rows = getDb().prepare(`${TIMELINE_ROWS_SQL} AND (tc.turn_id = ? OR tx.turn_id = ? OR terr.turn_id = ?)`).all(turnId, turnId, turnId) as TimelineEventRow[];
+  return rows.length > 0 ? rowsToItems(rows)[0] : undefined;
+}
+
 export function recordTaskCompleted(taskId: string, missionId: string, report: string, credits?: MeteringUsage, cancelled = false): { timestamp: string } {
   return withTransaction(() => {
     const d = getDb();
@@ -704,13 +800,15 @@ export function getMissionTranscript(
   const rows = d.prepare(`
     SELECT te.id as seq, te.event_type as event_type,
            cm.text as cm_text,
-           tc.text as tc_text, tc.agent as tc_agent
+           tc.text as tc_text, tc.agent as tc_agent,
+           ua.action_json as ua_action_json, ua.comment as ua_comment
     FROM timeline_events te
     LEFT JOIN captain_message_events cm ON cm.event_id = te.id AND te.event_type = 'captain_message'
     LEFT JOIN turn_completed_events tc ON tc.event_id = te.id AND te.event_type = 'turn_completed'
+    LEFT JOIN ui_answered_events ua ON ua.event_id = te.id AND te.event_type = 'ui_answered'
     WHERE te.mission_id = ?
       AND te.id > ?
-      AND te.event_type IN ('captain_message', 'turn_completed')
+      AND te.event_type IN ('captain_message', 'turn_completed', 'ui_answered')
     ORDER BY te.id DESC
     LIMIT ?
   `).all(missionId, afterSeq, limit) as Array<{
@@ -719,21 +817,30 @@ export function getMissionTranscript(
     cm_text: string | null;
     tc_text: string | null;
     tc_agent: string | null;
+    ua_action_json: string | null;
+    ua_comment: string | null;
   }>;
 
   rows.reverse();
 
-  const entries = rows.map((row) => ({
-    seq: row.seq,
-    role: row.event_type === "captain_message" ? "captain" : agentToRole(row.tc_agent ?? ""),
-    text: (row.event_type === "captain_message" ? row.cm_text : row.tc_text) ?? "",
-  }));
+  // The captain's answer to an A2UI form is part of the conversation as what it says to the crew member (the text is made here,
+  // from the stored action and comment; it is not stored, so the stored facts stay the only source).
+  const entries = rows.map((row) => {
+    if (row.event_type === "ui_answered") {
+      return { seq: row.seq, role: "captain", text: a2uiAnswerText(JSON.parse(row.ua_action_json!) as A2uiAction, row.ua_comment ?? "") };
+    }
+    return {
+      seq: row.seq,
+      role: row.event_type === "captain_message" ? "captain" : agentToRole(row.tc_agent ?? ""),
+      text: (row.event_type === "captain_message" ? row.cm_text : row.tc_text) ?? "",
+    };
+  });
 
   // maxSeq is "the latest event that exists in this mission now" — the reference point is advanced
   // including what was cut off by limit. If the older part that was cut off were sent again next time, we would
   // never catch up and would keep sending the same capped amount every time.
   const latest = d.prepare(
-    "SELECT MAX(id) as max_seq FROM timeline_events WHERE mission_id = ? AND event_type IN ('captain_message', 'turn_completed')"
+    "SELECT MAX(id) as max_seq FROM timeline_events WHERE mission_id = ? AND event_type IN ('captain_message', 'turn_completed', 'ui_answered')"
   ).get(missionId) as { max_seq: number | null } | undefined;
 
   return { entries, maxSeq: latest?.max_seq ?? afterSeq };
@@ -975,7 +1082,7 @@ type TimelineEventRow = {
  * The shape {items, hasMore} is kept identical to what getSnapshot/getOlder in timeline.ts
  * return as is.
  *
- * turn_started/turn_recovery_started/task_started are deliberately not selected here as standalone
+ * turn_started/turn_recovery_started/task_started/task_reported/ui_shown/ui_answered/ui_dismissed are deliberately not selected here as standalone
  * rows — they never produce a chat item for display by themselves (see the doc comments of the record*() functions above).
  * They exist purely to keep the event log complete. However, task_started_events is JOINed to
  * the task_completed/task_error rows, supplying the taskName/instruction/agent that exist only in
@@ -1030,6 +1137,12 @@ function rowsToItems(page: TimelineEventRow[]): TimelineItem[] {
       else reportMetaByTurnId.set(row.turn_id, { tasks: [entry] });
     }
   }
+
+  // The A2UI forms shown in the replies of this page (the item of a completed turn carries its form), in one query like the above.
+  const uiTurnIds = page
+    .map((row) => row.tc_turn_id)
+    .filter((id): id is string => id !== null);
+  const uiByTurn = uiByTurnId(uiTurnIds);
 
   const items: TimelineItem[] = page.map((row): TimelineItem => {
     // missionId is common to all event_types, so it is composed once here
@@ -1102,10 +1215,48 @@ function rowsToItems(page: TimelineEventRow[]): TimelineItem[] {
         throw new Error(`Unexpected event_type in timeline history: ${row.event_type}`);
     }
     })();
-    return { ...item, missionId };
+    const a2ui = row.tc_turn_id ? uiByTurn.get(row.tc_turn_id) : undefined;
+    return { ...item, missionId, ...(a2ui ? { a2ui } : {}) };
   });
 
   return items;
+}
+
+/**
+ * The A2UI form of each of these turns (a turn without one is not in the map). An answered form carries one more message, which sets the
+ * values it had when it was answered, so the client — which only draws the messages it is given — shows what the captain entered.
+ * A form the captain closed carries no messages. An open form carries `locksInput`: the captain has to deal with it before anything else
+ * can be sent in the mission, so the client takes the lock from the item as it is.
+ */
+function uiByTurnId(turnIds: string[]): Map<string, NonNullable<TimelineItem["a2ui"]>> {
+  const result = new Map<string, NonNullable<TimelineItem["a2ui"]>>();
+  if (turnIds.length === 0) return result;
+  const rows = getDb().prepare(`
+    SELECT us.turn_id AS turn_id, us.messages_json AS messages_json, ${UI_STATE_SQL} AS state,
+           ua.action_json AS action_json, ua.data_model_json AS data_model_json, ua.comment AS comment
+    FROM ui_shown_events us
+    LEFT JOIN ui_answered_events ua ON ua.turn_id = us.turn_id
+    WHERE us.turn_id IN (${turnIds.map(() => "?").join(", ")})
+  `).all(...turnIds) as Array<{ turn_id: string; messages_json: string; state: UiState; action_json: string | null; data_model_json: string | null; comment: string | null }>;
+  for (const row of rows) {
+    // Only the form of a completed reply is shown (the items these turn ids belong to are all completed).
+    if (row.state === "pending") continue;
+    if (row.state === "dismissed") {
+      result.set(row.turn_id, { state: "dismissed", messages: [] });
+      continue;
+    }
+    const messages = JSON.parse(row.messages_json) as Array<Record<string, unknown>>;
+    const action = row.state === "answered" ? JSON.parse(row.action_json!) as A2uiAction : undefined;
+    result.set(row.turn_id, action
+      ? {
+          state: "answered",
+          messages: [...messages, { version: "1.0", updateDataModel: { surfaceId: action.surfaceId, path: "/", value: JSON.parse(row.data_model_json!) as unknown } }],
+          actionName: action.name,
+          ...(row.comment ? { comment: row.comment } : {}),
+        }
+      : { state: "open", messages, locksInput: true });
+  }
+  return result;
 }
 
 export function getTimelineEventsHistory(options?: { limit?: number; before?: TimelineKey; missionId?: string }): { items: TimelineItem[]; hasMore: boolean } {

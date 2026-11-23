@@ -84,8 +84,11 @@ make-it-so のサーバーが提供する HTTP API、SSE（サーバー送信イ
 |---|---|
 | `POST /api/crew/:role/message` | 艦長がクルーにメッセージを送る（どの役職も同じ入口）。ボディ `{ text, missionId? }` |
 | `POST /api/crew/:role/report` | クルーに `report` を送る（クルーが、自分が見られる未報告タスクを報告する）。ボディ `{ missionId? }` |
+| `POST /api/a2ui/:itemId/answer` | 返信の下に出ている A2UI のフォーム（`render_ui` を参照）の、ボタンを艦長が押した。`itemId` は、その返信の ID。サーバーは、A2UI のアクションを、フォームを出したクルーに送り（`a2ui-action` と印を付けたコードブロックに、A2UI v1.0 の action メッセージを入れ、艦長のコメントがあれば、続ける）、そのフォームへの回答として記録する（`ui_answered`。艦長の発言としては記録しない）。ボディ `{ action, dataModel?, comment? }`。`action` は、A2UI のレンダラーが報告するアクション（`name`、`surfaceId`、`sourceComponentId`、`timestamp`、`context`。ほかの項目は捨てる。`surfaceId` は、フォームが作った surface であること）、`dataModel` は、その時点のその surface の値（フォームを回答したときの状態で見せるために保持する）、`comment` は、フォームのコメント欄に書いた内容。`202` で `{ messageId, status: "accepted" }` を返す。フォームのない返信は `404`、形の違うアクションや、フォームが作っていない surface は `400`、すでに回答済み、または閉じてあれば `409`（`form_closed`）、ミッションが処理中なら `429` |
+| `POST /api/a2ui/:itemId/dismiss` | フォームを、回答せずに閉じる（`ui_dismissed`）。クルーには何も送らず、返信には、閉じたことを示す印が残る。ボディなし。`200` で `{ status: "dismissed" }` を返す。`404`・`409` は上と同じ |
 | `POST /api/bridge/cancel` | そのミッションの、進行中のターンを止める。ボディ `{ missionId? }` |
 
+- ミッションに未回答の A2UI のフォーム（`render_ui` を参照）がある間は、`message` と `report` は `409`（`form_open`）で断られます。艦長は、先に、そのフォームに答えるか、回答せずに閉じます。
 - `message` と `report` は、受け付けると `202`（`{ messageId, status: "accepted" }`）を返し、応答は、SSE で届きます。
 - 次の場合に失敗します。
 
@@ -115,7 +118,7 @@ make-it-so のサーバーが提供する HTTP API、SSE（サーバー送信イ
 
 | メソッド・パス | 内容 |
 |---|---|
-| `GET /api/timeline?missionId=&limit=` | 直近の履歴と、実行中のものを返す。応答 `{ items, hasMore }` |
+| `GET /api/timeline?missionId=&limit=` | 直近の履歴と、実行中のものを返す。応答 `{ items, hasMore, openUiItemId }`（`openUiItemId` は、艦長がまだ回答も、回答せずに閉じることもしていない A2UI のフォームがある返信の ID。なければ `null`） |
 | `GET /api/timeline/captain-history?missionId=` | ミッションの、艦長の過去の発言（新しい順）。入力欄の ↑ の履歴に使う。`{ items: [{ id, text, timestamp }] }`。最大20件で、同じ文は1回だけ（最後に使ったもの）。ボタンとカスタムメニューが送る定型の発言（`report`、`engage`、`make it so`、すぐ送信する項目）は除く |
 | `GET /api/timeline/older?before=&missionId=&limit=` | `before`（アイテムのID。手元にある一番古いもの）より前の、永続化された履歴を返す。位置は、時刻とIDの組で決めるので、同じミリ秒のイベントも取りこぼさない。応答 `{ items, hasMore }`。`before` が無ければ `400`、そのミッションの履歴に無いIDなら `404`。`limit` が正の整数でなければ、既定の件数になる |
 | `GET /api/timeline/range?missionId=&after=&inclusive=&before=&dir=&limit=` | 2つのアイテムの間を返す |
@@ -140,6 +143,7 @@ make-it-so のサーバーが提供する HTTP API、SSE（サーバー送信イ
 | `turnId` | 文字列 | タスクを発行したターン（同じターンのタスクは、1枚のカードにまとめる） |
 | `reportMeta` | `{ tasks: { agent, taskId }[] }` | このターンで報告したタスク |
 | `partialText` | 文字列 | サーバーが止まって「中断」になったターン・タスクの、それまでに書かれた本文（`messageKey: "interrupted"` のカードの上に出す） |
+| `a2ui` | `{ state, messages, comment?, actionName?, locksInput? }` | クルーが、この返信の下に出した A2UI のフォーム（`render_ui`）。完了した返信だけが持つ。`state` は `open`・`answered`・`dismissed`。詳しくは[A2UI のフォーム](data-model.ja.md#a2ui-のフォーム) |
 | `messageKey` | 文字列 | サーバーが書いた固定メッセージのキー。画面は、辞書で訳す。無ければ `text` をそのまま出す |
 
 ## クルーの人事記録・アイコン
@@ -270,6 +274,7 @@ make-it-so のサーバーが提供する HTTP API、SSE（サーバー送信イ
 |---|---|
 | `dispatch_task(agent, task_name, instruction)` | クルーにタスクを委任する。`agent` は、役職名または名簿のメンバーID。実際に送り込まれるのは短い通知だけで、指示の全文は DB に記録し、委任先は `get_task` で読む。**階級が `commander` か `chief` のクルーだけ**が使える（それ以外は、サーバーが拒否する） |
 | `get_task(taskId)` | タスクの指示（完了していれば、結果も）を取得する |
+| `render_ui(messages)` | 艦長に、クルーの返信の下で、操作できるフォームを見せる。`messages` は、A2UI v1.0 のメッセージ（基本カタログ）で、`createSurface` から始まる、それだけで完結した、surface が1つだけの内容にする。A2UI ライブラリの厳格な規則で検査し（未知の部品の種類、root がない、存在しない部品への参照、孤立した部品、バージョンの違い、1つのメッセージに複数の操作、は断る）、誤りがあれば、何も表示せず、エラーを返す。ツールの説明に、完全な例がある。艦長への返信の中でだけ使え（委任されたタスクの作業中は不可）、1つの返信に1回まで。すぐに戻り、フォームは、返信が終わったときに出る。フォームが未回答の間は、そのミッションで、艦長は、ほかに何も送れない。艦長がボタンを押すと、クルーに、`a2ui-action` と印を付けたコードブロックで、A2UI の action メッセージ（`{ "version": "1.0", "action": { name, surfaceId, sourceComponentId, timestamp, context } }`）が届き、艦長がフォームのコメント欄に書いていれば、そのコメントが続く（フォームごとに1回だけ）。フォームは記録され（`ui_shown`）、再起動しても残る |
 | `list_unreported_tasks()` | 未報告のタスクを、整形したテキストで返す。commander は全件、それ以外は、自分が発行した分だけ。呼ばれた時点のIDが「今回の報告対象」として記録され、ターンが正常に完了すれば、報告済みになる |
 
 - **呼び出し元の識別:** セッションを作るときに、そのセッション専用の MCP サーバー設定へ入れた HTTP ヘッダー `x-makeitso-agent`・`x-makeitso-mission` で、呼び出し元の（クルー、ミッション）を判定します。モデルの自己申告には頼りません。ヘッダーが無い呼び出しは、推測せずエラーを返します。
@@ -308,6 +313,8 @@ make-it-so のサーバーが提供する HTTP API、SSE（サーバー送信イ
 |---|---|---|
 | `agent_busy` | 409 | クルーが作業中（会話中・タスク実行中）または起動中・再起動中のため、再起動できない |
 | `model_unavailable` | 409 | このクルーのモデルは、選べない（未対応、またはセッションをまだ作っていない） |
+| `form_open` | 409 | クルーが出したフォームが、艦長の回答を待っているため、フォームに答えるか閉じるまで、メッセージ・報告を送れない |
+| `form_closed` | 409 | フォームは、すでに回答済み、または閉じてある |
 | `invalid_language` | 400 | 未対応の言語 |
 | `range_unbounded` | 400 | `timeline/range` に `after` も `before` も無い |
 | `item_not_found` | 404 | `timeline/range` の指定したアイテムが、そのミッションの履歴に無い |

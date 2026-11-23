@@ -18,7 +18,7 @@ import { isAcceptedHost } from "./local-guard.js";
 import { CrewRunner, missionFromTaskScope, taskSessionScope } from "./crew-runner.js";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { closeDatabase, getCrewModelOverride, getProviderCommands, getProviderModelOptions, getSetting, initDatabase, saveProviderCommands, saveProviderModelOptions, searchTimeline, setSetting, missionExists, setCrewModelOverride } from "./database.js";
+import { closeDatabase, getCrewModelOverride, getOpenUiTurnId, getUiOfTurn, recordUiDismissed, recordUiShown, getProviderCommands, getProviderModelOptions, getSetting, initDatabase, saveProviderCommands, saveProviderModelOptions, searchTimeline, setSetting, missionExists, setCrewModelOverride } from "./database.js";
 import { resolveLanguage } from "./language.js";
 import { clearFileStream, readFileStream } from "./file-stream.js";
 import { findInterruptedWork, recordInterruptedWork } from "./recover-interrupted.js";
@@ -33,6 +33,7 @@ import { crewHostInfo } from "./crew-hosts.js";
 import { createMissionsRouter } from "./routes/missions.js";
 import { createTimelineRouter } from "./routes/timeline.js";
 import { createConversationRouter } from "./routes/conversation.js";
+import { createA2uiRouter } from "./routes/a2ui.js";
 import { createTasksRouter } from "./routes/tasks.js";
 import { createPermissionsRouter } from "./routes/permissions.js";
 import { createAgentsRouter } from "./routes/agents.js";
@@ -239,6 +240,7 @@ async function start(): Promise<void> {
       }
       return ["report", "engage", "make it so", ...menu];
     },
+    openUiItemId: getOpenUiTurnId,
   }));
   routers.push(createAgentsRouter({
     crew: config.crew,
@@ -255,7 +257,9 @@ async function start(): Promise<void> {
     bridge,
     fetchCredits: () => accounts.refresh({ force: true }),
     broadcast,
+    openUiItemId: getOpenUiTurnId,
   }));
+  routers.push(createA2uiRouter({ bridge, getUi: getUiOfTurn, dismissUi: recordUiDismissed }));
   const handleMcpRequest = createMcpHandler({
     crewRunner,
     recordUnreportedFetch: bridge.recordUnreportedFetch,
@@ -266,6 +270,9 @@ async function start(): Promise<void> {
       return config.crew[role] ? role : undefined;
     },
     rankOf: (role) => config.crew[role]?.rank,
+    currentTurn: (missionId) => bridge.getCurrentTurn(missionId) ?? undefined,
+    uiStateOf: (turnId) => getUiOfTurn(turnId)?.state,
+    recordUi: ({ turnId, role, missionId, messages }) => { recordUiShown(turnId, missionId, role, messages); },
   });
 
   connectCrewEvents({

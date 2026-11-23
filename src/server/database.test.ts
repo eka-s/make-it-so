@@ -1,3 +1,4 @@
+import { a2uiAnswerText } from "./a2ui-action.js";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   DEFAULT_MISSION_ID,
@@ -39,6 +40,12 @@ import {
   recordTaskError,
   recordTaskStarted,
   recordTurnCompleted,
+  recordUiAnswered,
+  recordUiDismissed,
+  recordUiShown,
+  getTurnItem,
+  getUiOfTurn,
+  getOpenUiTurnId,
   setMissionArchived,
 } from "./database.js";
 
@@ -639,5 +646,115 @@ describe("closeDatabase: the file alone holds everything afterwards", () => {
       closeDatabase();
       fsm.rmSync(dir, { recursive: true, force: true });
     }
+  });
+});
+
+describe("A2UI forms (ui_shown) in a reply, and what the captain did with them (ui_answered, ui_dismissed)", () => {
+  const messages = [{ version: "1.0", createSurface: { surfaceId: "s1" } }];
+  const pressed = (name = "go", context: Record<string, unknown> = { a: 1 }) => ({ name, surfaceId: "s1", sourceComponentId: "btn", timestamp: "2026-11-23T10:00:00.000Z", context });
+  const answer = (turnId = "t1") => ({ turnId, action: pressed(), dataModel: { a: 1 }, comment: "" });
+  const replyItem = () => getTimelineEventsHistory({ missionId: DEFAULT_MISSION_ID }).items.find((i) => i.id === "t1")!;
+
+  function reply() {
+    recordTurnStarted("t1", DEFAULT_MISSION_ID, "sam");
+    recordUiShown("t1", DEFAULT_MISSION_ID, "sam", messages);
+    recordTurnCompleted("t1", DEFAULT_MISSION_ID, "Here is the form", undefined, undefined, "sam");
+  }
+
+  it("the form is part of the item of the reply it was shown in, open, and is no item of its own", () => {
+    reply();
+    const { items } = getTimelineEventsHistory({ missionId: DEFAULT_MISSION_ID });
+    expect(items).toHaveLength(1);
+    expect(items[0]).toMatchObject({ id: "t1", role: "chief_engineer", text: "Here is the form", a2ui: { state: "open", messages, locksInput: true } });
+    expect(getUiOfTurn("t1")).toEqual({ missionId: DEFAULT_MISSION_ID, role: "chief_engineer", surfaceId: "s1", state: "open" });
+    expect(getOpenUiTurnId(DEFAULT_MISSION_ID)).toBe("t1");
+  });
+
+  it("an answered form carries the values it had when it was answered as one more message after the original ones, and the action pressed", () => {
+    reply();
+    recordUiAnswered({ ...answer(), action: pressed("start_task"), dataModel: { taskName: "fix", priority: ["high"] } }, DEFAULT_MISSION_ID);
+    expect(replyItem().a2ui).toEqual({
+      state: "answered",
+      messages: [...messages, { version: "1.0", updateDataModel: { surfaceId: "s1", path: "/", value: { taskName: "fix", priority: ["high"] } } }],
+      actionName: "start_task",
+    });
+    expect(getUiOfTurn("t1")?.state).toBe("answered");
+    expect(getOpenUiTurnId(DEFAULT_MISSION_ID)).toBeNull();
+  });
+
+  it("the comment the captain wrote with the answer is carried by the answered form (and absent when there is none)", () => {
+    reply();
+    recordUiAnswered({ ...answer(), comment: "ship it today" }, DEFAULT_MISSION_ID);
+    expect(replyItem().a2ui?.comment).toBe("ship it today");
+  });
+
+  it("an answer without a comment carries none", () => {
+    reply();
+    recordUiAnswered(answer(), DEFAULT_MISSION_ID);
+    expect(replyItem().a2ui).not.toHaveProperty("comment");
+  });
+
+  it("a form the captain closed stays as a mark on the reply, with no messages (nothing to draw), and frees the mission", () => {
+    reply();
+    recordUiDismissed("t1", DEFAULT_MISSION_ID);
+    expect(replyItem().a2ui).toEqual({ state: "dismissed", messages: [] });
+    expect(getUiOfTurn("t1")?.state).toBe("dismissed");
+    expect(getOpenUiTurnId(DEFAULT_MISSION_ID)).toBeNull();
+  });
+
+  it("a form can be answered only once, and a reply has at most one form (the database refuses the second)", () => {
+    reply();
+    recordUiAnswered(answer(), DEFAULT_MISSION_ID);
+    expect(() => recordUiAnswered(answer(), DEFAULT_MISSION_ID)).toThrow();
+    expect(() => recordUiShown("t1", DEFAULT_MISSION_ID, "sam", messages)).toThrow();
+  });
+
+  it("only a reply that completed carries its form and locks the mission: a form of a reply that was cancelled or failed is never shown", () => {
+    recordTurnStarted("t1", DEFAULT_MISSION_ID, "sam");
+    recordUiShown("t1", DEFAULT_MISSION_ID, "sam", messages);
+    expect(getOpenUiTurnId(DEFAULT_MISSION_ID)).toBeNull(); // the turn has not ended (or broke without ending): nothing is shown, nothing is locked
+    recordTurnCancelled("t1", DEFAULT_MISSION_ID, "partial", undefined, "sam");
+    expect(replyItem().a2ui).toBeUndefined();
+    expect(getOpenUiTurnId(DEFAULT_MISSION_ID)).toBeNull();
+  });
+
+  it("a form of a reply that has not completed is pending: not shown, not locking, and the same state however it is looked up", () => {
+    recordTurnStarted("t1", DEFAULT_MISSION_ID, "sam");
+    recordUiShown("t1", DEFAULT_MISSION_ID, "sam", messages);
+    expect(getUiOfTurn("t1")?.state).toBe("pending");
+    expect(getOpenUiTurnId(DEFAULT_MISSION_ID)).toBeNull();
+    recordTurnCompleted("t1", DEFAULT_MISSION_ID, "Here is the form", undefined, undefined, "sam");
+    expect(getUiOfTurn("t1")?.state).toBe("open");
+    expect(getOpenUiTurnId(DEFAULT_MISSION_ID)).toBe("t1");
+  });
+
+  it("a reply with no form has no a2ui, and an open form of another mission does not lock this one", () => {
+    createMission("m2", "Other");
+    recordTurnStarted("t9", "m2", "sam");
+    recordUiShown("t9", "m2", "sam", messages);
+    recordTurnCompleted("t9", "m2", "form", undefined, undefined, "sam");
+    recordCaptainMessage("hello", DEFAULT_MISSION_ID);
+    expect(getTimelineEventsHistory({ missionId: DEFAULT_MISSION_ID }).items.every((i) => i.a2ui === undefined)).toBe(true);
+    expect(getOpenUiTurnId("m2")).toBe("t9");
+    expect(getOpenUiTurnId(DEFAULT_MISSION_ID)).toBeNull();
+    expect(getUiOfTurn("nope")).toBeUndefined();
+  });
+
+  it("getTurnItem gives the reply as the history does, so it can be sent to the screens again after the captain acts", () => {
+    reply();
+    recordUiDismissed("t1", DEFAULT_MISSION_ID);
+    expect(getTurnItem("t1")).toMatchObject({ id: "t1", text: "Here is the form", a2ui: { state: "dismissed" } });
+    expect(getTurnItem("nope")).toBeUndefined();
+  });
+
+  it("the answer is part of the conversation context as what the captain said (made from the stored action and comment, the same text the crew member was sent)", () => {
+    reply();
+    const action = pressed("start_task", { taskName: "fix", priority: ["high"] });
+    recordUiAnswered({ ...answer(), action, comment: "ship it today" }, DEFAULT_MISSION_ID);
+    const { entries } = getMissionTranscript(DEFAULT_MISSION_ID, 0, 10);
+    expect(entries.map((e) => [e.role, e.text])).toEqual([
+      ["chief_engineer", "Here is the form"],
+      ["captain", a2uiAnswerText(action, "ship it today")],
+    ]);
   });
 });

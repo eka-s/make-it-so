@@ -24,6 +24,9 @@ const roles: Record<string, string> = { first_officer: "first_officer", chief_en
 let ranks: Record<string, "commander" | "chief" | "crew">;
 let dispatch: ReturnType<typeof vi.fn>;
 let recordUnreportedFetch: ReturnType<typeof vi.fn>;
+let uiStateOf: ReturnType<typeof vi.fn>;
+let recordUi: ReturnType<typeof vi.fn>;
+let currentTurn: ReturnType<typeof vi.fn>;
 let deps: McpBoardDeps;
 const cleanups: Array<() => Promise<void> | void> = [];
 
@@ -34,6 +37,9 @@ beforeEach(() => {
   createMission("m1", "Test");
   dispatch = vi.fn();
   recordUnreportedFetch = vi.fn();
+  uiStateOf = vi.fn(() => undefined); // the reply has no form yet
+  recordUi = vi.fn();
+  currentTurn = vi.fn(() => ({ turnId: "turn-1", agentName: "first_officer" })); // the turn of `caller`
   ranks = { first_officer: "commander", chief_engineer: "chief", ensign: "crew" };
   deps = {
     crewRunner: { dispatch },
@@ -41,6 +47,9 @@ beforeEach(() => {
     displayName: (agentDir) => names[agentDir] ?? agentDir,
     roleOf: (agent) => roles[agent],
     rankOf: (role) => ranks[role],
+    currentTurn,
+    uiStateOf,
+    recordUi,
   };
 });
 afterEach(async () => {
@@ -68,10 +77,10 @@ async function call(client: Client, name: string, args: Record<string, unknown> 
 const caller = { agent: "first_officer", missionId: "m1" };
 
 describe("list of tools", () => {
-  it("exposes the three tools of the bulletin board", async () => {
+  it("exposes the tools of the bulletin board", async () => {
     const client = await connect(caller);
     const { tools } = await client.listTools();
-    expect(tools.map((t) => t.name).sort()).toEqual(["dispatch_task", "get_task", "list_unreported_tasks"]);
+    expect(tools.map((t) => t.name).sort()).toEqual(["dispatch_task", "get_task", "list_unreported_tasks", "render_ui"]);
   });
 });
 
@@ -248,6 +257,109 @@ describe("list_unreported_tasks: what is visible by rank", () => {
     const result = await call(await connect({ agent: "first_officer", missionId: "m1" }), "list_unreported_tasks");
     expect(result.text).toContain("a_0001"); // what first_officer issued is visible as its own
     expect(result.text).not.toContain("a_0002");
+  });
+});
+
+describe("render_ui", () => {
+  const surface = { version: "1.0", createSurface: { surfaceId: "s1", catalogId: "https://a2ui.org/specification/v1_0/catalogs/basic/catalog.json", components: [{ id: "root", component: "Text", text: "hi" }] } };
+
+  it("shows the messages in the reply of the turn in progress, as the caller's role in the caller's mission (a role even when called by an acp_agent name)", async () => {
+    const client = await connect({ agent: "sam", missionId: "m1" });
+    currentTurn.mockReturnValue({ turnId: "turn-1", agentName: "chief_engineer" });
+    const result = await call(client, "render_ui", { messages: [surface] });
+    expect(result.isError).toBe(false);
+    expect(currentTurn).toHaveBeenCalledWith("m1");
+    expect(recordUi).toHaveBeenCalledWith({ turnId: "turn-1", role: "chief_engineer", missionId: "m1", messages: [surface] });
+  });
+
+  it("is refused outside a reply to the captain: no turn in progress, or the turn is with someone else (for example while the caller works on a delegated task)", async () => {
+    const client = await connect({ agent: "sam", missionId: "m1" });
+    currentTurn.mockReturnValue(undefined);
+    expect((await call(client, "render_ui", { messages: [surface] })).isError).toBe(true);
+    currentTurn.mockReturnValue({ turnId: "turn-1", agentName: "first_officer" }); // the turn is with someone else
+    expect((await call(client, "render_ui", { messages: [surface] })).isError).toBe(true);
+    expect(recordUi).not.toHaveBeenCalled();
+  });
+
+  it("refuses a second form in the same reply, whether the first is still open or was already dealt with, and says why", async () => {
+    const client = await connect(caller);
+    for (const state of ["pending", "open", "answered", "dismissed"]) {
+      uiStateOf.mockReturnValue(state);
+      const result = await call(client, "render_ui", { messages: [surface] });
+      expect(result.isError).toBe(true);
+      expect(result.text).toContain("already");
+    }
+    expect(uiStateOf).toHaveBeenCalledWith("turn-1");
+    expect(recordUi).not.toHaveBeenCalled();
+  });
+
+  it("refuses messages without the v1.0 envelope, showing nothing", async () => {
+    const client = await connect(caller);
+    const wrongVersion = await call(client, "render_ui", { messages: [{ ...surface, version: "0.9" }] });
+    const noType = await call(client, "render_ui", { messages: [{ version: "1.0" }] });
+    expect(wrongVersion.isError).toBe(true);
+    expect(noType.isError).toBe(true);
+    expect(recordUi).not.toHaveBeenCalled();
+  });
+
+  it("refuses a value the basic catalog does not have, returning what is wrong so the crew member can fix it", async () => {
+    const client = await connect(caller);
+    const badVariant = { ...surface, createSurface: { ...surface.createSurface, components: [{ id: "root", component: "Text", text: "hi", variant: "h3" }] } };
+    const result = await call(client, "render_ui", { messages: [badVariant] });
+    expect(result.isError).toBe(true);
+    expect(result.text).toContain("variant");
+    expect(recordUi).not.toHaveBeenCalled();
+  });
+
+  it("refuses what the renderer would draw as a blank screen: an unknown component type, no root, a child that does not exist", async () => {
+    const client = await connect(caller);
+    const withComponents = (components: unknown[]) => ({ ...surface, createSurface: { ...surface.createSurface, components, dataModel: {} } });
+    for (const components of [
+      [{ id: "root", component: "Columnn", children: [] }],
+      [{ id: "a", component: "Text", text: "x" }],
+      [{ id: "root", component: "Column", children: ["ghost"] }],
+    ]) {
+      expect((await call(client, "render_ui", { messages: [withComponents(components)] })).isError).toBe(true);
+    }
+    expect(recordUi).not.toHaveBeenCalled();
+  });
+
+  it("accepts the child-list template of v1.0, whose path is written without the @ (it is not a legacy binding)", async () => {
+    const client = await connect(caller);
+    const list = { ...surface, createSurface: { ...surface.createSurface, dataModel: { items: [{ n: "a" }] }, components: [
+      { id: "root", component: "List", children: { componentId: "row", path: "/items" } },
+      { id: "row", component: "Text", text: { "@path": "n" } },
+    ] } };
+    expect((await call(client, "render_ui", { messages: [list] })).isError).toBe(false);
+  });
+
+  it("the messages must make exactly one surface", async () => {
+    const client = await connect(caller);
+    const second = { ...surface, createSurface: { ...surface.createSurface, surfaceId: "s2" } };
+    expect((await call(client, "render_ui", { messages: [surface, second] })).isError).toBe(true);
+    expect(recordUi).not.toHaveBeenCalled();
+  });
+
+  it("the description shows how to bind an input to the data model and send it back (the model is not left to guess)", async () => {
+    const client = await connect(caller);
+    const { tools } = await client.listTools();
+    expect(tools.find((t) => t.name === "render_ui")?.description).toContain('"@path"');
+  });
+
+  it("refuses the pre-1.0 data binding {\"path\": ...} (the renderer cannot resolve it), asking for \"@path\"", async () => {
+    const client = await connect(caller);
+    const legacy = { ...surface, createSurface: { ...surface.createSurface, components: [{ id: "root", component: "TextField", label: "Name", value: { path: "/name" } }], dataModel: { name: "" } } };
+    const result = await call(client, "render_ui", { messages: [legacy] });
+    expect(result.isError).toBe(true);
+    expect(result.text).toContain("@path");
+    expect(recordUi).not.toHaveBeenCalled();
+  });
+
+  it("if the caller cannot be identified, shows nothing", async () => {
+    const client = await connect(undefined);
+    const result = await call(client, "render_ui", { messages: [surface] });
+    expect(result.isError).toBe(true);
+    expect(recordUi).not.toHaveBeenCalled();
   });
 });
 

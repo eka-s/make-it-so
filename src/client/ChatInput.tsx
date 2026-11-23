@@ -15,6 +15,8 @@ type ChatInputProps = {
   onSend: (text: string) => void;
   onReport: () => void;
   disabled: boolean;
+  /** The input is locked because a form is waiting for the captain's answer (shown in the box instead of "busy"). */
+  waitingForUi?: boolean;
   /** The mission that is open (the ↑ history is of its captain messages). */
   missionId: string;
   crewConfig?: Record<string, CrewMemberConfig>;
@@ -36,7 +38,7 @@ type ChatInputProps = {
 
 type FileWithPath = File & { path?: string };
 
-export function ChatInput({ onSend, onReport, disabled, missionId, crewConfig, baseTarget, onceTarget, onSelectTarget, onCancelOnce, commands, commandsLive }: ChatInputProps) {
+export function ChatInput({ onSend, onReport, disabled, waitingForUi = false, missionId, crewConfig, baseTarget, onceTarget, onSelectTarget, onCancelOnce, commands, commandsLive }: ChatInputProps) {
   const t = useT();
   const [text, setText] = useState("");
   const [dragOver, setDragOver] = useState(false);
@@ -311,7 +313,8 @@ export function ChatInput({ onSend, onReport, disabled, missionId, crewConfig, b
   const targetName = crewConfig?.[sendTarget]?.name ?? sendTarget;
 
   return (
-    <div className="chat-input">
+    <div className={`chat-input${waitingForUi ? " chat-input--locked" : ""}`}>
+      {waitingForUi && <div className="chat-input-lock-note" role="status">🔒 {t("chat.input.lockedNote")}</div>}
       {/*
          A conversation-partner selection bar kept above the input box (crew members lined up as buttons. One click switches).
          */}
@@ -338,8 +341,10 @@ export function ChatInput({ onSend, onReport, disabled, missionId, crewConfig, b
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
-          placeholder={disabled ? t("chat.input.placeholderBusy") : t("chat.input.placeholder", { name: targetName })}
+          placeholder={waitingForUi ? t("chat.input.placeholderUi") : disabled ? t("chat.input.placeholderBusy") : t("chat.input.placeholder", { name: targetName })}
           aria-label={t("chat.input.aria")}
+          // Locked by a form that waits for the captain: nothing can be typed either (while only busy, typing ahead is allowed).
+          disabled={waitingForUi}
         />
         {historyOpen && (
           <CaptainHistoryMenu
@@ -378,7 +383,7 @@ export function ChatInput({ onSend, onReport, disabled, missionId, crewConfig, b
         disabled={disabled || !text.trim()}
         aria-label={t("chat.send.aria")}
       >
-        {disabled ? "⏳" : "▶"}
+        {waitingForUi ? "🔒" : disabled ? "⏳" : "▶"}
       </button>
       <div className="chat-input-buttons">
         <button

@@ -84,8 +84,11 @@ When `missionId` is given, the status is determined for that mission only. When 
 |---|---|
 | `POST /api/crew/:role/message` | The captain sends a message to a crew member (the same entry point for every role). Body `{ text, missionId? }` |
 | `POST /api/crew/:role/report` | Sends `report` to a crew member (the crew member reports the unreported tasks it can see). Body `{ missionId? }` |
+| `POST /api/a2ui/:itemId/answer` | The captain pressed a button of the A2UI form shown under a reply (see `render_ui`). `itemId` is the id of that reply. The server sends the A2UI action to the crew member who showed it (a fenced block marked `a2ui-action` holding the A2UI v1.0 action message, then the captain's comment if there is one) and records it as the answer to that form (`ui_answered`; not as a message of the captain's). Body `{ action, dataModel?, comment? }`: `action` is the action the A2UI renderer reports (`name`, `surfaceId`, `sourceComponentId`, `timestamp`, `context`; any other field is dropped; `surfaceId` must be the surface the form made), `dataModel` is the values of that surface at that moment (kept to show the form as it was), and `comment` is what the captain wrote in the form's comment field. Returns `202` with `{ messageId, status: "accepted" }`. `404` for a reply with no form, `400` for a malformed action or a surface the form did not make, `409` (`form_closed`) if the form was already answered or closed, `429` while the mission is busy |
+| `POST /api/a2ui/:itemId/dismiss` | The captain closes the form without answering it (`ui_dismissed`). Nothing is sent to the crew member; the reply keeps a mark saying it was closed. No body. Returns `200` with `{ status: "dismissed" }`; `404`/`409` as above |
 | `POST /api/bridge/cancel` | Stops the in-progress turn of that mission. Body `{ missionId? }` |
 
+- While the mission has an open A2UI form (see `render_ui`), `message` and `report` are refused with `409` (`form_open`): the captain answers it, or closes it without answering, first.
 - `message` and `report` return `202` (`{ messageId, status: "accepted" }`) once accepted, and the reply arrives over SSE.
 - They fail in the following cases.
 
@@ -115,7 +118,7 @@ The **single source of truth** for chat content. Persisted history and in-progre
 
 | Method and path | Description |
 |---|---|
-| `GET /api/timeline?missionId=&limit=` | Returns the most recent history plus in-progress items. Response `{ items, hasMore }` |
+| `GET /api/timeline?missionId=&limit=` | Returns the most recent history plus in-progress items. Response `{ items, hasMore, openUiItemId }` (`openUiItemId` is the id of the reply that holds an A2UI form the captain has neither answered nor closed, or `null`) |
 | `GET /api/timeline/captain-history?missionId=` | The captain's earlier messages in the mission, newest first, for the ↑ history of the input box. `{ items: [{ id, text, timestamp }] }`. Up to 20; a text appears once (its latest use), and the fixed messages the buttons and the custom menu send (`report`, `engage`, `make it so`, and the items that send at once) are left out |
 | `GET /api/timeline/older?before=&missionId=&limit=` | Returns persisted history older than `before` (an item ID; the oldest one the client has). The position is determined by the pair of timestamp and ID, so events in the same millisecond are not missed. Response `{ items, hasMore }`. `400` if `before` is missing; `404` if the ID is not in that mission's history. If `limit` is not a positive integer, the default count is used |
 | `GET /api/timeline/range?missionId=&after=&inclusive=&before=&dir=&limit=` | Returns the items between two items |
@@ -140,6 +143,7 @@ The **single source of truth** for chat content. Persisted history and in-progre
 | `turnId` | string | The turn that issued the task (tasks from the same turn are grouped into one card) |
 | `reportMeta` | `{ tasks: { agent, taskId }[] }` | The tasks reported in this turn |
 | `partialText` | string | For a turn or task marked "interrupted" because the server stopped, the text written up to that point (shown on the card with `messageKey: "interrupted"`) |
+| `a2ui` | `{ state, messages, comment?, actionName?, locksInput? }` | The A2UI form a crew member showed under this reply (`render_ui`); only a reply that completed carries one. `state` is `open`, `answered` or `dismissed`; see [A2UI Forms](data-model.md#a2ui-forms) |
 | `messageKey` | string | Key of a fixed message written by the server. The UI translates it with a dictionary. If absent, `text` is shown as is |
 
 ## Crew Personnel Records and Icons
@@ -270,6 +274,7 @@ The type definitions also include `task:progress`, `task:complete`, `notificatio
 |---|---|
 | `dispatch_task(agent, task_name, instruction)` | Delegates a task to a crew member. `agent` is a role name or a roster member ID. Only a short notice is actually sent; the full instruction is recorded in the DB and the assignee reads it with `get_task`. **Only crew members whose rank is `commander` or `chief`** can use it (for anyone else, the server rejects it) |
 | `get_task(taskId)` | Fetches a task's instruction (and its result, if it is finished) |
+| `render_ui(messages)` | Shows an interactive form to the captain under the crew member's reply: `messages` are A2UI v1.0 messages (the basic catalog), self-contained and making exactly one surface, starting with `createSurface`. They are checked with the strict rules the A2UI library offers (an unknown component type, a missing root, a reference to a component that does not exist, an orphan, a wrong version or several operations in one message are refused); on a mistake nothing is shown and the error is returned. The description of the tool carries a complete example. It can be used only in a reply to the captain (not while working on a delegated task), once per reply. It returns at once, and the form appears when the reply ends. While the form is open, the captain can send nothing else in that mission; when they press a button, the crew member receives the A2UI action message (`{ "version": "1.0", "action": { name, surfaceId, sourceComponentId, timestamp, context } }`) in a fenced block marked `a2ui-action`, then the captain's comment from the form's comment field if they wrote one (once per form). A form is recorded (`ui_shown`) and stays after a restart |
 | `list_unreported_tasks()` | Returns the unreported tasks as formatted text. The commander gets all of them; anyone else gets only the ones they issued. The IDs at the time of the call are recorded as "this report's targets", and they become reported once the turn completes normally |
 
 - **Identifying the caller:** The caller's (crew member, mission) is determined from the HTTP headers `x-makeitso-agent` and `x-makeitso-mission`, which are put into that session's own MCP server configuration when the session is created. The model's self-report is not relied on. A call without the headers returns an error without any guessing.
@@ -308,6 +313,8 @@ When `error` is one of the following codes, the UI translates it with the dictio
 |---|---|---|
 | `agent_busy` | 409 | Cannot restart because the crew member is working (in a conversation or running a task) or is starting or restarting |
 | `model_unavailable` | 409 | The model for this crew member cannot be chosen (unsupported, or the session has not been created yet) |
+| `form_open` | 409 | A form a crew member showed is waiting for the captain, so a message or a report cannot be sent until it is answered or closed |
+| `form_closed` | 409 | The form was already answered or closed |
 | `invalid_language` | 400 | Unsupported language |
 | `range_unbounded` | 400 | `timeline/range` has neither `after` nor `before` |
 | `item_not_found` | 404 | The item given to `timeline/range` is not in that mission's history |

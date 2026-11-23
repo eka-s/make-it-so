@@ -28,9 +28,10 @@ The structure of each ship's database (SQLite) and the rules for schema changes 
 
 | Group | Tables |
 |---|---|
-| Timeline | `timeline_events` (the trunk), plus a detail table for each event type (11 kinds) |
+| Timeline | `timeline_events` (the trunk), plus a detail table for each event type (14 kinds) |
 | Missions | `missions`, `pinned_messages`, `mission_crew_model` |
 | Tasks | `task_started_events`, `task_completed_events`, `task_error_events`, `task_reported_events`, `task_id_counters` |
+| A2UI forms | `ui_shown_events`, `ui_answered_events`, `ui_dismissed_events` |
 | Settings and caches | `app_settings`, `provider_model_options`, `provider_commands` |
 
 ## Timeline Events
@@ -67,8 +68,11 @@ History is kept in two levels, a "trunk" and "details" (Class Table Inheritance)
 | `task_completed` | `task_completed_events` | A task completes | Same as above |
 | `task_error` | `task_error_events` | A task fails | Same as above |
 | `task_reported` | `task_reported_events` | A task's result was reported to the commander | Same as above |
+| `ui_shown` | `ui_shown_events` | A crew member showed an A2UI form under its reply | See [A2UI Forms](#a2ui-forms) |
+| `ui_answered` | `ui_answered_events` | The captain answered an A2UI form | Same as above |
+| `ui_dismissed` | `ui_dismissed_events` | The captain closed an A2UI form without answering | Same as above |
 
-The kinds that appear as items in the UI are `captain_message`, `turn_completed`, `turn_cancelled`, `turn_error`, `system_notice`, `task_completed`, and `task_error`. `turn_started`, `turn_recovery_started`, `task_started`, and `task_reported` are records kept so that the history is complete, and never become items on their own.
+The kinds that appear as items in the UI are `captain_message`, `turn_completed`, `turn_cancelled`, `turn_error`, `system_notice`, `task_completed`, and `task_error`. `turn_started`, `turn_recovery_started`, `task_started`, `task_reported`, `ui_shown`, `ui_answered`, and `ui_dismissed` are records kept so that the history is complete, and never become items on their own.
 
 ### Meaning of the columns
 
@@ -127,6 +131,25 @@ The default is the `model` in `ship.yml`/`roster.yml`. If a row exists, it takes
 - A task ID is `<role name>_<4-digit sequence number>` (for example, `chief_engineer_0001`; even if the assignee is specified by member ID, it is normalized to the role name). The sequence number is issued by UPSERTing one row of `task_id_counters`, so there are no duplicates even with concurrent issuance.
 - "Reported" is expressed by adding a row to `task_reported_events`, without rewriting the completion or failure row. **An unreported task is a task with no row in `task_reported_events`.**
 
+## A2UI Forms
+
+A crew member can show an interactive form (A2UI) under its reply with `render_ui`. The form is **part of the item of that reply** (a turn), not an item of its own; what became of it is recorded as separate facts.
+
+| Table | Columns | Meaning |
+|---|---|---|
+| `ui_shown_events` | `turn_id` (unique), `agent`, `messages_json` | A crew member showed a form. `turn_id` is the reply it appears in (a turn has at most one form), and it identifies the form in the other two tables too. `messages_json` holds the A2UI v1.0 messages (exactly one surface) |
+| `ui_answered_events` | `turn_id` (unique), `action_json`, `data_model_json`, `comment` | The captain answered the form (pressed a button): which form (`turn_id`), the A2UI action the press produced (`action_json`: `name`, `surfaceId`, `sourceComponentId`, `timestamp`, `context`), the values the form's surface had at that moment, and the comment the captain wrote in the form's comment field (empty if none). The text the crew member received is not stored: it is made from `action_json` and `comment` when the conversation context is built |
+| `ui_dismissed_events` | `turn_id` (unique) | The captain closed the form without answering it |
+
+- Like "reported" for tasks, what became of a form is expressed by adding a row, without rewriting the form's row. **A form with a row in `ui_answered_events` is answered; with one in `ui_dismissed_events`, closed; with neither, open.**
+- Only a reply that **completed** (`turn_completed`) carries its form. A form shown in a reply that was cancelled, failed, or broke without ending is never shown, and never locks the mission.
+- The item of the reply carries the form as `a2ui: { state, messages, comment?, actionName?, locksInput? }`:
+  - `state: "open"` — waiting for the captain. `messages` are the form as the crew member sent it. `locksInput: true` is set: the server decides that this form locks the mission's input, and the client takes it from the item as it is.
+  - `state: "answered"` — `messages` end with an `updateDataModel` that sets the values stored in `data_model_json`, so the form is shown as it was when it was answered. `actionName` is the action pressed; `comment` is the comment written with the answer (absent if none).
+  - `state: "dismissed"` — closed without answering; `messages` is empty (nothing to draw), and the reply keeps a mark saying so.
+- While a mission has an open form, no message can be sent in it: the input box is locked, and the server refuses with `409`. `GET /api/timeline` says which reply holds it (`openUiItemId`), so the client does not have to look for it among the loaded items.
+- The message the crew member receives for an answer is not stored: it is made from `action_json` and `comment` when it is read: a fenced block marked `a2ui-action` holding the A2UI v1.0 action message, then `Captain's comment:` and the comment if there is one (it is also what appears in the conversation context handed to the other crew members). Keeping the facts (not the text) means the one place that words the text can change without leaving old rows behind.
+
 ## Settings and Caches
 
 | Table | Columns | Meaning |
@@ -155,6 +178,7 @@ The schema version is kept in SQLite's `PRAGMA user_version`.
 | 3 | `task-dispatcher` | Adds `task_started_events.dispatched_by`. Existing rows are filled with `first_officer` |
 | 4 | `provider-commands` | Adds `provider_commands` |
 | 5 | `task-cancelled` | Adds `task_completed_events.cancelled`. Existing rows are 0 (not cancelled) |
+| 6 | `ui-events` | Adds `ui_shown_events`, `ui_answered_events` and `ui_dismissed_events` |
 
 ### Rules
 

@@ -388,6 +388,18 @@ body {
   flex-shrink: 0;
 }
 
+/* Locked by a form waiting for the captain: everything but the note is dimmed, so it is plain that nothing can be sent. */
+.chat-input--locked > :not(.chat-input-lock-note) {
+  opacity: 0.4;
+  filter: grayscale(1);
+  pointer-events: none;
+}
+.chat-input-lock-note {
+  color: var(--state-attention);
+  font-size: 0.85rem;
+  text-align: center;
+}
+
 /* Lower row: the textarea, the send button, and the column of buttons, side by side (the partner selector is the row above). */
 .chat-input-row {
   display: flex;
@@ -1654,4 +1666,123 @@ body {
   stroke-width: 1.8;
   stroke-linecap: round;
   stroke-linejoin: round;
+}
+
+/* A reply with an A2UI form: a bar of its own across the top (light orange, apart from the periwinkle of a delegated task's card). It bleeds
+   to the edges of the bubble, like the header of that card. */
+.message-bubble--ui {
+  border-color: var(--lc-peach);
+}
+.a2ui-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin: -10px -14px 8px;
+  padding: 7px 14px;
+  border-radius: 11px 11px 0 0;
+  background: var(--lc-peach);
+  color: var(--text-on-accent);
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+.a2ui-bar-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.a2ui-bar-state {
+  font-weight: normal;
+  font-size: 0.78rem;
+  opacity: 0.75;
+}
+/* Waiting for the captain: the colour that means "needs you" everywhere else (the approval tray), as a pill. */
+.a2ui-bar-state--open {
+  background: var(--state-attention);
+  color: var(--text-on-accent);
+  opacity: 1;
+  font-weight: 600;
+  padding: 2px 10px;
+  border-radius: var(--radius-pill);
+}
+/* The way out, in the bar: it is always at the top of the reply, so a long form never hides it. */
+.a2ui-dismiss {
+  background: transparent;
+  color: var(--text-on-accent);
+  border: 1px solid rgba(0, 0, 0, 0.4);
+  border-radius: var(--radius-pill);
+  padding: 2px 12px;
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+.a2ui-dismiss:hover {
+  background: rgba(0, 0, 0, 0.12);
+}
+/* Waiting for the captain: the box is framed in the colour of an approval waiting too, and glows. */
+.message-bubble--ui-open {
+  border: 2px solid var(--state-attention);
+  box-shadow: 0 0 16px color-mix(in srgb, var(--state-attention) 28%, transparent);
+}
+
+/* The form itself is a shade lighter than the bubble around it. The renderer's theme is made of CSS variables, set here for the
+   form only: its surfaces, inputs and borders follow the app's palette. */
+.a2ui-block {
+  margin-top: 10px;
+  --a2ui-color-background: var(--surface-raised);
+  --a2ui-color-surface: var(--surface-raised);
+  --a2ui-color-on-background: var(--text);
+  --a2ui-color-on-surface: var(--text);
+  --a2ui-color-input: var(--surface);
+  --a2ui-color-on-input: var(--text);
+  --a2ui-color-border: var(--border-strong);
+  background: var(--surface-raised);
+  border-radius: var(--radius-md);
+}
+.a2ui-body {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  min-width: 0;
+}
+/* Answered: the values the captain entered are still readable (the renderer already shades what is disabled), but the form cannot be used any more. */
+.a2ui-block--answered .a2ui-body {
+  opacity: 0.85;
+  pointer-events: none;
+}
+.a2ui-comment {
+  padding: 8px 10px 10px;
+  border-top: 1px solid var(--border);
+  margin-top: 10px;
+}
+.a2ui-comment-label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  color: var(--text-dim);
+  font-size: 0.75rem;
+}
+.a2ui-comment-field {
+  width: 100%;
+  box-sizing: border-box;
+  resize: vertical;
+  padding: 6px 8px;
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  font: inherit;
+  font-size: 0.85rem;
+}
+.a2ui-comment-field:disabled {
+  opacity: 0.7;
+}
+.a2ui-failed {
+  padding: 12px;
+  color: var(--state-error);
+  font-size: 0.85rem;
+}
+.a2ui-errors {
+  font-size: 0.75rem;
+  white-space: pre-wrap;
+  color: var(--state-error);
 }

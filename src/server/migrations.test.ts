@@ -181,11 +181,14 @@ describe("migrations that fix the special-casing of role names once, on the data
     ]);
   });
 
-  it("the latest version is 5. Even a blank DB ends up in the same latest shape", () => {
-    expect(latestSchemaVersion()).toBe(5);
+  it("the latest version is 6. Even a blank DB ends up in the same latest shape", () => {
+    expect(latestSchemaVersion()).toBe(6);
     const db = new DatabaseSync(":memory:");
     migrate(db);
     expect(columnNames(db, "task_started_events")).toContain("dispatched_by");
     expect(columnNames(db, "task_completed_events")).toContain("cancelled");
+    expect(columnNames(db, "ui_shown_events")).toEqual(expect.arrayContaining(["turn_id", "agent", "messages_json"]));
+    expect(columnNames(db, "ui_answered_events")).toEqual(expect.arrayContaining(["turn_id", "action_json", "data_model_json", "comment"]));
+    expect(columnNames(db, "ui_dismissed_events")).toContain("turn_id");
   });
 });

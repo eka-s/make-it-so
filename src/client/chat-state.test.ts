@@ -28,13 +28,13 @@ describe("crew-status-changed", () => {
 describe("snapshot-loaded", () => {
   it("emits the crew status re-fetch signal (a measure against what is missed after an SSE reconnection)", () => {
     const before = state().crewActivitySignal.tick;
-    const next = reduce(state(), { type: "snapshot-loaded", items: [], hasMore: false, resolveSending: true });
+    const next = reduce(state(), { type: "snapshot-loaded", openUiItemId: null, items: [], hasMore: false, resolveSending: true });
     expect(next.crewActivitySignal).toEqual({ role: null, tick: before + 1 });
   });
 
   it("replaces with the fetched items", () => {
     const items = [msg("captain"), msg("first_officer")];
-    const next = reduce(state(), { type: "snapshot-loaded", items, hasMore: true, resolveSending: true });
+    const next = reduce(state(), { type: "snapshot-loaded", openUiItemId: null, items, hasMore: true, resolveSending: true });
     expect(next.messages).toEqual(items);
     expect(next.hasMore).toBe(true);
   });
@@ -44,7 +44,7 @@ describe("snapshot-loaded", () => {
     const dup = msg("first_officer", { id: "same", timestamp: "2026-11-01T00:00:00Z" });
     const snapshotItems = [{ ...dup, text: "new" }, msg("captain", { timestamp: "2026-11-02T00:00:00Z" })];
     const next = reduce(state({ messages: [older, dup], hasMore: true }), {
-      type: "snapshot-loaded",
+      type: "snapshot-loaded", openUiItemId: null,
       items: snapshotItems,
       hasMore: false,
       resolveSending: true,
@@ -56,7 +56,7 @@ describe("snapshot-loaded", () => {
   it("while older pages are held, the snapshot's hasMore is not trusted", () => {
     const older = msg("captain", { timestamp: "2026-01-01T00:00:00Z" });
     const next = reduce(state({ messages: [older], hasMore: true }), {
-      type: "snapshot-loaded",
+      type: "snapshot-loaded", openUiItemId: null,
       items: [msg("captain", { timestamp: "2026-11-02T00:00:00Z" })],
       hasMore: false,
       resolveSending: true,
@@ -66,30 +66,30 @@ describe("snapshot-loaded", () => {
 
   it("even if the items are empty, existing messages (ones not in the snapshot) remain", () => {
     const keep = msg("captain");
-    const next = reduce(state({ messages: [keep] }), { type: "snapshot-loaded", items: [], hasMore: false, resolveSending: true });
+    const next = reduce(state({ messages: [keep] }), { type: "snapshot-loaded", openUiItemId: null, items: [], hasMore: false, resolveSending: true });
     expect(next.messages).toEqual([keep]);
   });
 
   it("if there is no send request in flight, isSending is decided by whether a turn of the conversation with the captain is streaming (the same for a turn with anyone)", () => {
     const streaming = [msg("first_officer", { status: "streaming" })];
-    expect(reduce(state(), { type: "snapshot-loaded", items: streaming, hasMore: false, resolveSending: true }).isSending).toBe(true);
+    expect(reduce(state(), { type: "snapshot-loaded", openUiItemId: null, items: streaming, hasMore: false, resolveSending: true }).isSending).toBe(true);
     const done = [msg("first_officer", { status: "done" })];
-    expect(reduce(state({ isSending: true }), { type: "snapshot-loaded", items: done, hasMore: false, resolveSending: true }).isSending).toBe(false);
+    expect(reduce(state({ isSending: true }), { type: "snapshot-loaded", openUiItemId: null, items: done, hasMore: false, resolveSending: true }).isSending).toBe(false);
   });
 
   it("while there is a send request in flight, isSending is not overwritten with the server's state", () => {
-    const next = reduce(state({ isSending: true }), { type: "snapshot-loaded", items: [], hasMore: false, resolveSending: false });
+    const next = reduce(state({ isSending: true }), { type: "snapshot-loaded", openUiItemId: null, items: [], hasMore: false, resolveSending: false });
     expect(next.isSending).toBe(true);
   });
 
   it("streaming of a crew task (with taskName) does not affect isSending", () => {
     const items = [msg("ensign", { status: "streaming", taskName: "t" })];
-    expect(reduce(state(), { type: "snapshot-loaded", items, hasMore: false, resolveSending: true }).isSending).toBe(false);
+    expect(reduce(state(), { type: "snapshot-loaded", openUiItemId: null, items, hasMore: false, resolveSending: true }).isSending).toBe(false);
   });
 
   it("if a turn of a direct chat with a crew member (no taskName) is streaming, it is in the sending state even after a reload", () => {
     const items = [msg("ensign", { status: "streaming" })];
-    expect(reduce(state(), { type: "snapshot-loaded", items, hasMore: false, resolveSending: true }).isSending).toBe(true);
+    expect(reduce(state(), { type: "snapshot-loaded", openUiItemId: null, items, hasMore: false, resolveSending: true }).isSending).toBe(true);
   });
 });
 
@@ -351,7 +351,7 @@ describe("holes in the history (jumping to an old item)", () => {
 
   it("a snapshot reload keeps a gap while its two items are still neighbours", () => {
     const base = state({ messages: [item("p1", "2026-11-01T00:00:00Z"), item("r1", "2026-11-07T10:00:01Z")], gaps: [{ afterId: "p1", beforeId: "r1" }] });
-    const next = reduce(base, { type: "snapshot-loaded", items: [item("r1", "2026-11-07T10:00:01Z"), item("r2", "2026-11-07T10:00:02Z")], hasMore: true, resolveSending: false });
+    const next = reduce(base, { type: "snapshot-loaded", openUiItemId: null, items: [item("r1", "2026-11-07T10:00:01Z"), item("r2", "2026-11-07T10:00:02Z")], hasMore: true, resolveSending: false });
     expect(ids(next)).toEqual(["p1", "r1", "r2"]);
     expect(next.gaps).toEqual([{ afterId: "p1", beforeId: "r1" }]);
   });
@@ -359,5 +359,38 @@ describe("holes in the history (jumping to an old item)", () => {
   it("switching missions drops the holes together with the messages", () => {
     const base = state({ messages: recent, gaps: [{ afterId: "r1", beforeId: "r2" }] });
     expect(reduce(base, { type: "mission-switched" }).gaps).toEqual([]);
+  });
+});
+
+describe("the form waiting for the captain (openUiItemId)", () => {
+  const form = (state: "open" | "answered" | "dismissed"): Message["a2ui"] => ({ state, messages: [], ...(state === "open" ? { locksInput: true as const } : {}) });
+
+  it("comes with the snapshot (the form can be outside the loaded items), and is cleared when the mission is switched", () => {
+    const loaded = reduce(state(), { type: "snapshot-loaded", items: [], hasMore: false, resolveSending: true, openUiItemId: "turn-7" });
+    expect(loaded.openUiItemId).toBe("turn-7");
+    expect(reduce(loaded, { type: "mission-switched" }).openUiItemId).toBeNull();
+  });
+
+  it("an upsert of a reply with a form that locks the input sets it; the same reply answered or closed releases it", () => {
+    const reply = msg("chief_engineer", { id: "turn-7", a2ui: form("open") });
+    const opened = reduce(state(), upsert(reply));
+    expect(opened.openUiItemId).toBe("turn-7");
+    expect(reduce(opened, upsert({ ...reply, a2ui: form("answered") })).openUiItemId).toBeNull();
+    expect(reduce(opened, upsert({ ...reply, a2ui: form("dismissed") })).openUiItemId).toBeNull();
+  });
+
+  it("an upsert about another reply leaves it alone", () => {
+    const opened = state({ openUiItemId: "turn-7" });
+    expect(reduce(opened, upsert(msg("chief_engineer", { id: "turn-8", a2ui: form("answered") }))).openUiItemId).toBe("turn-7");
+    expect(reduce(opened, upsert(msg("chief_engineer", { id: "turn-9" }))).openUiItemId).toBe("turn-7");
+  });
+});
+
+describe("a2ui-failed", () => {
+  it("adds the error to the conversation without touching the waiting state (no send is in progress)", () => {
+    const error = msg("captain", { text: "⚠️ Error: nope" });
+    const next = reduce(state({ isSending: true }), { type: "a2ui-failed", message: error });
+    expect(next.messages).toEqual([error]);
+    expect(next.isSending).toBe(true);
   });
 });
