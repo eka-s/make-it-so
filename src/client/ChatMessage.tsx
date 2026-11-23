@@ -7,9 +7,11 @@ import { PopupOpenButton } from "./PopupOpenButton";
 import { CrewIcon } from "./crewIcons";
 import { HostBadge } from "./HostBadge";
 import { ThinkingBubble } from "./ThinkingBubble";
-import type { Message, CrewMemberConfig, MeteringUsage, ThinkingEntry } from "./types";
+import type { A2uiAnswer, Message, CrewMemberConfig, MeteringUsage, ThinkingEntry } from "./types";
 import { useI18n } from "./i18n/I18nProvider";
 import { speakerName } from "./speaker";
+import { formatMessageTime } from "./format-time";
+import { A2uiFrame } from "./A2uiFrame";
 
 /**
  * Makes the usage cost, whose unit differs by provider, visually distinguishable.
@@ -31,6 +33,10 @@ type ChatMessageProps = {
   onOpenResult?: (taskId: string, name?: string) => void;
   // When set, a "show in popup" button appears in the heading (visible when the mouse is over it). From a task card, it opens the report popup.
   onOpenPopup?: () => void;
+  // Called when the captain presses a button of an A2UI form (a message with `a2ui`); resolves when the server has the answer.
+  onA2uiAction?: (itemId: string, answer: A2uiAnswer) => Promise<void>;
+  // Called when the captain closes the form without answering it.
+  onA2uiDismiss?: (itemId: string) => void;
   // The tool-call activity of the turn or task this card is for. It is drawn inside the card, above the text, while the work goes on.
   thinking?: ThinkingEntry[];
   // Height at which the body is collapsed (px). When omitted, the height for an ordinary conversation (about 30 lines). A task card uses half of that (about 15 lines).
@@ -48,14 +54,13 @@ export const COLLAPSED_MAX_PX = 648; // ≈ 30 lines
 /** The collapsed height of a task card (half of an ordinary conversation. About 15 lines). */
 export const TASK_COLLAPSED_MAX_PX = COLLAPSED_MAX_PX / 2;
 
-export function ChatMessage({ message, crewConfig, onCancel, isStopping, isPinned, onTogglePin, onOpenResult, onOpenPopup, collapsedMaxPx = COLLAPSED_MAX_PX, thinking }: ChatMessageProps) {
+export function ChatMessage({ message, crewConfig, onCancel, isStopping, isPinned, onTogglePin, onOpenResult, onOpenPopup, onA2uiAction, onA2uiDismiss, collapsedMaxPx = COLLAPSED_MAX_PX, thinking }: ChatMessageProps) {
   const { t, tKey } = useI18n();
   // A message the server wrote itself is shown in the current language.
   const text = message.messageKey ? tKey(`msg.${message.messageKey}`, message.text) : message.text;
   const isCaptain = message.role === "captain";
   const isStreaming = message.status === "streaming";
-  const d = new Date(message.timestamp);
-  const time = `${d.getFullYear()}/${String(d.getMonth() + 1).padStart(2, "0")}/${String(d.getDate()).padStart(2, "0")} ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}:${String(d.getSeconds()).padStart(2, "0")}`;
+  const time = formatMessageTime(message.timestamp);
 
   const isCancelled = message.cancelled === true;
   const showStopButton = isStreaming && onCancel;
@@ -149,11 +154,32 @@ export function ChatMessage({ message, crewConfig, onCancel, isStopping, isPinne
     isStreaming ? "message-bubble--streaming" : "",
     isCancelled ? "message-bubble--cancelled" : "",
     isPinned ? "message-bubble--pinned" : "",
+    // A reply with a form has a bar of its own; while the form waits for the captain it stands out further.
+    message.a2ui ? "message-bubble--ui" : "",
+    message.a2ui?.state === "open" ? "message-bubble--ui-open" : "",
   ].filter(Boolean).join(" ");
 
   return (
     <div className={`message ${isCaptain ? "message-captain" : "message-crew"}`} data-message-id={message.id}>
       <div className={bubbleClasses}>
+        {message.a2ui && (
+          // The bar that sets a reply with a form apart from an ordinary one, in the way the top bar of a delegated task's card does.
+          <div className="a2ui-bar">
+            <span className="a2ui-bar-title">🖥️ {t("a2ui.barTitle")}</span>
+            <span className="a2ui-bar-right">
+              {message.a2ui.state === "open" && (
+                <>
+                  <span className="a2ui-bar-state a2ui-bar-state--open">{t("a2ui.pending")}</span>
+                  <button type="button" className="a2ui-dismiss" onClick={() => onA2uiDismiss?.(message.id)}>{t("a2ui.dismiss")}</button>
+                </>
+              )}
+              {message.a2ui.state === "answered" && (
+                <span className="a2ui-bar-state">{t("a2ui.answered")}{message.a2ui.actionName ? `: ${message.a2ui.actionName}` : ""}</span>
+              )}
+              {message.a2ui.state === "dismissed" && <span className="a2ui-bar-state">{t("a2ui.closed")}</span>}
+            </span>
+          </div>
+        )}
         <div className="message-bubble-header">
           <div className="message-sender">
             {!isCaptain && <CrewIcon name={displayName} iconUrl={crewConfig?.[message.role]?.icon} size={16} />}
@@ -246,6 +272,14 @@ export function ChatMessage({ message, crewConfig, onCancel, isStopping, isPinne
           >
             {expanded ? t("common.collapse") : t("chat.showFullText")}
           </button>
+        )}
+        {message.a2ui && message.a2ui.state !== "dismissed" && (
+          <A2uiFrame
+            messages={message.a2ui.messages}
+            open={message.a2ui.state === "open"}
+            comment={message.a2ui.comment}
+            onAction={(answer) => onA2uiAction?.(message.id, answer) ?? Promise.resolve()}
+          />
         )}
         {message.reportMeta && message.reportMeta.tasks.length > 0 && (
           <div className="message-report-links">

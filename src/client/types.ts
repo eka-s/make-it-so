@@ -87,6 +87,19 @@ export type Message = {
   instruction?: string;
   turnId?: string;
   status?: CrewStatus;
+  // The A2UI form a crew member showed with render_ui in this reply (drawn under the text; only a reply that completed carries one).
+  // `state`: "open" — the captain has neither answered nor closed it (it is usable, and the input box is locked until then); "answered" —
+  // shown as it was when answered, with the comment the captain wrote (`comment`) and the action they pressed (`actionName`);
+  // "dismissed" — the captain closed it without answering (no messages are carried). `locksInput` is set on an open form: the mission
+  // accepts no message until it is dealt with.
+  a2ui?: { state: "open" | "answered" | "dismissed"; messages: Array<Record<string, unknown>>; comment?: string; actionName?: string; locksInput?: true };
+};
+
+/** What the captain pressed on an A2UI form: the A2UI action the renderer reported, the values of the form's surface at that moment and the comment they wrote. */
+export type A2uiAnswer = {
+  action: { name: string; surfaceId: string; sourceComponentId: string; timestamp: string; context: Record<string, unknown> };
+  dataModel: Record<string, unknown>;
+  comment: string;
 };
 
 export type PinnedMessage = {

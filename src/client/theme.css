@@ -27,7 +27,9 @@
   --surface: #0a0a12;
   --surface-2: #1a1a2e;
   --surface-3: #1c1c2c;
+  --surface-raised: #2c2c48; /* a panel lighter than the bubble it sits in (an A2UI form) */
   --border: #33334a;
+  --border-strong: #55557a; /* the edge of a field that sits on a lighter panel (an A2UI form) */
   --surface-popup: #26183f; /* popups: a deep violet panel with a violet edge */
   --surface-captain: #1e1727; /* the captain's own messages: dark violet, quieter than a filled block */
   --hover: rgba(255, 255, 255, 0.08);

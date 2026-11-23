@@ -4,7 +4,7 @@ import { CrewReportGroup } from "./CrewReportGroup";
 import { GapRow } from "./GapRow";
 import { groupCrewMessages, splitAtGaps } from "./chat-grouping";
 import type { Gap } from "./chat-state";
-import type { CrewMemberConfig, Message } from "./types";
+import type { A2uiAnswer, CrewMemberConfig, Message } from "./types";
 
 type Props = {
   messages: Message[];
@@ -17,6 +17,8 @@ type Props = {
   onCrewCancel: (taskId: string) => void;
   isStopping: boolean;
   onFillGap: (gap: Gap, side: "top" | "bottom") => void;
+  onA2uiAction: (itemId: string, answer: A2uiAnswer) => Promise<void>;
+  onA2uiDismiss: (itemId: string) => void;
   /** Leave out the messages still being answered (the top pane of the split shows only finished ones). */
   hideStreaming?: boolean;
 };
@@ -25,7 +27,7 @@ type Props = {
 // holes of the history between the segments. The live pane and the top pane of the split both use it.
 export function MessageList({
   messages, gaps, crewConfig, isPinned, onTogglePin, onOpenResult, onCancel, onCrewCancel,
-  isStopping, onFillGap, hideStreaming = false,
+  isStopping, onFillGap, onA2uiAction, onA2uiDismiss, hideStreaming = false,
 }: Props) {
   return (
     <>
@@ -57,6 +59,8 @@ export function MessageList({
                   onOpenResult={onOpenResult}
                   onCancel={item.status === "streaming" ? onCancel : undefined}
                   isStopping={isStopping}
+                  onA2uiAction={onA2uiAction}
+                  onA2uiDismiss={onA2uiDismiss}
                   thinking={item.activity ? [item.activity] : undefined}
                 />
               );

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type { ThinkingEntry } from "./types";
 import { useT } from "./i18n/I18nProvider";
+import { formatMessageTime } from "./format-time";
 
 // A gear. It turns while the crew member is working (the operations are still coming in) and stands still once they are done.
 function Gear({ turning }: { turning: boolean }) {
@@ -37,8 +38,7 @@ export function ThinkingBubble({ entry, embedded = false }: ThinkingBubbleProps)
     previewLines.push(...outputLines.slice(0, 2));
   }
 
-  const d = new Date(entry.timestamp);
-  const time = `${d.getFullYear()}/${String(d.getMonth() + 1).padStart(2, "0")}/${String(d.getDate()).padStart(2, "0")} ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}:${String(d.getSeconds()).padStart(2, "0")}`;
+  const time = formatMessageTime(entry.timestamp);
 
   const content = (
     <>

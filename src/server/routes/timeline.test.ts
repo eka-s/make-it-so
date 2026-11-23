@@ -32,6 +32,19 @@ afterEach(async () => {
   vi.restoreAllMocks();
 });
 
+describe("GET /api/timeline: the form waiting for the captain", () => {
+  it("says which reply holds the form the captain has neither answered nor closed (null if none), whatever items were loaded", async () => {
+    const withUi = await startTestServer((app) => app.use(createTimelineRouter({ openUiItemId: (missionId) => (missionId === "m1" ? "turn-7" : null) })));
+    try {
+      expect(((await withUi.get("/api/timeline?missionId=m1")).body as { openUiItemId: string | null }).openUiItemId).toBe("turn-7");
+      expect(((await withUi.get("/api/timeline?missionId=bridge")).body as { openUiItemId: string | null }).openUiItemId).toBeNull();
+      expect(((await server.get("/api/timeline")).body as { openUiItemId: string | null }).openUiItemId).toBeNull(); // no way to look: none
+    } finally {
+      await withUi.close();
+    }
+  });
+});
+
 describe("GET /api/timeline", () => {
   it("if no mission is specified, returns the history of the default mission", async () => {
     recordCaptainMessage("default message", DEFAULT_MISSION_ID);

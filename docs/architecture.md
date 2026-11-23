@@ -74,6 +74,7 @@ index.ts (wiring layer)
 | `crew-briefing.ts`, `skills.ts`, `crew-paths.ts` | Building the briefing, reading skills, paths |
 | `crew-model.ts` | Model resolution (`resolveCrewModel`). A pure function |
 | `mcp-board.ts` | The MCP board's MCP server |
+| `a2ui-action.ts`, `a2ui-validate.ts` | A2UI: the answer's action message, and the strict validation of a crew member's messages |
 | `database.ts`, `migrations.ts` | SQLite, and schema versioning |
 | `timeline.ts` | Running items, and composing the snapshot |
 | `*-agent-client.ts`, `base-acp-client.ts`, `agent-client.interface.ts`, `agent-client-factory.ts` | ACP clients |

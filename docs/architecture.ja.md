@@ -74,6 +74,7 @@ index.ts（配線層）
 | `crew-briefing.ts`, `skills.ts`, `crew-paths.ts` | ブリーフィングの組み立て、スキルの読み取り、パス |
 | `crew-model.ts` | モデルの決定（`resolveCrewModel`）。純粋関数 |
 | `mcp-board.ts` | 掲示板の MCP サーバー |
+| `a2ui-action.ts`, `a2ui-validate.ts` | A2UI: 回答の action メッセージと、クルーが作ったメッセージの厳格な検証 |
 | `database.ts`, `migrations.ts` | SQLite と、スキーマの版管理 |
 | `timeline.ts` | 実行中のアイテムと、スナップショットの合成 |
 | `*-agent-client.ts`, `base-acp-client.ts`, `agent-client.interface.ts`, `agent-client-factory.ts` | ACP クライアント |

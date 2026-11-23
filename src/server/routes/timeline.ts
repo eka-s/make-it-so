@@ -6,6 +6,8 @@ import * as timeline from "../timeline.js";
 export type TimelineRouterDeps = {
   /** Messages the buttons and the custom menu send (they are left out of the captain's message history). */
   fixedMessages?: () => string[];
+  /** The id of the reply with an A2UI form the captain has neither answered nor closed, in the mission (null if none; the input box is locked while there is one). */
+  openUiItemId?: (missionId: string) => string | null;
 };
 
 /** How many earlier captain messages the history offers. */
@@ -38,7 +40,9 @@ export function createTimelineRouter(deps: TimelineRouterDeps = {}): express.Rou
         // When omitted, the default mission is used, so manual curl calls keep working.
         const missionId = typeof req.query.missionId === "string" ? req.query.missionId : DEFAULT_MISSION_ID;
         const result = await timeline.getSnapshot(limit, missionId);
-        res.json(result);
+        // Which reply holds the form the captain has to deal with is a fact of the mission, not something to look for in the loaded items
+        // (it can be outside them).
+        res.json({ ...result, openUiItemId: deps.openUiItemId?.(missionId) ?? null });
       } catch (error) {
         logger.error("[Timeline] Snapshot error:", error);
         res.status(500).json({ error: "Failed to retrieve timeline" });

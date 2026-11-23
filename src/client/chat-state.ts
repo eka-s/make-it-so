@@ -32,6 +32,12 @@ export type ChatState = {
    * tick increases monotonically and is used to detect a change in useEffect dependencies.
    */
   crewActivitySignal: { role: string | null; tick: number };
+  /**
+   * The id of the reply that holds an A2UI form the captain has neither answered nor closed (null if none). The server says it with the
+   * snapshot (it can be outside the loaded items) and each upsert of a reply with a form keeps it up to date. While there is one,
+   * nothing can be sent in the mission.
+   */
+  openUiItemId: string | null;
   /** Holes in the loaded history (left by jumping to an old item, see Gap). Empty normally. */
   gaps: Gap[];
   /** Whether there is more past history. */
@@ -44,6 +50,7 @@ export const initialChatState: ChatState = {
   messages: [],
   isSending: false,
   crewActivitySignal: { role: null, tick: 0 },
+  openUiItemId: null,
   gaps: [],
   hasMore: false,
   isLoadingOlder: false,
@@ -57,6 +64,8 @@ export type ChatAction =
       hasMore: boolean;
       /** Only when there is no send request in flight, decide isSending from the server's state. */
       resolveSending: boolean;
+      /** The reply with a form waiting for the captain, as the server says (null if none). */
+      openUiItemId: string | null;
     }
   /** Switched to another mission (discard the conversation being shown and fetch again). */
   | { type: "mission-switched" }
@@ -86,7 +95,9 @@ export type ChatAction =
    */
   | { type: "message-sent"; message: Message }
   /** Sending failed. Cancels the wait for the response and adds the error to the conversation. */
-  | { type: "send-failed"; message: Message };
+  | { type: "send-failed"; message: Message }
+  /** An action on an A2UI form failed: the error is added to the conversation (no send is in progress, so the waiting state is left alone). */
+  | { type: "a2ui-failed"; message: Message };
 
 function sameGap(g: Gap, ids: { afterId: string; beforeId: string }): boolean {
   return g.afterId === ids.afterId && g.beforeId === ids.beforeId;
@@ -141,6 +152,7 @@ export function chatReducer(state: ChatState, action: ChatAction): ChatState {
         // hasMore only says something about the snapshot's own window, so
         // trust it only when no older page had already been loaded before it.
         hasMore: oldOnly.length === 0 ? action.hasMore : state.hasMore,
+        openUiItemId: action.openUiItemId,
         isSending: action.resolveSending
           ? action.items.some((m) => isTurn(m) && m.status === "streaming")
           : state.isSending,
@@ -154,6 +166,7 @@ export function chatReducer(state: ChatState, action: ChatAction): ChatState {
       return {
         ...state,
         messages: [],
+        openUiItemId: null,
         gaps: [],
         hasMore: false,
         // Also have the crew status (unreported counts, etc.) of the mission being switched to fetched again
@@ -241,6 +254,11 @@ export function chatReducer(state: ChatState, action: ChatAction): ChatState {
       const idx = state.messages.findIndex((m) => m.id === item.id);
       const messages = idx === -1 ? [...state.messages, item] : state.messages.map((m, i) => (i === idx ? item : m));
       let next: ChatState = { ...state, messages };
+      // The server decides which form locks the input (`locksInput` on its item) and tells the snapshot as `openUiItemId`; a form is answered
+      // or closed after the snapshot was taken, and that arrives as the upsert of its reply, so the lock follows that item (no separate event).
+      if (item.a2ui) {
+        next = { ...next, openUiItemId: item.a2ui.locksInput ? item.id : state.openUiItemId === item.id ? null : state.openUiItemId };
+      }
 
       // An upsert of anything other than captain (the commander itself or a crew member) is, for the crew status panel,
       // a signal "you may check right now without polling".
@@ -276,5 +294,8 @@ export function chatReducer(state: ChatState, action: ChatAction): ChatState {
 
     case "send-failed":
       return { ...state, isSending: false, messages: [...state.messages, action.message] };
+
+    case "a2ui-failed":
+      return { ...state, messages: [...state.messages, action.message] };
   }
 }

@@ -1,3 +1,4 @@
+import { a2uiAnswerText } from "./a2ui-action.js";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -8,8 +9,11 @@ import { CrewManager } from "./crew-manager.js";
 import {
   closeDatabase,
   createMission,
+  getMissionTranscript,
+  getOpenUiTurnId,
   getTimelineEventsHistory,
   getUnreportedTasks,
+  recordUiShown,
   initDatabase,
   recordTaskCompleted,
   recordTaskStarted,
@@ -282,6 +286,64 @@ describe("concurrency (per mission)", () => {
     d.release("done");
     await idle();
     expect(bridge.isAgentBusy("chief_engineer")).toBe(false);
+  });
+});
+
+describe("A2UI forms in a reply", () => {
+  const form = [{ version: "1.0", createSurface: { surfaceId: "s1" } }];
+  /** An agent that shows a form during its turn (as render_ui does) and writes `text` (nothing when empty). */
+  const showsForm = (text: string): Behavior => async (_t, client) => {
+    const turn = bridge.getCurrentTurn("m1")!;
+    recordUiShown(turn.turnId, "m1", "first_officer", form);
+    if (text) client.emit("chunk", text);
+    return { stopReason: "end_turn" };
+  };
+
+  it("the final item of a completed reply carries the form, so a client that was connected shows what a reload shows", async () => {
+    behaviors.push(showsForm("Here is the form"));
+    send("ask me");
+    await idle();
+    expect(history().at(-1)).toMatchObject({ role: "first_officer", text: "Here is the form", a2ui: { state: "open", messages: form } });
+    expect(getOpenUiTurnId("m1")).toBe(history().at(-1)!.id);
+  });
+
+  it("a reply that only shows a form, with no text, is kept (it is not an empty reply)", async () => {
+    behaviors.push(showsForm(""));
+    send("ask me");
+    await idle();
+    expect(history().map((i) => i.role)).toEqual(["captain", "first_officer"]);
+    expect(history().at(-1)?.a2ui?.state).toBe("open");
+  });
+
+  it("the answer is recorded as the answer to the form, not as a message of the captain's, and reaches the conversation context", async () => {
+    behaviors.push(showsForm("Here is the form"), reply("Got it"));
+    send("ask me");
+    await idle();
+    const action = { name: "go", surfaceId: "s1", sourceComponentId: "btn", timestamp: "2026-11-23T10:00:00.000Z", context: { a: 1 } };
+    bridge.sendMessage(a2uiAnswerText(action), "first_officer", "m1", { answerOf: { turnId: history()[1].id, action, dataModel: { a: 1 }, comment: "" } });
+    await idle();
+    expect(history().map((i) => i.role)).toEqual(["captain", "first_officer", "first_officer"]); // no second captain message
+    expect(history()[1].a2ui).toMatchObject({ state: "answered", actionName: "go" });
+    expect(getOpenUiTurnId("m1")).toBeNull();
+    expect(getMissionTranscript("m1", 0, 10).entries.map((e) => [e.role, e.text])).toContainEqual(["captain", a2uiAnswerText(action)]);
+  });
+
+  it("a form shown in a reply that was cancelled is never shown, and does not lock the mission", async () => {
+    let release!: () => void;
+    behaviors.push((_t, client) => new Promise((resolve) => {
+      const turn = bridge.getCurrentTurn("m1")!;
+      recordUiShown(turn.turnId, "m1", "first_officer", form);
+      client.emit("chunk", "partway");
+      release = () => resolve({ stopReason: "cancelled" });
+    }));
+    send("long work");
+    await vi.waitFor(() => expect(clients[0]?.prompts.length).toBeGreaterThan(1));
+    bridge.cancelMessage("m1");
+    release();
+    await idle();
+    expect(history().at(-1)).toMatchObject({ cancelled: true });
+    expect(history().at(-1)?.a2ui).toBeUndefined();
+    expect(getOpenUiTurnId("m1")).toBeNull();
   });
 });
 

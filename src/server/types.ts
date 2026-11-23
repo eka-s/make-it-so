@@ -118,6 +118,12 @@ export type TimelineItem = {
   // The operations (tool calls) the crew member did for this turn or task, from the activity log (activity-log.ts). Present when the
   // log still has them; `isActive` says whether they are still coming in (the item is streaming).
   activity?: ActivityEntry;
+  // The A2UI form a crew member showed with render_ui in this reply (drawn under the text; only a reply that completed carries one).
+  // `state`: "open" — the captain has neither answered nor closed it (it is usable, and the input box is locked until then); "answered" —
+  // shown as it was when answered, with the comment the captain wrote (`comment`) and the action they pressed (`actionName`);
+  // "dismissed" — the captain closed it without answering (no messages are carried). `locksInput` is set on an open form: the mission
+  // accepts no message until it is dealt with.
+  a2ui?: { state: "open" | "answered" | "dismissed"; messages: Array<Record<string, unknown>>; comment?: string; actionName?: string; locksInput?: true };
 };
 
 /** The operations of one turn or task, as the screen shows them ("3 operations"; each can be opened to see its output). */

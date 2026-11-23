@@ -56,6 +56,11 @@ The following are **intentionally not protected**, or **have no technical enforc
 - **The MCP board (`/mcp`) has no authentication.** Crew members on remote hosts reach the MCP board from the remote `127.0.0.1` through the reverse tunnel. **Other users sharing that host can also call the MCP board.** Use only trusted hosts.
 - **All conversation content is stored in plain text in the local DB (`{ship}/data/bridge.db`).** It is not encrypted.
 - **Account information such as email addresses is shown on screen as is.**
+- **A form a crew member shows (`render_ui`) is made by the crew member.** What the captain sees on a button and what is sent when it is pressed are separate things: the action name and the values are the crew member's. The captain does not see the text that was sent. A crew member that follows instructions planted in a repository can draw a misleading form. Read what the form asks before answering.
+- **`POST /api/a2ui/:itemId/answer` and `/dismiss` have no authentication.** A crew member can answer or close its own form with a command such as `curl`, as it can answer its own approval request (above). What it writes in the comment field then appears as the captain's comment.
+- **Links in a form's text go where the crew member decides.** They open in a new tab. The `openUrl` function of the basic catalog opens only `http`, `https`, `mailto` and `tel` addresses, and only on a click.
+- **Images in a form, including `data:` images, are shown.** Loading from outside is stopped by the `Content-Security-Policy` alone. A form can use a picture to look like something it is not.
+- **The A2UI libraries bring a known advisory.** `@a2ui/react` and `@a2ui/web_core` carry their own `zod` 3 (an advisory about memory use when a very large collection is validated). The server validates a form with it; the request body is limited to 1 MB, and only a local caller can reach `/mcp`.
 
 ## What is protected
 
@@ -67,7 +72,7 @@ The following are **intentionally not protected**, or **have no technical enforc
   - Calls without an `Origin` (`curl`, agents, the CLI) are not browser pages, so they are let through.
   - CORS is not allowed. The UI calls only same-origin relative paths (`/api`).
   - Limitation: using `server.host` with a **name** other than `localhost` or an IP address is rejected by this check (v0.1 does not support exposure by name).
-- **External images are not loaded into the UI.** Images in an agent's output (Markdown) are not shown; only the alt text is shown (to prevent information from being sent out in an image's address). In addition, a `Content-Security-Policy` is set so that the UI does not connect to or load from anything other than its own server.
+- **External images are not loaded into the UI.** Images in an agent's output (Markdown) are not shown; only the alt text is shown (to prevent information from being sent out in an image's address). In addition, a `Content-Security-Policy` is set so that the UI does not connect to or load from anything other than its own server. (A form shown with `render_ui` can show an image, but it still cannot load one from outside: the same policy applies.)
 - **Storage directories are readable only by the owner** (`~/.make-it-so` and the ship's directory; mode 0700). The conversation DB and logs are plain text but cannot be read by other users (except on Windows).
 - **Checks on remote destinations.** A `destination` in `hosts.yml` that is empty, contains whitespace, or starts with `-` is rejected (to prevent ssh option injection). Connection details (key, port, user) are designed so that they cannot be written in `hosts.yml`.
 - **The reverse tunnel is opened only on the remote `127.0.0.1`**, and if it cannot be opened, the connection fails.

@@ -3,6 +3,10 @@ import { randomUUID } from "node:crypto";
 import type { CrewManager } from "./crew-manager.js";
 import {
   recordCaptainMessage,
+  recordUiAnswered,
+  type UiAnswerRecord,
+  getTurnItem,
+  getUiOfTurn,
   recordTurnCompleted,
   recordTurnStarted,
   recordTurnCancelled,
@@ -171,9 +175,15 @@ export function createBridge(deps: BridgeDeps) {
     return activeTurns.has(missionId);
   }
 
+  /** The turn in progress in that mission and the crew member it is with (null if none). */
+  function getCurrentTurn(missionId: string): { turnId: string; agentName: string } | null {
+    const turn = activeTurns.get(missionId);
+    return turn ? { turnId: turn.turnId, agentName: turn.agentName } : null;
+  }
+
   /** The turnId of the turn in progress in that mission (null if none). */
   function getCurrentTurnId(missionId: string): string | null {
-    return activeTurns.get(missionId)?.turnId ?? null;
+    return getCurrentTurn(missionId)?.turnId ?? null;
   }
 
   /**
@@ -270,6 +280,18 @@ export function createBridge(deps: BridgeDeps) {
    */
   function untilForced<T>(turn: ActiveTurn | undefined, work: Promise<T>): Promise<T> {
     return turn ? Promise.race([work, turn.forced]) : work;
+  }
+
+  /**
+   * Sends the item of a recorded turn to the screens exactly as the history gives it, and drops its live entry (nothing about it stays
+   * in the live map). It ends a completed turn, and shows a reply again when its A2UI form changes state, so a client that was
+   * connected shows what a reload shows.
+   */
+  function republishTurn(turnId: string): void {
+    const item = getTurnItem(turnId);
+    if (!item) return;
+    timeline.upsert(item);
+    timeline.forget(turnId);
   }
 
   /** Ends the turn by recording/broadcasting it as "cancelled". */
@@ -470,10 +492,8 @@ export function createBridge(deps: BridgeDeps) {
    * `performAutoRecovery`.
    *
    * Each taskId is checked for existence with `getTaskStarted` — even if a nonexistent taskId slips in through
-   * hallucination or the like, no orphan row is created in `task_reported_events`. If it exists,
-   * the `agent` (the internal directory name) can also be obtained, which is used to build
-   * `reportMeta` (what `/api/results/:agent/:taskId` expects is this internal directory
-   * name, not the display name).
+   * hallucination or the like, no orphan row is created in `task_reported_events`. The item sent to the screens is built from the
+   * recorded rows (including the `reportMeta` of the reported tasks), the same as the history builds it.
    */
   function finalizeCompletedTurn(turnId: string, missionId: string, agentName: string, rawFullText: string, turnCredits?: MeteringUsage): void {
     const reportedTaskIds = fetchedUnreportedTasks.get(turnId) ?? [];
@@ -487,13 +507,8 @@ export function createBridge(deps: BridgeDeps) {
       })
       .filter((t): t is { taskId: string; agent: string } => t !== null);
 
-    const reportMeta = reportedTasks.length > 0
-      ? { tasks: reportedTasks.map((t) => ({ agent: t.agent, taskId: t.taskId })) }
-      : undefined;
-
     recordTurnCompleted(turnId, missionId, cleanText, turnCredits, reportedTasks.map((t) => t.taskId), agentName);
-    timeline.upsert({ id: turnId, missionId, role: agentName, text: cleanText, timestamp: new Date().toISOString(), reportMeta, credits: turnCredits });
-    timeline.forget(turnId);
+    republishTurn(turnId);
   }
 
   /**
@@ -504,8 +519,11 @@ export function createBridge(deps: BridgeDeps) {
    * **Concurrency is per mission**: if a turn is already running in the same mission it is rejected,
    * but a turn running in another mission has no effect. Within the same mission, no matter which
    * crew member is addressed with an `@` mention, only one turn runs at a time.
+   *
+   * `answerOf` is for the captain's answer to an A2UI form: it is recorded as the answer to that form (ui_answered) instead of as a
+   * captain message, because the form itself shows that it was answered. `text` is what the crew member receives.
    */
-  function sendMessage(text: string, agentName: string, missionId: string): string {
+  function sendMessage(text: string, agentName: string, missionId: string, options: { answerOf?: UiAnswerRecord } = {}): string {
     if (activeTurns.has(missionId)) throw new Error("This mission is busy processing a previous message");
     if (!deps.isCrewRole(agentName)) throw new Error(`Unknown crew role "${agentName}"`);
 
@@ -524,12 +542,12 @@ export function createBridge(deps: BridgeDeps) {
       forced,
     });
 
-    executePrompt(text, agentName, missionId, messageId).catch((err: unknown) => settleBrokenTurn(missionId, messageId, err));
+    executePrompt(text, agentName, missionId, messageId, options.answerOf).catch((err: unknown) => settleBrokenTurn(missionId, messageId, err));
 
     return messageId;
   }
 
-  async function executePrompt(text: string, agentName: string, missionId: string, turnId: string): Promise<void> {
+  async function executePrompt(text: string, agentName: string, missionId: string, turnId: string, answerOf: UiAnswerRecord | undefined): Promise<void> {
     // Create the other side's own live item right away, before awaiting anything — the captain
     // should see the response placeholder immediately, without waiting for the session setup (which can take a while).
     // The same pattern as crew tasks.
@@ -538,7 +556,8 @@ export function createBridge(deps: BridgeDeps) {
     try {
       // Every branch of this turn is persisted via the event log tables.
       recordTurnStarted(turnId, missionId, agentName);
-      recordCaptainMessage(text, missionId);
+      if (answerOf) recordUiAnswered(answerOf, missionId);
+      else recordCaptainMessage(text, missionId);
 
       // In a conversation with any crew member, update and broadcast the credit usage (fetching is throttled to once per 5 minutes)
       deps.fetchUsage()
@@ -563,8 +582,8 @@ export function createBridge(deps: BridgeDeps) {
         return;
       }
 
-      if (!fullText.trim()) {
-        // Skip an empty response (e.g. when an automatic resume after a restart produced no output)
+      if (!fullText.trim() && !getUiOfTurn(turnId)) {
+        // Skip an empty response (e.g. when an automatic resume after a restart produced no output). A turn that only showed a form is not empty
         timeline.remove(turnId);
         await clearTurnStream(turnId);
         activeTurns.delete(missionId);
@@ -748,6 +767,8 @@ export function createBridge(deps: BridgeDeps) {
     cancelMessage,
     isMissionBusy,
     getCurrentTurnId,
+    getCurrentTurn,
+    republishTurn,
     isAgentBusy,
     armErrorSimulation,
     recordUnreportedFetch,

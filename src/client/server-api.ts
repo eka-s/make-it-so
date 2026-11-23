@@ -1,4 +1,5 @@
 import type {
+  A2uiAnswer,
   CrewMemberConfig,
   CrewProfile,
   CrewHostGroup,
@@ -78,7 +79,7 @@ export function createApi(options: ApiOptions = {}) {
 
     // --- Chat timeline ---
     getTimeline: (missionId: string, signal?: AbortSignal) =>
-      request<{ items: Message[]; hasMore: boolean }>(`/api/timeline?missionId=${enc(missionId)}`, { signal }),
+      request<{ items: Message[]; hasMore: boolean; openUiItemId: string | null }>(`/api/timeline?missionId=${enc(missionId)}`, { signal }),
     /**
      * Items between two items of the history (by id): a chunk starting at an old item (jump),
      * or the next / previous items of a gap. See GET /api/timeline/range.
@@ -200,6 +201,11 @@ export function createApi(options: ApiOptions = {}) {
      */
     sendReport: (role: string, missionId: string, signal?: AbortSignal) =>
       send("POST", `/api/crew/${enc(role)}/report`, { missionId }, signal),
+    /** A button of an A2UI form was pressed: the server sends the action to the crew member that drew it and marks the form answered. */
+    answerA2ui: (itemId: string, answer: A2uiAnswer) =>
+      send<{ messageId: string; status: "accepted" }>("POST", `/api/a2ui/${enc(itemId)}/answer`, answer),
+    /** The captain closes an A2UI form without answering it: the reply keeps a mark saying so, and the input box is free again. */
+    dismissA2ui: (itemId: string) => send<{ status: "dismissed" }>("POST", `/api/a2ui/${enc(itemId)}/dismiss`, {}),
     cancelTurn: (missionId: string) => send("POST", "/api/bridge/cancel", { missionId }),
     cancelCrewTask: (taskId: string) => request(`/api/crew/${enc(taskId)}/cancel`, { method: "POST" }),
     refreshCredits: () => request("/api/bridge/refresh-credits", { method: "POST" }),
