@@ -10,6 +10,7 @@ Step-by-step instructions by goal. For how things work, see [Core Concepts](../c
 | [Add a crew member on a remote host](add-remote-host.md) | Run a crew member on a machine reached over SSH |
 | [Change the permission mode](change-permission-mode.md) | Change how crew members ask for permission |
 | [Switch the language](switch-language.md) | Change the UI language and the language the crew speaks |
+| [Use the desktop app](desktop-app.md) | Open a ship in its own window, with no port for the screen; make the app |
 | [Use the custom menu](use-custom-menu.md) | Keep favorite messages and slash commands one click away, per ship or shared |
 | [Run multiple ships](run-multiple-ships.md) | Run one server per ship, side by side |
 | [Back up and restore the DB](backup-and-restore.md) | Save the conversation history and bring it back |
