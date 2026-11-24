@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { launcherLanguage, renderLauncherPage } from "./launcher-page.js";
+import { launcherLanguage, renderLauncherPage, settingsLabel } from "./launcher-page.js";
 
 describe("the ship list", () => {
   it("offers each ship as a form button that posts its id, labelled with its name", () => {
@@ -20,11 +20,17 @@ describe("the ship list", () => {
     expect(html).toContain("Cannot be opened: bad yaml");
   });
 
-  it("says how to make a ship when there is none", () => {
+  it("says how to make a ship when there is none, and still offers the settings where a ship is made", () => {
     const html = renderLauncherPage({ ships: [], language: "en" });
     expect(html).toContain("There is no ship yet.");
-    expect(html).toContain("npm run init");
-    expect(html).not.toContain("<button");
+    expect(html).toContain("settings screen");
+    expect(html).not.toContain('name="ship"');
+    expect(html).toContain('<form class="settings" method="post" action="/settings">');
+  });
+
+  it("offers the settings below the ships", () => {
+    const html = renderLauncherPage({ ships: [{ id: "a" }], language: "en" });
+    expect(html.indexOf('name="ship"')).toBeLessThan(html.indexOf('action="/settings"'));
   });
 
   it("allows no script on the page", () => {
@@ -35,6 +41,8 @@ describe("the ship list", () => {
     expect(launcherLanguage("ja-JP")).toBe("ja");
     expect(launcherLanguage("en-US")).toBe("en");
     expect(launcherLanguage("fr")).toBe("en");
-    expect(renderLauncherPage({ ships: [], language: "ja" })).toContain("まだ船がありません");
+    expect(renderLauncherPage({ ships: [], language: "ja" })).toContain("まだ艦がありません");
+    expect(settingsLabel("ja")).toBe("設定");
+    expect(settingsLabel("en")).toBe("Settings");
   });
 });

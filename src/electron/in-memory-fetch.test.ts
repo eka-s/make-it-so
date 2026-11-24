@@ -9,6 +9,8 @@ function appWithRoutes(onSseClose: () => void = () => {}): express.Express {
   app.use(express.json());
   app.get("/api/config", (_req, res) => res.json({ shipName: "Test Ship" }));
   app.post("/api/echo", (req, res) => res.status(201).json({ echoed: req.body }));
+  app.delete("/api/echo", (req, res) => res.json({ echoed: req.body }));
+  app.put("/api/bytes", express.raw({ type: "application/octet-stream" }), (req, res) => res.json({ bytes: [...(req.body as Buffer)] }));
   app.get("/api/events", (req, res) => {
     res.writeHead(200, { "Content-Type": "text/event-stream" });
     res.write(": connected\n\n");
@@ -33,6 +35,18 @@ describe("serving a request without a port", () => {
     const res = await serve(new Request("app://ship/api/echo", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ a: 1 }) }));
     expect(res.status).toBe(201);
     expect(await res.json()).toEqual({ echoed: { a: 1 } });
+  });
+
+  it("passes the body of a DELETE too (the settings remove a ship with a confirmation in its body)", async () => {
+    const serve = createInMemoryFetch(appWithRoutes());
+    const res = await serve(new Request("app://ship/api/echo", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ confirm: "alpha" }) }));
+    expect(await res.json()).toEqual({ echoed: { confirm: "alpha" } });
+  });
+
+  it("passes a binary body unchanged (an icon is uploaded as raw bytes)", async () => {
+    const serve = createInMemoryFetch(appWithRoutes());
+    const res = await serve(new Request("app://ship/api/bytes", { method: "PUT", headers: { "Content-Type": "application/octet-stream" }, body: new Uint8Array([0, 255, 10, 13, 128]) }));
+    expect(await res.json()).toEqual({ bytes: [0, 255, 10, 13, 128] });
   });
 
   it("is not refused by the local-request guard for the origin of the page (those headers only mean something over the network)", async () => {

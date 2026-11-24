@@ -17,6 +17,11 @@ describe("choosing how to start", () => {
     expect(chooseStartMode([], [{ id: "alpha", error: "bad yaml" }])).toEqual({ kind: "ship" });
   });
 
+  it("shows the settings when asked, whatever ships there are", () => {
+    expect(chooseStartMode(["--settings"], [ship("alpha")])).toEqual({ kind: "settings" });
+    expect(chooseStartMode(["--settings", "--ship", "alpha"], [])).toEqual({ kind: "settings" });
+  });
+
   it("lets the person choose when there are several ships or none", () => {
     expect(chooseStartMode([], [ship("alpha"), ship("beta")])).toEqual({ kind: "launcher" });
     expect(chooseStartMode([], [])).toEqual({ kind: "launcher" });

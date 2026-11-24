@@ -28,6 +28,8 @@ export function SettingsApp() {
   // The ship the ships tab opens on (the one just made from a project).
   const [openShip, setOpenShip] = useState<string | undefined>(undefined);
   const [runtime, setRuntime] = useState<SettingsShipRuntime[]>([]);
+  // The desktop app opens a ship in a window: there is no count of running ships to show.
+  const [desktop, setDesktop] = useState(false);
   // What the form on screen says about unsaved input (it registers itself here).
   const dirty = useRef<() => boolean>(() => false) as DirtyRegistry;
   const goTo = (next: Tab, shipId?: string) => {
@@ -44,7 +46,7 @@ export function SettingsApp() {
   // How many ships are running, for the header (asked again every few seconds: ships can be started and stopped elsewhere).
   useEffect(() => {
     let alive = true;
-    const load = () => api.getSettingsRuntime().then(async (res) => { if (alive && res.ok) setRuntime((await res.json()).ships); }).catch(() => {});
+    const load = () => api.getSettingsRuntime().then(async (res) => { if (alive && res.ok) { const data = await res.json(); setRuntime(data.ships); setDesktop(data.desktop); } }).catch(() => {});
     void load();
     const timer = setInterval(load, 5000);
     return () => { alive = false; clearInterval(timer); };
@@ -67,10 +69,12 @@ export function SettingsApp() {
         <h1>Make-It-So</h1>
         <span className="settings-title">{t("settings.title")}</span>
         <div className="settings-header-switch"><ThemeMenu theme={theme} onSelect={setTheme} /><LanguageSwitch target="ui" /></div>
-        <span className="settings-status">
-          <span className={runtime.some((s) => s.state === "running") ? "settings-dot settings-dot--running" : "settings-dot"} aria-hidden="true" />
-          {t("settings.status.running", { running: runtime.filter((s) => s.state === "running").length, total: runtime.length })}
-        </span>
+        {!desktop && (
+          <span className="settings-status">
+            <span className={runtime.some((s) => s.state === "running") ? "settings-dot settings-dot--running" : "settings-dot"} aria-hidden="true" />
+            {t("settings.status.running", { running: runtime.filter((s) => s.state === "running").length, total: runtime.length })}
+          </span>
+        )}
       </header>
       <div className="settings-body">
         <nav className="settings-nav" aria-label={t("settings.title")}>

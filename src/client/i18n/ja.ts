@@ -244,6 +244,7 @@ export const ja: Record<MessageKey, string> = {
   "settings.ships.hideLog": "出力を隠す",
   "settings.ships.noLog": "(まだありません)",
   "settings.ships.startFailed": "艦が起動しませんでした。出力の最後の部分を、下に出します。",
+  "settings.ships.desktopHelp": "艦は、専用のウィンドウで開き、そのウィンドウを閉じると止まります。",
   "settings.ships.runtimeHelp": "ここで起動した艦は、この設定画面を閉じても動き続けます。艦の画面は、ビルド版（npm run build）で配信されます。",
   "settings.error.start.running": "この艦は、既に動いています。",
   "settings.error.start.conflict": "この艦のポートを、別のものが使っています。",

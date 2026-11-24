@@ -29,7 +29,10 @@ function asSocketLike(side: Duplex): Duplex {
  */
 export function createInMemoryFetch(handler: http.RequestListener): InMemoryFetch {
   const server = http.createServer(handler);
-  return (request) => {
+  return async (request) => {
+    // The body is read whole and sent with its length: `http` frames a streamed body only for some methods (not for DELETE), and a body
+    // the server cannot see the end of is dropped. Requests of the UI are small, so nothing is gained by streaming them.
+    const body = request.body ? Buffer.from(await request.arrayBuffer()) : null;
     const [clientSide, serverSide] = duplexPair();
     asSocketLike(clientSide);
     asSocketLike(serverSide);
@@ -38,8 +41,9 @@ export function createInMemoryFetch(handler: http.RequestListener): InMemoryFetc
     const url = new URL(request.url);
     const headers: Record<string, string> = {};
     request.headers.forEach((value, name) => {
-      if (!BROWSER_ORIGIN_HEADERS.test(name)) headers[name] = value;
+      if (!BROWSER_ORIGIN_HEADERS.test(name) && name.toLowerCase() !== "content-length") headers[name] = value;
     });
+    if (body) headers["content-length"] = String(body.length);
 
     return new Promise<Response>((resolve, reject) => {
       const outgoing = http.request({
@@ -63,8 +67,7 @@ export function createInMemoryFetch(handler: http.RequestListener): InMemoryFetc
         outgoing.destroy();
         serverSide.destroy();
       });
-      if (request.body) Readable.fromWeb(request.body as never).pipe(outgoing);
-      else outgoing.end();
+      outgoing.end(body ?? undefined);
     });
   };
 }

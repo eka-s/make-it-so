@@ -149,7 +149,7 @@ export function createApi(options: ApiOptions = {}) {
     uploadSettingsIcon: (id: string, image: Blob) =>
       request<{ status?: string; error?: string }>(`/api/settings/roster/${enc(id)}/icon`, { method: "PUT", headers: { "Content-Type": "application/octet-stream" }, body: image }),
     deleteSettingsIcon: (id: string) => request(`/api/settings/roster/${enc(id)}/icon`, { method: "DELETE" }),
-    getSettingsRuntime: (signal?: AbortSignal) => request<{ ships: SettingsShipRuntime[]; shipUi: boolean }>("/api/settings/runtime", { signal }),
+    getSettingsRuntime: (signal?: AbortSignal) => request<{ ships: SettingsShipRuntime[]; shipUi: boolean; desktop: boolean }>("/api/settings/runtime", { signal }),
     startSettingsShip: (id: string) => request<SettingsShipRuntime & { message?: string }>(`/api/settings/ships/${enc(id)}/start`, { method: "POST" }),
     stopSettingsShip: (id: string) => request<{ status?: string; message?: string }>(`/api/settings/ships/${enc(id)}/stop`, { method: "POST" }),
     getSettingsShipLog: (id: string) => request<{ text: string }>(`/api/settings/ships/${enc(id)}/log`),

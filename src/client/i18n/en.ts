@@ -244,6 +244,7 @@ export const en = {
   "settings.ships.hideLog": "Hide the log",
   "settings.ships.noLog": "(nothing yet)",
   "settings.ships.startFailed": "The ship did not start. The last lines it printed are below.",
+  "settings.ships.desktopHelp": "A ship opens in a window of its own, and stops when that window is closed.",
   "settings.ships.runtimeHelp": "A ship started here keeps running when this settings screen is closed. The screen of a ship is served by the built version (npm run build).",
   "settings.error.start.running": "This ship is already running.",
   "settings.error.start.conflict": "Something else is using this ship's port.",
