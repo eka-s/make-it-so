@@ -41,6 +41,15 @@ import type {
 /** A `Response` with `json()` typed. The body on error (`{ error }`) can be read too. */
 export type ApiResponse<T = object> = Omit<Response, "json"> & { json(): Promise<T & { error?: string }> };
 
+/**
+ * What the chat feed needs from a push channel: the part of `EventSource` that useSSE.ts uses. The browser's `EventSource`
+ * satisfies it as is; a desktop shell can supply its own channel (over IPC) instead of an HTTP stream.
+ */
+export type EventStream = Pick<EventSource, "addEventListener" | "removeEventListener" | "close" | "readyState" | "onopen" | "onerror">;
+
+/** `readyState` of a channel that is closed and will not reconnect by itself (the value of `EventSource.CLOSED`). */
+export const EVENT_STREAM_CLOSED = 2;
+
 export type ApiOptions = {
   /**
    * The leading part of the connection target (e.g. `https://example.com`). A same-origin relative path when omitted.
@@ -48,6 +57,8 @@ export type ApiOptions = {
   baseUrl?: string;
   /** The fetch implementation. When omitted, the global fetch (replaced in tests). */
   fetch?: typeof fetch;
+  /** Opens the push channel for the URL of `eventsUrl()`. When omitted, the browser's `EventSource` (replaced by a desktop shell and in tests). */
+  openEventStream?: (url: string) => EventStream;
 };
 
 /** What is needed to create a pin (POST /api/pins). */
@@ -77,6 +88,8 @@ export function createApi(options: ApiOptions = {}) {
   return {
     /** Connection URL for SSE (chat updates). Passed to EventSource. */
     eventsUrl: () => `${baseUrl}/api/events/bridge`,
+    /** Opens the SSE channel (chat updates). */
+    openEvents: (): EventStream => (options.openEventStream ?? ((url) => new EventSource(url)))(`${baseUrl}/api/events/bridge`),
 
     // --- Chat timeline ---
     getTimeline: (missionId: string, signal?: AbortSignal) =>

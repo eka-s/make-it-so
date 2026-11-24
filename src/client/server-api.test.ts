@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { createApi } from "./server-api";
+import { createApi, type EventStream } from "./server-api";
 
 // A fake fetch, to see which URL, method, headers, and body it was called with.
 function setup(baseUrl?: string) {
@@ -199,6 +199,27 @@ describe("connection target (baseUrl)", () => {
     await api.sendMessage("chief_engineer", "x", "m1");
     expect(last().url).toBe("https://example.com:3939/api/crew/chief_engineer/message");
     expect(api.eventsUrl()).toBe("https://example.com:3939/api/events/bridge");
+  });
+});
+
+describe("push channel", () => {
+  it("opens the SSE URL of the connection target with the browser's EventSource unless another channel is given", () => {
+    const opened: string[] = [];
+    class FakeEventSource { constructor(url: string) { opened.push(url); } }
+    vi.stubGlobal("EventSource", FakeEventSource);
+    try {
+      createApi({ baseUrl: "https://example.com:3939" }).openEvents();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+    expect(opened).toEqual(["https://example.com:3939/api/events/bridge"]);
+  });
+
+  it("opens the channel a desktop shell supplies, with the same URL", () => {
+    const stream = {} as EventStream;
+    const openEventStream = vi.fn(() => stream);
+    expect(createApi({ baseUrl: "https://example.com:3939", openEventStream }).openEvents()).toBe(stream);
+    expect(openEventStream).toHaveBeenCalledWith("https://example.com:3939/api/events/bridge");
   });
 });
 

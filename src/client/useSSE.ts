@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import type { AccountsSnapshot, PendingPermission, Message, ThinkingEntry } from "./types";
-import { api } from "./server-api";
+import { api, EVENT_STREAM_CLOSED, type EventStream } from "./server-api";
 
 type UseSSEOptions = {
   // The whole event surface of the chat feed. It mirrors server/timeline.ts:
@@ -27,7 +27,7 @@ const RECONNECT_BASE_DELAY_MS = 1000;
 const RECONNECT_MAX_DELAY_MS = 30_000;
 
 // A module-level singleton — guarantees that exactly one EventSource exists even across StrictMode's double mount
-let singletonES: EventSource | null = null;
+let singletonES: EventStream | null = null;
 let subscriberCount = 0;
 let reconnectAttempts = 0;
 let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
@@ -59,12 +59,12 @@ function getReconnectDelay(): number {
   return Math.min(exponential + jitter, RECONNECT_MAX_DELAY_MS);
 }
 
-function createEventSource(): EventSource {
-  const es = new EventSource(api.eventsUrl());
+function createEventSource(): EventStream {
+  const es = api.openEvents();
 
   es.onerror = () => {
-    // EventSource.CLOSED = 2 — from this state the browser does not reconnect automatically
-    if (es.readyState === EventSource.CLOSED) {
+    // CLOSED — from this state the browser does not reconnect automatically
+    if (es.readyState === EVENT_STREAM_CLOSED) {
       console.warn("[SSE] Connection CLOSED. Scheduling reconnection...");
       singletonES = null;
       onConnectionChangeCallback?.(false);
@@ -166,7 +166,7 @@ export function useSSE({ onTimelineUpsert, onTimelineAppend, onTimelineRemove, o
 
   useEffect(() => {
     // Before creating a new connection, close a stale one if there is one (just in case)
-    if (singletonES && singletonES.readyState === EventSource.CLOSED) {
+    if (singletonES && singletonES.readyState === EVENT_STREAM_CLOSED) {
       singletonES = null;
     }
 
