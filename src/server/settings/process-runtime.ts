@@ -2,6 +2,7 @@ import { spawn } from "node:child_process";
 import fs from "node:fs";
 import { createShipRuntime, type ShipRuntime } from "./ship-runtime.js";
 import { shipPort } from "./ship-settings.js";
+import { readShipLock } from "../ship-lock.js";
 
 const MAX_STDOUT_LOG_BYTES = 5 * 1024 * 1024;
 
@@ -14,6 +15,7 @@ export function createProcessShipRuntime(dir: string): ShipRuntime {
     dir,
     command: { execPath: process.execPath, args: [...process.execArgv, process.argv[1]] },
     portOf: (id) => shipPort(dir, id),
+    openElsewhere: (id) => readShipLock(dir, id),
     fetch,
     spawn: (command, args, logFile) => {
       // The output of a ship started here is kept across starts (appended), up to a size; past it the file starts over, so it cannot

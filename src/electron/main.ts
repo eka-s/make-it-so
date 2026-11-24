@@ -4,6 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { restrictToOwner } from "../server/private-dirs.js";
+import { isShipId } from "../server/ship-id.js";
 import { makeItSoDir } from "../server/load-config.js";
 import { logger } from "../server/logger.js";
 import { createSettingsApp } from "../server/settings/settings-app.js";
@@ -75,12 +76,13 @@ async function runShip(dir: string): Promise<void> {
 
   let window: BrowserWindow | null = null;
   if (!holdInstance(id, () => window)) return;
-  // The browser version may be running this ship: its port tells (the desktop app's own lock cannot).
-  const browserPort = await runningInBrowser(dir, id);
-  if (browserPort !== null) throw new Error(`Ship "${id}" is already running in the browser version (port ${browserPort}). Stop it first.`);
-  // The mark that tells the settings this ship is open. It comes before anything else the ship does, and goes with the ship.
+  // The mark that tells the settings, and the browser version, this ship is open. It comes before anything else the ship does (the browser version looks
+  // for it after it has bound its port, so whichever of the two comes second sees the other), and goes with the ship.
   writeShipLock(dir, id);
   try {
+    // The browser version may be running this ship: its port tells (the desktop app's own lock cannot). A busy ship is slow to answer, so this waits for it.
+    const browser = await runningInBrowser(dir, id, { timeoutMs: 2500 });
+    if (browser !== null) throw new Error(`Ship "${id}" is already running in the browser version (port ${browser.port}). Stop it first.`);
     const ship = await buildShip();
     // Nothing else holds this ship now (the lock above), so what the last run left unfinished can be recorded as interrupted.
     await ship.recordInterrupted();
@@ -157,7 +159,7 @@ async function runLauncher(dir: string): Promise<void> {
     if (request.method === "POST" && url.pathname === "/open") {
       const id = new URLSearchParams(await request.text()).get("ship");
       // Read again: only a ship that exists and can be read is started.
-      if (id === null || !readOverview(dir).ships.some((s) => s.id === id && !s.error)) return new Response("unknown ship", { status: 400 });
+      if (id === null || !isShipId(id) || !readOverview(dir).ships.some((s) => s.id === id && !s.error)) return new Response("unknown ship", { status: 400 });
       return handOver(() => openShip(id));
     }
     if (request.method === "POST" && url.pathname === "/settings") return handOver(openSettings);
@@ -206,7 +208,9 @@ function spawnSelf(args: string[]): void {
 }
 
 function openShip(id: string): void {
-  spawnSelf(["--ship", id]);
+  // The `--ship=` form keeps an ID from being read as an option of its own, whatever it begins with.
+  if (!isShipId(id)) return;
+  spawnSelf([`--ship=${id}`]);
 }
 
 function openSettings(): void {

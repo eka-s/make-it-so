@@ -10,7 +10,7 @@ afterEach(() => fs.rmSync(tmp, { recursive: true, force: true }));
 
 type Reply = { ok?: boolean; body?: unknown } | "refused";
 
-function runtime(opts: { port?: number | null; reply?: Reply } = {}) {
+function runtime(opts: { port?: number | null; reply?: Reply; openElsewhere?: (id: string) => number | null } = {}) {
   const spawned: { command: string; args: string[]; logFile: string }[] = [];
   const killed: [number, string][] = [];
   const rt = createShipRuntime({
@@ -23,6 +23,7 @@ function runtime(opts: { port?: number | null; reply?: Reply } = {}) {
     }) as unknown as typeof fetch,
     spawn: (command, args, logFile) => { spawned.push({ command, args, logFile }); },
     kill: (pid, signal) => { killed.push([pid, signal]); },
+    ...(opts.openElsewhere ? { openElsewhere: opts.openElsewhere } : {}),
   });
   return { rt, spawned, killed };
 }
@@ -42,6 +43,37 @@ describe("status", () => {
   it("stopped: nothing answers, or the ship has no port", async () => {
     expect(await runtime({ reply: "refused" }).rt.status("alpha")).toEqual({ id: "alpha", port: 4000, state: "stopped" });
     expect(await runtime({ port: null }).rt.status("alpha")).toEqual({ id: "alpha", port: null, state: "stopped" });
+  });
+});
+
+describe("a ship open in the desktop app", () => {
+  it("counts as running although nothing answers on its port, with the process it is open in", async () => {
+    const { rt } = runtime({ reply: "refused", openElsewhere: () => 777 });
+    expect(await rt.status("alpha")).toEqual({ id: "alpha", port: 4000, state: "running", pid: 777 });
+  });
+
+  it("counts as running when the ship has no port at all", async () => {
+    const { rt } = runtime({ port: null, openElsewhere: () => 777 });
+    expect(await rt.status("alpha")).toEqual({ id: "alpha", port: null, state: "running", pid: 777 });
+  });
+
+  it("is not started a second time, and can be stopped with the process it is open in", async () => {
+    const { rt, spawned, killed } = runtime({ reply: "refused", openElsewhere: () => 777 });
+    expect(await rt.start("alpha")).toEqual({ ok: false, reason: "running" });
+    expect(spawned).toEqual([]);
+    expect(await rt.stop("alpha")).toEqual({ ok: true });
+    expect(killed).toEqual([[777, "SIGTERM"]]);
+  });
+
+  it("does not hide a ship that answers on its port, nor a port something else holds", async () => {
+    expect(await runtime({ reply: { body: { shipId: "alpha", pid: 5 } }, openElsewhere: () => 777 }).rt.status("alpha")).toMatchObject({ pid: 5 });
+    expect(await runtime({ reply: { body: { shipId: "beta", pid: 1 } }, openElsewhere: () => 777 }).rt.status("alpha")).toMatchObject({ state: "conflict" });
+  });
+
+  it("is not asked about an ID that is not a ship", async () => {
+    const asked: string[] = [];
+    await runtime({ reply: "refused", openElsewhere: (id) => { asked.push(id); return null; } }).rt.status("../x");
+    expect(asked).toEqual([]);
   });
 });
 

@@ -341,6 +341,13 @@ export async function runShip(): Promise<void> {
     if (openIn !== null) throw new Error(`[make-it-so] Ship "${config.shipId}" is open in the desktop app (process ${openIn}). Close its window first.`);
     ship = await buildShip();
     server = await listenWithRetry(ship.app, config.port, config.host);
+    // The port is now this process's mark. The desktop app's mark is looked at once more: one left after the first look, while the ship was being built,
+    // means the same ship is open there too (the desktop app leaves its mark before it looks at the port, so one of the two always sees the other).
+    const openAfter = readShipLock(config.fleetRoot, config.shipId);
+    if (openAfter !== null) {
+      server.close();
+      throw new Error(`[make-it-so] Ship "${config.shipId}" was opened in the desktop app (process ${openAfter}) while it started. Close its window first.`);
+    }
     await ship.recordInterrupted();
   } catch (error) {
     logger.error("[make-it-so] Fatal error:", error);

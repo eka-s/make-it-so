@@ -4,6 +4,7 @@ import type { Document } from "yaml";
 import { loadCrew, loadHosts, type RawShipFile } from "../fleet-config.js";
 import { deleteValue, editYamlFile, readYamlDocument, setValue } from "./yaml-edit.js";
 import { PERMISSION_MODE_SUGGESTIONS, readRosterState } from "./roster-settings.js";
+import { SHIP_ID } from "../ship-id.js";
 
 // The form for a ship's ship.yml: its port and name, the directories it covers (targets), the rules and skills every crew
 // member gets, and which roster member holds which role. A ship is created here too (the same minimal ship as `npm run init`).
@@ -11,7 +12,8 @@ import { PERMISSION_MODE_SUGGESTIONS, readRosterState } from "./roster-settings.
 
 export const RANKS = ["commander", "chief", "crew"] as const;
 export const ACCESS_MODES = ["readonly", "readwrite"] as const;
-const ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9_-]*$/;
+// Role names have the same form as ship IDs.
+const ID_PATTERN = SHIP_ID;
 
 export type ShipRole = {
   role: string;
