@@ -41,6 +41,7 @@ body {
   position: relative;
   display: flex;
   align-items: center;
+  white-space: nowrap; /* as in the ship's header: a one-line bar does not wrap its title */
   gap: 16px;
   height: 56px;
   flex-shrink: 0;
@@ -81,6 +82,7 @@ body {
 }
 
 .settings-header h1 {
+  flex-shrink: 0;
   margin: 0;
   padding-bottom: var(--frame-strip);
   font-family: var(--font-display);

@@ -12,6 +12,7 @@ import { SettingsShipsForm } from "./SettingsShipsForm";
 import { SettingsImportForm } from "./SettingsImportForm";
 import { ThemeMenu } from "./ThemeMenu";
 import { useTheme } from "./use-theme";
+import { useShellWindow } from "./use-shell-window";
 import { confirmDiscard, type DirtyRegistry } from "./use-unsaved";
 import "./SettingsApp.css";
 
@@ -22,6 +23,8 @@ type Tab = (typeof TABS)[number];
 export function SettingsApp() {
   const t = useT();
   const { theme, setTheme } = useTheme();
+  const headerRef = useRef<HTMLElement>(null);
+  useShellWindow(headerRef);
   const [overview, setOverview] = useState<SettingsOverview | null>(null);
   const [failed, setFailed] = useState(false);
   const [tab, setTab] = useState<Tab>("overview");
@@ -65,7 +68,7 @@ export function SettingsApp() {
 
   return (
     <div className="settings-app">
-      <header className="settings-header">
+      <header className="settings-header" ref={headerRef}>
         <h1>Make-It-So</h1>
         <span className="settings-title">{t("settings.title")}</span>
         <div className="settings-header-switch"><ThemeMenu theme={theme} onSelect={setTheme} /><LanguageSwitch target="ui" /></div>

@@ -68,6 +68,8 @@ body {
   position: relative;
   display: flex;
   align-items: center;
+  /* Nothing in the header wraps: in a narrow window the title would turn into two lines inside a bar that is one line high. The ship name below gives way first. */
+  white-space: nowrap;
   gap: 14px;
   height: 56px;
   padding: 0 16px 0 0;
@@ -110,6 +112,7 @@ body {
 }
 
 .app-header h1 {
+  flex-shrink: 0;
   font-family: var(--font-display);
   font-size: 1.7rem;
   font-weight: 700;
@@ -132,6 +135,9 @@ body {
 /* The ship name at the right end of the header: same size as the title, in a different color, so you can tell
    which ship a tab belongs to when several ships are open */
 .app-ship-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
   margin-left: auto;
   padding-bottom: var(--frame-strip);
   font-family: var(--font-display);

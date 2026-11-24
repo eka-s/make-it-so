@@ -1,4 +1,4 @@
-import { app, BrowserWindow, dialog, Menu, protocol, shell } from "electron";
+import { app, BrowserWindow, dialog, Menu, protocol, screen, shell } from "electron";
 import { spawn } from "node:child_process";
 import os from "node:os";
 import path from "node:path";
@@ -13,6 +13,7 @@ import { createDesktopShipRuntime } from "./desktop-runtime.js";
 import { createInMemoryFetch } from "./in-memory-fetch.js";
 import { launcherLanguage, renderLauncherPage, renderOpeningPage, settingsLabel } from "./launcher-page.js";
 import { removeShipLock, writeShipLock } from "../server/ship-lock.js";
+import { withShellRequests, type PageReport } from "./shell-requests.js";
 import { runningInBrowser } from "./running-in-browser.js";
 import { chooseStartMode } from "./start-mode.js";
 
@@ -83,7 +84,7 @@ async function runShip(dir: string): Promise<void> {
     const ship = await buildShip();
     // Nothing else holds this ship now (the lock above), so what the last run left unfinished can be recorded as interrupted.
     await ship.recordInterrupted();
-    const serve = createInMemoryFetch(ship.app);
+    const serve = withShellRequests(createInMemoryFetch(ship.app), (report) => fitWindowToPage(window, report, SHIP_MIN_WIDTH));
 
     await app.whenReady();
     protocol.handle(SCHEME, (request) => serve(request));
@@ -95,7 +96,7 @@ async function runShip(dir: string): Promise<void> {
       onSettings: openSettings,
     })));
 
-    window = createWindow(`${SCHEME}://ship/`, { width: 1280, height: 860 });
+    window = createWindow(`${SCHEME}://ship/`, { width: 1280, height: 860 }, { pageIsTitleBar: true, minWidth: SHIP_MIN_WIDTH });
     window.on("closed", () => { window = null; });
     app.on("window-all-closed", () => app.quit());
 
@@ -126,12 +127,15 @@ async function runSettings(dir: string): Promise<void> {
   if (!holdInstance("settings", () => window)) return;
   restrictToOwner(dir);
   const runtime = createDesktopShipRuntime({ dir, openShip, kill: (pid, signal) => process.kill(pid, signal) });
-  const serve = createInMemoryFetch(createSettingsApp({ dir, clientDir: path.join(here, "..", "client"), runtime, desktop: true }));
+  const serve = withShellRequests(
+    createInMemoryFetch(createSettingsApp({ dir, clientDir: path.join(here, "..", "client"), runtime, desktop: true })),
+    (report) => fitWindowToPage(window, report, SETTINGS_MIN_WIDTH),
+  );
 
   await app.whenReady();
   protocol.handle(SCHEME, (request) => serve(request));
   Menu.setApplicationMenu(Menu.buildFromTemplate(buildMenuTemplate({ platform: process.platform, appName: app.name, settingsLabel: "" })));
-  window = createWindow(`${SCHEME}://settings/`, { width: 1100, height: 820 });
+  window = createWindow(`${SCHEME}://settings/`, { width: 1100, height: 820 }, { pageIsTitleBar: true, minWidth: SETTINGS_MIN_WIDTH });
   window.on("closed", () => { window = null; });
   app.on("window-all-closed", () => app.quit());
 }
@@ -165,6 +169,33 @@ async function runLauncher(dir: string): Promise<void> {
   app.on("window-all-closed", () => app.quit());
 }
 
+/** The window buttons (close, minimize, zoom) of macOS are about this tall. */
+const WINDOW_BUTTONS_HEIGHT = 12;
+
+// Narrower than this (in CSS pixels, at no zoom) the header (title, buttons, language, and the room kept at both ends) no longer fits on its one line.
+const SHIP_MIN_WIDTH = 960;
+const SETTINGS_MIN_WIDTH = 800;
+
+/**
+ * Fits the window to what the page reported about its header, and returns the page's zoom. The page is laid out in CSS pixels and the window in screen
+ * points: the header's height on the screen decides where the window buttons go, and a page zoomed in needs a proportionally wider window for the same header.
+ * The zoom is the window's own (the page cannot work it out right while the window is being resized).
+ * The room kept at the ends of the header is for the window buttons, which are in points: it does not grow with the zoom, only what is between does.
+ */
+function fitWindowToPage(window: BrowserWindow | null, report: PageReport, minWidth: number): { zoom: number } {
+  if (!window) return { zoom: 1 };
+  const zoom = window.webContents.getZoomFactor();
+  if (process.platform === "darwin") window.setWindowButtonPosition({ x: 16, y: Math.round((report.height * zoom - WINDOW_BUTTONS_HEIGHT) / 2) });
+  // Never more than the screen has: a window that cannot be that wide would otherwise be pushed past its edge.
+  const room = report.room * zoom;
+  const needed = Math.min(Math.round((minWidth - room) * zoom + room), screen.getDisplayMatching(window.getBounds()).workAreaSize.width);
+  const [, minHeight] = window.getMinimumSize();
+  window.setMinimumSize(needed, minHeight);
+  const [width, height] = window.getSize();
+  if (width < needed) window.setSize(needed, height);
+  return { zoom };
+}
+
 /**
  * Starts the app again with these arguments, as a process of its own (its own dock icon, its own lock). It is not tied to this process:
  * closing the chooser must not close the ship. An unpackaged run has to pass the script too; a packaged app is the executable itself.
@@ -182,9 +213,13 @@ function openSettings(): void {
   spawnSelf(["--settings"]);
 }
 
-function createWindow(url: string, size: { width: number; height: number }): BrowserWindow {
+function createWindow(url: string, size: { width: number; height: number }, options: { pageIsTitleBar?: boolean; minWidth?: number } = {}): BrowserWindow {
   const window = new BrowserWindow({
     ...size,
+    // The minimum is changed with the page's zoom (fitWindowToPage); this is the one before the page has said anything.
+    ...(options.minWidth ? { minWidth: options.minWidth } : {}),
+    // On macOS the page's own header is the title bar (desktop-shell.css leaves room for the window buttons, which are put at the middle of its height).
+    ...(options.pageIsTitleBar && process.platform === "darwin" ? { titleBarStyle: "hidden" as const, trafficLightPosition: { x: 16, y: 20 } } : {}),
     webPreferences: { contextIsolation: true, sandbox: true, nodeIntegration: false },
   });
   const origin = new URL(url).origin;

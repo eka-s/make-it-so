@@ -114,6 +114,11 @@ export function createApi(options: ApiOptions = {}) {
 
     // --- Ship config ---
     getConfig: (signal?: AbortSignal) => request<{ defaultTarget: string | null; shipName: string; language: Language; crewLanguage: Language; theme: Theme }>("/api/config", { signal }),
+    /**
+     * Tells the desktop app how tall the header is and how much room it keeps at both ends together (in CSS pixels), so it can put the window buttons in the
+     * middle of it and keep the window wide enough; the answer is the page's zoom. It is answered by the app around the page, not by the ship: outside the desktop app nothing answers it, and nothing asks.
+     */
+    reportShellWindow: (info: { height: number; room: number }) => send<{ zoom: number }>("POST", "/__shell/window", info),
     /** Saves the UI language on the server. */
     setLanguage: (language: Language) => send<{ language: Language }>("PUT", "/api/config/language", { language }),
     /** Saves the language the crew speaks on the server (separate from the UI language). */
