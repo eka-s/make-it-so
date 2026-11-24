@@ -57,6 +57,9 @@ configureLogger({
   logsDir: config.logsDir,
 });
 
+/** The ID of the ship this process runs (the desktop shell scopes its single-instance lock to it before assembling anything). */
+export const shipId = config.shipId;
+
 /** A ship that is assembled but not reachable yet: the caller decides how its `app` is served (a port, or an in-process channel). */
 export type Ship = {
   app: express.Express;

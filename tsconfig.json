@@ -18,6 +18,6 @@
       "@/*": ["./src/*"]
     }
   },
-  "include": ["src/server/**/*.ts"],
+  "include": ["src/server/**/*.ts", "src/electron/**/*.ts"],
   "exclude": ["node_modules", "dist"]
 }
