@@ -38,6 +38,12 @@
   white-space: nowrap;
 }
 
+/* The settings put the menu at the right end of the header: the popup opens leftward from the button so it stays on the screen. */
+.settings-header .language-menu-popup {
+  left: auto;
+  right: 0;
+}
+
 .language-menu-popup .language-switch {
   padding-bottom: 0;
 }

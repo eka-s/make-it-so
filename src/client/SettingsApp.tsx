@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { api } from "./server-api";
 import type { SettingsOverview, SettingsShipRuntime } from "./types";
 import { BottomBar } from "./BottomBar";
-import { LanguageSwitch } from "./LanguageSwitch";
+import { LanguageMenu } from "./LanguageSwitch";
 import { useT } from "./i18n/I18nProvider";
 import { SettingsConfigForm } from "./SettingsConfigForm";
 import { SettingsHostsForm } from "./SettingsHostsForm";
@@ -71,7 +71,7 @@ export function SettingsApp() {
       <header className="settings-header" ref={headerRef}>
         <h1>Make-It-So</h1>
         <span className="settings-title">{t("settings.title")}</span>
-        <div className="settings-header-switch"><ThemeMenu theme={theme} onSelect={setTheme} /><LanguageSwitch target="ui" /></div>
+        <div className="settings-header-switch"><ThemeMenu theme={theme} onSelect={setTheme} /><LanguageMenu crew={false} /></div>
         {!desktop && (
           <span className="settings-status">
             <span className={runtime.some((s) => s.state === "running") ? "settings-dot settings-dot--running" : "settings-dot"} aria-hidden="true" />

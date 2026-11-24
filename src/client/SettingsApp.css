@@ -1,5 +1,7 @@
 /* The frame, as on the ship's screen: a spine on the left, a strip under the header, a column of colored bars for the menu. */
 body {
+  /* The ship's screen gets this from the reset in App.css, which the settings do not load: without it the browser's own margin shows as a frame around the window. */
+  margin: 0;
   height: 100vh;
   overflow: hidden;
   background: var(--bg);

@@ -40,6 +40,12 @@
   box-shadow: calc(-1 * var(--frame-gap)) 0 0 var(--lc-amber);
 }
 
+/* The window has rounded corners of its own, and what shows past the frame's own curve is the page's black. The spine (and so the frame's color) therefore runs
+   square to the edge of the window and the window's corner rounds it: the curve of the frame is the window's, whatever its radius is on this macOS. */
+:root[data-shell="desktop-mac"]:not([data-theme="light"]):not([data-theme="dark"]) :is(.app, .settings-app)::before {
+  border-radius: 0;
+}
+
 /* The strip starts at the spine, a gap before the header, so the left block's end is a gap further along it. At the right end the strip mirrors the
    block: orange, then a gap, then a short run of sky blue, then the periwinkle it used to end with. */
 :root[data-shell="desktop-mac"]:not([data-theme="light"]):not([data-theme="dark"]) :is(.app-header, .settings-header)::after {
