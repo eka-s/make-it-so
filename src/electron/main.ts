@@ -10,11 +10,14 @@ import { logger } from "../server/logger.js";
 import { createSettingsApp } from "../server/settings/settings-app.js";
 import { readOverview } from "../server/settings/settings-overview.js";
 import { buildMenuTemplate } from "./application-menu.js";
+import { withScript } from "./argv.js";
 import { createDesktopShipRuntime } from "./desktop-runtime.js";
 import { createInMemoryFetch } from "./in-memory-fetch.js";
-import { launcherLanguage, renderLauncherPage, renderOpeningPage, settingsLabel } from "./launcher-page.js";
+import { createLauncherHandler } from "./launcher-handler.js";
+import { launcherLanguage, settingsLabel } from "./launcher-page.js";
 import { removeShipLock, writeShipLock } from "../server/ship-lock.js";
 import { withShellRequests, type PageReport } from "./shell-requests.js";
+import { minimumWindowWidth, windowButtonsTop } from "./window-fit.js";
 import { runningInBrowser } from "./running-in-browser.js";
 import { chooseStartMode } from "./start-mode.js";
 
@@ -36,10 +39,8 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 // The name shown in the menu bar and the About box (the package name is lower case). Where the data lives does not depend on it.
 app.setName("Make-It-So");
 
-// The ship's configuration (config.ts) and the choice of how to start read `process.argv.slice(2)`: the arguments after a script. A packaged app
-// has no script, so its arguments follow the executable at once and the first of them would be dropped. A stand-in for the script is put
-// there, so the same code reads the arguments either way.
-if (app.isPackaged) process.argv.splice(1, 0, fileURLToPath(import.meta.url));
+// The ship's configuration (config.ts) and the choice of how to start read `process.argv.slice(2)`: see withScript for what a packaged app needs.
+process.argv = withScript(process.argv, app.isPackaged, fileURLToPath(import.meta.url));
 
 async function main(): Promise<void> {
   const dir = makeItSoDir(os.homedir());
@@ -146,33 +147,19 @@ async function runSettings(dir: string): Promise<void> {
 async function runLauncher(dir: string): Promise<void> {
   await app.whenReady();
   const language = launcherLanguage(app.getLocale());
-  const html = (body: string) => new Response(body, { headers: { "content-type": "text/html; charset=utf-8" } });
   let window: BrowserWindow | null = null;
-  // The choice has been handed to another process: the list is closed a moment later, so the "opening" page is seen first.
-  const handOver = (start: () => void): Response => {
-    start();
-    setTimeout(() => window?.close(), 500);
-    return html(renderOpeningPage(language));
-  };
-  protocol.handle(SCHEME, async (request) => {
-    const url = new URL(request.url);
-    if (request.method === "POST" && url.pathname === "/open") {
-      const id = new URLSearchParams(await request.text()).get("ship");
-      // Read again: only a ship that exists and can be read is started.
-      if (id === null || !isShipId(id) || !readOverview(dir).ships.some((s) => s.id === id && !s.error)) return new Response("unknown ship", { status: 400 });
-      return handOver(() => openShip(id));
-    }
-    if (request.method === "POST" && url.pathname === "/settings") return handOver(openSettings);
-    // The list is read for every visit, so a ship made meanwhile is there.
-    return html(renderLauncherPage({ ships: readOverview(dir).ships, language }));
-  });
+  protocol.handle(SCHEME, createLauncherHandler({
+    readShips: () => readOverview(dir).ships,
+    language,
+    openShip,
+    openSettings,
+    // The list is closed a moment later, so the "opening" page is seen first.
+    onHandedOver: () => { setTimeout(() => window?.close(), 500); },
+  }));
   window = createWindow(`${SCHEME}://launcher/`, { width: 480, height: 560 });
   window.on("closed", () => { window = null; });
   app.on("window-all-closed", () => app.quit());
 }
-
-/** The window buttons (close, minimize, zoom) of macOS are about this tall. */
-const WINDOW_BUTTONS_HEIGHT = 12;
 
 // Narrower than this (in CSS pixels, at no zoom) the header (title, buttons, language, and the room kept at both ends) no longer fits on its one line.
 const SHIP_MIN_WIDTH = 960;
@@ -187,10 +174,8 @@ const SETTINGS_MIN_WIDTH = 800;
 function fitWindowToPage(window: BrowserWindow | null, report: PageReport, minWidth: number): { zoom: number } {
   if (!window) return { zoom: 1 };
   const zoom = window.webContents.getZoomFactor();
-  if (process.platform === "darwin") window.setWindowButtonPosition({ x: 16, y: Math.round((report.height * zoom - WINDOW_BUTTONS_HEIGHT) / 2) });
-  // Never more than the screen has: a window that cannot be that wide would otherwise be pushed past its edge.
-  const room = report.room * zoom;
-  const needed = Math.min(Math.round((minWidth - room) * zoom + room), screen.getDisplayMatching(window.getBounds()).workAreaSize.width);
+  if (process.platform === "darwin") window.setWindowButtonPosition({ x: 16, y: windowButtonsTop(report.height, zoom) });
+  const needed = minimumWindowWidth({ minWidth, room: report.room, zoom, screenWidth: screen.getDisplayMatching(window.getBounds()).workAreaSize.width });
   const [, minHeight] = window.getMinimumSize();
   window.setMinimumSize(needed, minHeight);
   const [width, height] = window.getSize();

@@ -1,3 +1,4 @@
+import http from "node:http";
 import { afterEach, describe, expect, it } from "vitest";
 import { openMcpListener, type McpListener } from "./mcp-listener.js";
 
@@ -42,9 +43,21 @@ describe("the MCP listener", () => {
     expect((await post("/api/config")).status).toBe(404);
   });
 
-  it("refuses a request that is not addressed to a local host or comes from another origin", async () => {
+  it("refuses a request from another origin", async () => {
     listener = await openMcpListener();
     listener.serve(async (_req, res) => { res.json({ ok: true }); });
     expect((await post("/mcp", { Origin: "https://evil.example" })).status).toBe(403);
+  });
+
+  it("refuses a request addressed to a host name that is not a local one (a name that rebinds to this machine)", async () => {
+    listener = await openMcpListener();
+    listener.serve(async (_req, res) => { res.json({ ok: true }); });
+    // fetch will not let a script set Host, so the request is made with http directly
+    const status = await new Promise<number>((resolve, reject) => {
+      const req = http.request({ host: "127.0.0.1", port: listener.port, path: "/mcp", method: "POST", headers: { Host: "evil.example", "Content-Type": "application/json" } }, (res) => { res.resume(); resolve(res.statusCode ?? 0); });
+      req.on("error", reject);
+      req.end("{}");
+    });
+    expect(status).toBe(403);
   });
 });
