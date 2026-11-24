@@ -113,7 +113,7 @@ index.ts (wiring layer)
 
 - **Only `index.ts` may import `config.ts` directly.** Other modules receive the values they need (part of the configuration, external commands, the current time, other parts) as arguments of a factory `createXxx(deps)` or of a constructor. `deps` is narrowed to only what the module uses, with `Pick<…>` and the like.
 - Do not create modules that run side effects (loading configuration, creating files, networking) merely by being imported. Module-level state (Maps, caches) is confined to the factory's instance.
-- Avoid variables that may be null before startup and are filled in later by a setter. Create things once their dependencies are ready.
+- Avoid variables that may be null before startup and are filled in later by a setter. Create things once their dependencies are ready. (One accepted exception: `mcp-listener.ts` binds its port first, because the sessions' MCP URL and the reverse tunnels need the port before the board's dependencies exist, and answers 503 until `serve()` gives it the handler.)
 - State that is inherently single, such as `logger` and `timeline`, is configured exactly once at startup with `configureLogger(...)` and `configureTimeline(...)`.
 
 ## Client structure

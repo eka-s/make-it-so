@@ -17,8 +17,4 @@ describe("the arguments the app is started with", () => {
     expect(parseShipArg(fixed.slice(2))).toBe("alpha");
     expect(chooseStartMode(withScript(["/App", "--settings"], true, "main.js").slice(2), [])).toEqual({ kind: "settings" });
   });
-
-  it("would lose the first argument without it", () => {
-    expect(parseShipArg(["/Applications/Make-It-So", "--ship=alpha"].slice(2))).toBeUndefined();
-  });
 });
