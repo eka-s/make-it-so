@@ -70,7 +70,7 @@ export function LanguageMenu({ crew = true }: { crew?: boolean } = {}) {
     };
   }, [open]);
 
-  const detail = crew ? t("language.menu.detail", { ui: LANGUAGE_LABELS[language], crew: LANGUAGE_LABELS[crewLanguage] }) : t("language.switch.label");
+  const detail = crew ? t("language.menu.detail", { ui: LANGUAGE_LABELS[language], crew: LANGUAGE_LABELS[crewLanguage] }) : t("language.menu.detailUi", { ui: LANGUAGE_LABELS[language] });
   return (
     <div className="language-menu" ref={rootRef}>
       <button

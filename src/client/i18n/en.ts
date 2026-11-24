@@ -8,6 +8,7 @@ export const en = {
   "language.switch.tag.crew": "Crew",
   "language.menu.title": "Languages (UI / crew)",
   "language.menu.detail": "UI: {ui} / Crew: {crew} (click to change)",
+  "language.menu.detailUi": "UI language: {ui} (click to change)",
   "language.notice": "Crew members pick up the new language from their next session. Restart them to apply it now.",
   "language.notice.dismiss": "Dismiss",
   "app.connectionTimeout": "Connection timed out. Please try again.",

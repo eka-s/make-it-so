@@ -111,6 +111,20 @@ body {
   z-index: 1;
 }
 
+/* In a narrow browser window the title's second part gives way, so the controls stay on the screen (the desktop app's window is never this narrow in
+   CSS pixels: its minimum width keeps the whole header). */
+@media (max-width: 700px) {
+  .app-title-sub {
+    display: none;
+  }
+}
+
+@media (max-width: 560px) {
+  .app-header h1 {
+    font-size: 1.2rem;
+  }
+}
+
 .app-header h1 {
   flex-shrink: 0;
   font-family: var(--font-display);

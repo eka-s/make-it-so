@@ -15,10 +15,15 @@ export function useShellWindow(header: RefObject<HTMLElement | null>): void {
     const element = header.current;
     if (!element || !inDesktopMac()) return;
     let latest = 0;
+    let reported = "";
     const report = () => {
       const height = Math.round(element.getBoundingClientRect().height);
       const style = getComputedStyle(element);
       const room = Math.round(parseFloat(style.paddingLeft) + parseFloat(style.paddingRight));
+      // Resizing the window fires this on every frame, and it matters only when the header, the room or the zoom changed (a zoom changes the pixel ratio).
+      const key = `${height}:${room}:${window.devicePixelRatio}`;
+      if (key === reported) return;
+      reported = key;
       const sequence = ++latest;
       api.reportShellWindow({ height, room })
         .then(async (res) => {
@@ -26,7 +31,7 @@ export function useShellWindow(header: RefObject<HTMLElement | null>): void {
           const { zoom } = await res.json();
           document.documentElement.style.setProperty("--shell-zoom", String(zoom));
         })
-        .catch(() => {});
+        .catch(() => { reported = ""; }); // not delivered: the same state is reported again next time
     };
     const observer = new ResizeObserver(report);
     observer.observe(element);

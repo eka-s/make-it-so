@@ -8,6 +8,7 @@ export const ja: Record<MessageKey, string> = {
   "language.switch.tag.crew": "クルー",
   "language.menu.title": "言語(UI / クルー)",
   "language.menu.detail": "UI: {ui} / クルー: {crew}(クリックで変更)",
+  "language.menu.detailUi": "UIの言語: {ui}(クリックで変更)",
   "language.notice": "クルーには、次に作られるセッションから新しい言語が反映されます。今すぐ反映するには、クルーを再起動してください。",
   "language.notice.dismiss": "閉じる",
   "app.connectionTimeout": "接続タイムアウト。再試行してください。",

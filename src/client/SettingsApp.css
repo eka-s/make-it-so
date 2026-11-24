@@ -95,6 +95,12 @@ body {
   color: var(--lc-amber);
 }
 
+@media (max-width: 700px) {
+  .settings-title {
+    display: none;
+  }
+}
+
 .settings-title {
   padding-bottom: var(--frame-strip);
   font-family: var(--font-display);

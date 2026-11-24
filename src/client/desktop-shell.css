@@ -2,7 +2,7 @@
    Everything here applies only when shell.ts marked the page, so the page in a browser is not touched. */
 
 :root[data-shell="desktop-mac"] {
-  /* The page's zoom (shell.ts keeps it right). The window buttons are drawn by the app in screen points, which are not scaled by the zoom, so the room
+  /* The page's zoom (use-shell-window.ts sets it from the app's answer). The window buttons are drawn by the app in screen points, which are not scaled by the zoom, so the room
      kept for them is divided by it to stay the same size on the screen. */
   --shell-zoom: 1;
   /* Room the window buttons take at the left of the header. */
@@ -25,9 +25,15 @@
   -webkit-app-region: no-drag;
 }
 
+/* A drag region is what the boxes marked `drag` cover, whatever is stacked over them: the modals that cover the whole window, the header strip included, are
+   marked as well, or pressing on the top edge of a popup (its close button can be there) would move the window. */
+:root[data-shell="desktop-mac"] :is(.report-popup-overlay, .profile-backdrop, .qa-backdrop, .search-backdrop) {
+  -webkit-app-region: no-drag;
+}
+
 /* Classic: the header is pushed right of the window buttons, and the window buttons sit on a block of the frame's orange that is joined to the spine
-   (the shadow fills the gap the header leaves next to the spine). The orange ends with the block: the strip under the header goes on in sky blue
-   where the orange used to run, and then in the colors it always had. The right end mirrors it: a block of orange, with sky blue before it. */
+   (the shadow fills the gap the header leaves next to the spine). The orange ends with the block: the strip under the header goes on in sky blue,
+   and then in the lilac, peach and periwinkle of the frame. The right end mirrors it: a block of orange, with sky blue before it. */
 :root[data-shell="desktop-mac"]:not([data-theme="light"]):not([data-theme="dark"]) :is(.app-header, .settings-header) {
   padding-left: var(--window-buttons-width);
   padding-right: var(--window-buttons-width-right);
@@ -47,7 +53,7 @@
 }
 
 /* The strip starts at the spine, a gap before the header, so the left block's end is a gap further along it. At the right end the strip mirrors the
-   block: orange, then a gap, then a short run of sky blue, then the periwinkle it used to end with. */
+   block: orange, then a gap, then a short run of sky blue, after the periwinkle that ends the frame's own strip. */
 :root[data-shell="desktop-mac"]:not([data-theme="light"]):not([data-theme="dark"]) :is(.app-header, .settings-header)::after {
   --left: var(--window-buttons-block);
   --right: var(--window-buttons-block-right);
@@ -83,6 +89,6 @@
   margin-left: 0;
 }
 
-:root[data-shell="desktop-mac"]:is([data-theme="light"], [data-theme="dark"]) .app-header h1 {
+:root[data-shell="desktop-mac"]:is([data-theme="light"], [data-theme="dark"]) :is(.app-header, .settings-header) h1 {
   padding-left: 0;
 }

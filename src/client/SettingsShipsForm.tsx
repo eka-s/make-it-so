@@ -132,7 +132,9 @@ export function SettingsShipsForm({ initialShip, dirty }: { initialShip?: string
   const openShip = async (id: string) => {
     try {
       const res = await api.startSettingsShip(id);
-      if (!res.ok) setStatus({ kind: "failed", message: tKey((await res.json()).message ?? "", t("settings.saveFailed")) });
+      // The state is asked for again until the window shows (and the ship is marked open): it decides the dot in the list and whether the ship can be removed.
+      if (res.ok) setWanted({ id, state: "running" });
+      else setStatus({ kind: "failed", message: tKey((await res.json()).message ?? "", t("settings.saveFailed")) });
     } catch {
       setStatus({ kind: "failed", message: t("settings.saveFailed") });
     }
