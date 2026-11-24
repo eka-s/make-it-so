@@ -21,7 +21,7 @@
 }
 
 :root[data-shell="desktop-mac"] :is(.app-header, .settings-header) > :not(h1, .app-ship-name, .settings-title),
-:root[data-shell="desktop-mac"] :is(.app-header, .settings-header) [role="listbox"] {
+:root[data-shell="desktop-mac"] :is(.app-header, .settings-header) :is([role="listbox"], .language-menu-popup) {
   -webkit-app-region: no-drag;
 }
 
