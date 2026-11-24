@@ -33,11 +33,23 @@ export function processExists(pid: number): boolean {
   }
 }
 
-/** When the process started, as `ps` prints it, or null where `ps` is missing or does not know the process. */
+// What `ps -o lstart=` prints in the C locale: "Wed Nov 25 07:36:28 2026". In any other locale the day names, the order and even the digits differ.
+const START_TIME_FORMAT = /^[A-Z][a-z]{2} [A-Z][a-z]{2} \d{1,2} \d\d:\d\d:\d\d \d{4}$/;
+
+/**
+ * When the process started, as `ps` prints it in the C locale and UTC, or null where `ps` is missing, does not know the process, or prints something else.
+ * The mark is written by one process and read by others (the desktop app started from the Dock has no LANG, a terminal has one): the text has to come out
+ * the same whichever environment asks, or a ship that is open would look closed, which is the dangerous mistake.
+ */
 export function processStartTime(pid: number): string | null {
   try {
-    const text = execFileSync("ps", ["-o", "lstart=", "-p", String(pid)], { encoding: "utf-8", stdio: ["ignore", "pipe", "ignore"], timeout: 2000 }).trim();
-    return text === "" ? null : text;
+    const text = execFileSync("ps", ["-o", "lstart=", "-p", String(pid)], {
+      encoding: "utf-8",
+      stdio: ["ignore", "pipe", "ignore"],
+      timeout: 2000,
+      env: { ...process.env, LC_ALL: "C", LANG: "C", TZ: "UTC" },
+    }).trim().replace(/\s+/g, " ");
+    return START_TIME_FORMAT.test(text) ? text : null;
   } catch {
     return null;
   }
@@ -66,8 +78,9 @@ export function readShipLock(dir: string, id: string, processes: ProcessInfo = S
     const pid = Number(pidText.trim());
     // The ID comes from a file: 0 and negative numbers would signal a process group, and 1 is init.
     if (!Number.isInteger(pid) || pid <= 1 || !processes.exists(pid)) return null;
-    const recorded = (startedText ?? "").trim();
-    if (recorded === "") return pid; // written where the start time could not be read: the process ID is all there is
+    const recorded = (startedText ?? "").trim().replace(/\s+/g, " ");
+    // Written where the start time could not be read, or in a form this code does not write (a mark from another version): the process ID is all there is.
+    if (!START_TIME_FORMAT.test(recorded)) return pid;
     const current = processes.startTime(pid);
     return current === null || current === recorded ? pid : null;
   } catch {
