@@ -281,6 +281,10 @@ The type definitions also include `task:progress`, `task:complete`, `notificatio
 - **Identifying the caller:** The caller's (crew member, mission) is determined from the HTTP headers `x-makeitso-agent` and `x-makeitso-mission`, which are put into that session's own MCP server configuration when the session is created. The model's self-report is not relied on. A call without the headers returns an error without any guessing.
 - Task IDs are per-role sequence numbers (for example, `chief_engineer_0001`).
 
+## The desktop app's own path
+
+In the desktop app the page's requests are answered by the ship's Express app through an in-memory connection, with one exception: the path `/__shell/window` is answered by the app around the page and never reaches the ship. The page sends a `POST` there with `{ height, room }` (the header's height, and the room it keeps at both ends, in CSS pixels) and gets `{ zoom }` back (the page's zoom, which the app knows exactly). The app uses them to put the window buttons in the middle of the header and to keep the window wide enough. A body that is not two such integers gets `400`, and anything but a `POST` gets `405`. Outside the desktop app nothing answers it and the page does not ask.
+
 ## Settings Server API (`--settings`)
 
 The API of the settings server (default `http://127.0.0.1:3938`). It is an **internal API** used by the UI (the settings screen), and compatibility is not promised. The `Host` and `Origin` checks from [Common Conventions](#common-conventions) apply in the same way. Saving endpoints write only the fields that changed; if there is any error, nothing is written and a per-field error (a message key) is returned with `400`. A file that cannot be read as YAML is not overwritten and returns `409`.
@@ -299,7 +303,7 @@ The API of the settings server (default `http://127.0.0.1:3938`). It is an **int
 | `POST /api/settings/ships` | Creates a minimal ship. Body `{ id, port, name?, member }` |
 | `PUT /api/settings/ships/:id` | Saves the ship's settings. Body `{ fields }`. Goes through the same validation as at startup |
 | `DELETE /api/settings/ships/:id` | Deletes the ship along with its directory. The body `{ confirm: "<ship ID>" }` is required (`400`). A running ship returns `409`, and so does a ship whose `ship.yml` cannot be read |
-| `GET /api/settings/runtime` | `{ ships: [{ id, port, state, pid?, url, devCommand }], shipUi }`. `state` is `running`, `stopped`, or `conflict` |
+| `GET /api/settings/runtime` | `{ ships: [{ id, port, state, pid?, url, devCommand }], shipUi, desktop }`. `state` is `running`, `stopped`, or `conflict`. `desktop` is `true` in the desktop app's settings: a ship has no screen address there (`url` is `null`) and opens in a window; a ship open in a window, or running in the browser version, counts as `running` (the settings of the browser version count a ship open in the desktop app the same way) |
 | `POST /api/settings/ships/:id/start`, `POST /api/settings/ships/:id/stop` | Start and stop a ship (as an independent process). Start returns `404` for a ship that does not exist, and `409` for a running ship, a simultaneous start, a port conflict, or a ship without a port |
 | `GET /api/settings/ships/:id/log` | The tail of the ship's standard output (`{ text }`) |
 | `POST /api/settings/import/scan` | Reads an existing project and returns drafts (writes nothing). Body `{ path }`. Response `{ dir, isDirectory, found, drafts }` |

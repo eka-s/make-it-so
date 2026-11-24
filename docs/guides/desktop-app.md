@@ -12,7 +12,7 @@ The desktop app opens a ship in a window of its own. The ship's screen is not se
 - **Closing a ship's window stops that ship.** Its crew sessions end with it.
 - **Settings:** from the list, or from a ship's window with the menu item (`⌘,` on macOS). In the settings, the Ships tab has an **Open the ship** button instead of start and stop. Removing a ship that is open is refused.
 
-Your files are where they always were (`~/.make-it-so`); the desktop app and the browser version read the same ships. **A ship can be open in only one of them at a time**: starting it in one while it runs in the other is refused with a message (close the window, or stop the browser version, first).
+Your files are where they always were (`~/.make-it-so`); the desktop app and the browser version read the same ships. **A ship can be open in only one of them at a time**: starting it in one while it runs in the other is refused with a message (close the window, or stop the browser version, first). The settings of either version also count a ship open in the other as running, so it is not started a second time and cannot be removed from there.
 
 ## Running it from the source
 

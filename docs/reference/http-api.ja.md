@@ -281,6 +281,10 @@ make-it-so のサーバーが提供する HTTP API、SSE（サーバー送信イ
 - **呼び出し元の識別:** セッションを作るときに、そのセッション専用の MCP サーバー設定へ入れた HTTP ヘッダー `x-makeitso-agent`・`x-makeitso-mission` で、呼び出し元の（クルー、ミッション）を判定します。モデルの自己申告には頼りません。ヘッダーが無い呼び出しは、推測せずエラーを返します。
 - タスクIDは、役職ごとの連番です（例: `chief_engineer_0001`）。
 
+## デスクトップアプリ自身のパス
+
+デスクトップアプリでは、ページのリクエストを、メモリ上の接続を通して、艦の Express が答えますが、1つだけ例外があります。パス `/__shell/window` は、ページを包むアプリが答え、艦には届きません。ページは、そこへ `POST` で `{ height, room }`（ヘッダーの高さと、両端に空ける余白。CSS のピクセル）を送り、`{ zoom }`（アプリが正確に知っている、ページの拡大率）を受け取ります。アプリは、これで、ウィンドウのボタンをヘッダーの中央に置き、ウィンドウの幅を足りるように保ちます。整数2つでない本文は `400`、`POST` 以外は `405` です。デスクトップアプリの外では、何も答えず、ページも尋ねません。
+
 ## 設定サーバーの API（`--settings`）
 
 設定サーバー（既定 `http://127.0.0.1:3938`）の API です。画面（設定画面）が使う、**内部向けの API** で、互換性は約束しません。[共通事項](#共通事項)の `Host`・`Origin` の検査は、同じように行います。保存系は、変えた項目だけを書き、誤りがあれば何も書かずに、項目ごとのエラー（メッセージのキー）を `400` で返します。YAML として読めないファイルは、上書きせず `409` を返します。
@@ -299,7 +303,7 @@ make-it-so のサーバーが提供する HTTP API、SSE（サーバー送信イ
 | `POST /api/settings/ships` | 最小の艦を作る。ボディ `{ id, port, name?, member }` |
 | `PUT /api/settings/ships/:id` | 艦の設定の保存。ボディ `{ fields }`。起動時と同じ検証を通す |
 | `DELETE /api/settings/ships/:id` | 艦のディレクトリごと削除する。ボディ `{ confirm: "<艦ID>" }` が必須（`400`）。動いている艦は `409`、`ship.yml` を読めない艦も `409` |
-| `GET /api/settings/runtime` | `{ ships: [{ id, port, state, pid?, url, devCommand }], shipUi }`。`state` は `running`・`stopped`・`conflict` |
+| `GET /api/settings/runtime` | `{ ships: [{ id, port, state, pid?, url, devCommand }], shipUi, desktop }`。`state` は `running`・`stopped`・`conflict`。`desktop` は、デスクトップアプリの設定では `true`：艦には、画面のアドレスがなく（`url` は `null`）、ウィンドウで開きます。ウィンドウで開いている艦と、ブラウザ版で動いている艦は、`running` に数えます（ブラウザ版の設定も、デスクトップアプリで開いている艦を、同じように数えます） |
 | `POST /api/settings/ships/:id/start`・`POST /api/settings/ships/:id/stop` | 艦の起動・停止（独立したプロセス）。起動は、無い艦で `404`、動いている艦・同時の起動・ポートの衝突・ポートが無い艦で `409` |
 | `GET /api/settings/ships/:id/log` | 艦の標準出力の末尾（`{ text }`） |
 | `POST /api/settings/import/scan` | 既存のプロジェクトを読み取って、下書きを返す（何も書かない）。ボディ `{ path }`。応答 `{ dir, isDirectory, found, drafts }` |

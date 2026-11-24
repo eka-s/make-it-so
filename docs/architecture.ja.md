@@ -26,8 +26,10 @@ Node.js のバージョンは `.tool-versions` に従います。SQLite は Node
 | `npm run init -- [...]` | 最小の設定を作る（[ガイド](guides/create-fleet-and-ship.ja.md)） |
 | `npm run dev -- --ship <艦ID>` | サーバー（tsx watch）とクライアント（Vite）を同時に起動。`--settings` なら、設定サーバーを起動する（画面は `http://localhost:13938`） |
 | `npm run dev:server` / `npm run dev:client`（どちらも `-- --ship <艦ID>`） | どちらか一方だけ |
-| `npm run build` | サーバーを `tsc`（`tsconfig.build.json`）で `dist/server` へ、クライアントを Vite で `dist/client` へ |
+| `npm run build` | `dist/` を空にして（`npm run clean`）から、サーバーを `tsc`（`tsconfig.build.json`）で `dist/server` と `dist/electron` へ、クライアントを Vite で `dist/client` へ |
 | `npm start -- --ship <艦ID>` / `npm start -- --settings` | ビルド済みを起動（`node dist/server/cli.js`）。API と画面を同じポートで配信する |
+| `npm run start:electron`（`-- --ship <艦ID>` か `-- --settings`） | ビルド済みで、デスクトップアプリを起動（[ガイド](guides/desktop-app.ja.md)）。画面はポートなしで配信する |
+| `npm run pack` / `npm run dist` | デスクトップアプリを作る（`release/mac-arm64/Make-It-So.app` と、dmg） |
 | `npm run typecheck` | サーバーとクライアントの型検査 |
 | `npm run lint` | eslint |
 | `npm test` | vitest（艦の指定は不要） |
@@ -50,6 +52,8 @@ index.ts（配線層）
   └─ database      SQLite
 ```
 
+- デスクトップアプリ（`src/electron/`）も、艦を同じ形（`buildShip()`）で動かしますが、画面は、`app://` で、メモリ上の HTTP 接続を通して、艦の Express に渡すので、画面用のポートは開きません（エージェント向けの `/mcp` のリスナーは、そのまま残ります）。艦の一覧と設定は、それぞれ別のプロセスで動き、艦は、そのウィンドウが開いている間だけ動きます。
+- デスクトップアプリ（`src/electron/`）も、艦を同じ形（`buildShip()`）で動かしますが、画面は、`app://` で、メモリ上の HTTP 接続を通して、艦の Express に渡すので、画面用のポートは開きません（エージェント向けの `/mcp` のリスナーは、そのまま残ります）。艦の一覧と設定は、それぞれ別のプロセスで動き、艦は、そのウィンドウが開いている間だけ動きます。
 - 1 プロセス = 1 艦です。クルーは、`BaseAgentClient` が子プロセスとして起動する、プロバイダーのエージェントです（標準入出力の JSON-RPC＝ACP）。リモートホストのクルーは、SSH 越しに同じ方法で起動し、掲示板へは逆トンネルで届きます。
 - 各ターン・タスクのツール呼び出し（何を実行し、何が出力されたか）は、`activity/<id>.jsonl` に1行ずつ追記します（`src/server/activity-log.ts`）。DB には書きません。直近 50 件だけ残し（古いファイルは起動時と新規作成時に削除）、1 操作の出力は先頭 2000 文字までです。タイムラインの項目の `activity` として、スナップショットと upsert の両方で同じ形で届きます。実行中は、変わるたびに（約 0.4 秒に1回までにまとめて）`timeline:activity` で、その項目の `activity` だけを置き換えます。クライアントは `activity` をそのまま描画するだけなので、リロードしても、別のブラウザでも、同じ表示になります。1 ターン・1 タスクで記録する操作は 100 件まで、題名は 300 文字までです。
 - 実行中のターン・タスクの本文は、メモリに溜めず、ファイル（`turns/`・`agents/`）に書き、スナップショットの取得時に読みます。確定したら DB に書いて、ファイルは消します。サーバーが途中で止まった（Ctrl-C・クラッシュ）ときは、次の起動で、結果の記録が無いターンとタスクを「中断」のエラーとして記録します（残っているファイルの内容を、途中までの本文として残します）。ただし、ファイルが作られる前（セッションの起動中）に止まったターンは、記録が残らないため、見つかりません。1 ターン・1 タスクにつき 1 本の書き込みストリームを持ち、`end` の完了を待つことで、末尾の欠落を防ぎます。
@@ -75,6 +79,8 @@ index.ts（配線層）
 | `crew-briefing.ts`, `skills.ts`, `crew-paths.ts` | ブリーフィングの組み立て、スキルの読み取り、パス |
 | `crew-model.ts` | モデルの決定（`resolveCrewModel`）。純粋関数 |
 | `mcp-board.ts` | 掲示板の MCP サーバー |
+| `mcp-listener.ts` | `/mcp` だけを配信するリスナー。ループバックのみで、ポートは OS が選び、掲示板がつながるまでは 503 |
+| `ship-lock.ts`, `ship-id.ts` | デスクトップアプリで開いている艦の `desktop.pid` の印（プロセス ID と開始時刻。ブラウザ版と設定が読む）と、艦の ID が、パスやコマンドラインを作る前に、満たすべき唯一のパターン |
 | `a2ui-action.ts`, `a2ui-validate.ts` | A2UI: 回答の action メッセージと、クルーが作ったメッセージの厳格な検証 |
 | `database.ts`, `migrations.ts` | SQLite と、スキーマの版管理 |
 | `timeline.ts` | 実行中のアイテムと、スナップショットの合成 |
@@ -85,6 +91,19 @@ index.ts（配線層）
 | `messages.ts`, `language.ts` | サーバーが書く固定メッセージ（英語の文言とキー）、言語の決定 |
 | `logger.ts` | `configureLogger(...)` で設定する |
 | `testing/` | テスト用の補助 |
+
+### デスクトップアプリ（`src/electron/`）と、画面側
+
+| ファイル | 役割 |
+|---|---|
+| `main.ts` | アプリの入口。起動のしかた（`start-mode.ts`）、艦ごとに1つのインスタンス、ウィンドウ、艦が止まってから終了すること。起動の判断をしてから `index.ts` を読み込むので、設定は、動かす艦のものになる |
+| `start-mode.ts`、`argv.ts` | 艦を1隻/艦の一覧/設定、パッケージ版の引数 |
+| `in-memory-fetch.ts` | リクエストを、メモリ上の HTTP 接続を通して、Express に渡す（ポートなし）。ローカル用の検査が断るブラウザ由来のヘッダーを外す |
+| `shell-requests.ts`、`window-fit.ts` | ページが、パス `/__shell/window` でウィンドウに伝えること（ヘッダーの高さと、両端に空ける余白。アプリは、ページの拡大率を返す）と、そこから決める、ウィンドウのボタンの位置と、最小の幅 |
+| `launcher-page.ts`、`launcher-handler.ts`、`launcher-text.ja.ts` | 艦の一覧（スクリプトなしのページ）と、その応答 |
+| `desktop-runtime.ts`、`running-in-browser.ts` | 設定から見た、デスクトップアプリで開いている艦と、ブラウザ版で動いている艦 |
+| `application-menu.ts` | メニュー（設定への道を含む） |
+| `src/client/shell.ts`、`desktop-shell.css`、`use-shell-window.ts` | ページ側。macOS のデスクトップアプリであることの印、タイトルバーを兼ねるヘッダー（ウィンドウのボタンの余白は、ページの拡大で伸び縮みさせない）、大きさをアプリに知らせること |
 
 ### 依存の向き
 

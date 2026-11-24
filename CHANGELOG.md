@@ -30,9 +30,11 @@ First public release (alpha). Expect rough edges and breaking changes before 1.0
 - `npm run init` creates a minimal working configuration. `examples/fleet/` is a sample fleet.
 - A settings screen (`npm start -- --settings`, port 3938): edit `config.yml`, `hosts.yml`, the custom menu, the roster (personas and icons) and ships with forms; start, stop and delete ships. "From a project" drafts a ship from an existing project (`.claude/agents`, `.kiro/agents`) and saves it in one step; agent definitions stay in the project and are referred to by name.
 - `npm start -- --all` starts every ship that is not running, each as its own process.
+- A desktop app (Electron; built and tried on macOS only, not signed): opening it runs the only ship, or lists the ships when there are several; a ship opens in a window of its own and stops with it. The ship's screen is served without a port, the settings open from the list or the menu, and the header is the title bar (the classic frame keeps room for the window buttons at both ends). `npm run start:electron` runs it from the build; `npm run pack` and `npm run dist` make the app and a dmg. The same ship cannot be open in the browser version and the desktop app at once.
 - Everything lives in `~/.make-it-so`; the ship to run is chosen with `--ship <id>`. The server reads no environment variables.
 - Local servers refuse requests addressed to a non-local host name (DNS rebinding) and cross-origin requests, send a Content-Security-Policy, and never load images from agent output.
-- A server that stops in the middle of a turn or task records it as interrupted at the next start (with the text written so far, shown above the notice). It does so only after it has bound its port, so starting a ship that is already running never touches that ship's live turns.
+- The bulletin board (`/mcp`) has a listener of its own, loopback only, on a port the OS picks at each start, and needs a secret generated at each start that only the sessions the ship starts are given. A remote host reaches nothing but the board through the reverse tunnel.
+- A server that stops in the middle of a turn or task records it as interrupted at the next start (with the text written so far, shown above the notice). It does so only once it is the only process holding the ship (after it has bound its port; in the desktop app, after its single-instance lock and a look at the ship's port), so starting a ship that is already running never touches that ship's live turns.
 - Waiting for the captain to answer a permission request is not treated as a hang (turns, tasks and session start).
 
 ### Configuration format (stable from 1.0)
@@ -44,5 +46,5 @@ First public release (alpha). Expect rough edges and breaking changes before 1.0
 - The database schema is versioned (`PRAGMA user_version`); the file is backed up before a migration.
 - `claude-agent-acp` is pinned to a tested version (`config.yml`: `acp.claude.args`).
 - Tested only on Linux with Claude Code. The kiro side is built to the documented formats but unverified on a real kiro-cli. See "制約と動作確認の範囲" in the README. No warranty.
-- The screens are for desktop browsers.
+- The screens are for desktop browsers, and the desktop app. Only macOS (Apple silicon) has been built and run; the app is not signed or notarized.
 - Node.js 22.13 or later; `node:sqlite` prints an experimental-feature warning at start.

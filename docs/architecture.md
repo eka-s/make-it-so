@@ -26,8 +26,10 @@ The Node.js version follows `.tool-versions`. SQLite uses Node's built-in `node:
 | `npm run init -- [...]` | Creates a minimal configuration ([guide](guides/create-fleet-and-ship.md)) |
 | `npm run dev -- --ship <ship ID>` | Starts the server (tsx watch) and the client (Vite) together. With `--settings`, starts the settings server (the UI is at `http://localhost:13938`) |
 | `npm run dev:server` / `npm run dev:client` (both with `-- --ship <ship ID>`) | Only one of the two |
-| `npm run build` | Builds the server with `tsc` (`tsconfig.build.json`) into `dist/server`, and the client with Vite into `dist/client` |
+| `npm run build` | Empties `dist/` (`npm run clean`), then builds the server with `tsc` (`tsconfig.build.json`) into `dist/server` and `dist/electron`, and the client with Vite into `dist/client` |
 | `npm start -- --ship <ship ID>` / `npm start -- --settings` | Starts the built output (`node dist/server/cli.js`). The API and the UI are served on the same port |
+| `npm run start:electron` (`-- --ship <ship ID>` or `-- --settings`) | Starts the desktop app from the built output ([guide](guides/desktop-app.md)). The UI is served without a port |
+| `npm run pack` / `npm run dist` | Makes the desktop app (`release/mac-arm64/Make-It-So.app`, and a dmg) |
 | `npm run typecheck` | Type-checks the server and the client |
 | `npm run lint` | eslint |
 | `npm test` | vitest (no ship needs to be specified) |
@@ -50,6 +52,7 @@ index.ts (wiring layer)
   └─ database      SQLite
 ```
 
+- The desktop app (`src/electron/`) runs a ship the same way (`buildShip()`), but serves its page at `app://` through an in-memory HTTP connection into the ship's Express app, so no port is opened for the UI; the `/mcp` listener is still there for the agents. The ship list and the settings each run in a process of their own, and a ship lives as long as its window.
 - 1 process = 1 ship. A crew member is a provider's agent, started as a child process by `BaseAgentClient` (JSON-RPC over stdin/stdout, i.e. ACP). Crew members on remote hosts are started the same way over SSH and reach the MCP board through a reverse tunnel.
 - Tool calls of each turn and task (what was run and what it output) are appended, one line each, to `activity/<id>.jsonl` (`src/server/activity-log.ts`). They are not written to the DB. Only the latest 50 files are kept (older files are deleted at startup and on creation of a new one), and the output of one operation is limited to its first 2000 characters. They arrive as the `activity` of a timeline item, in the same shape in both the snapshot and the upsert. While running, whenever it changes (batched to at most once every 0.4 seconds), `timeline:activity` replaces only the `activity` of that item. The client just renders `activity` as is, so the display is the same after a reload or in another browser. Each turn or task records at most 100 operations, and titles are limited to 300 characters.
 - The body of a running turn or task is not accumulated in memory. It is written to a file (`turns/`, `agents/`) and read when a snapshot is taken. Once finalized, it is written to the DB and the file is deleted. If the server stops midway (Ctrl-C, crash), at the next startup, turns and tasks with no recorded result are recorded as "interrupted" errors (the contents of the remaining files are kept as the partial body). However, a turn that stopped before its file was created (while the session was starting) leaves no record, so it cannot be found. Each turn and task holds one write stream, and waiting for `end` to complete prevents losing the tail.
@@ -75,6 +78,8 @@ index.ts (wiring layer)
 | `crew-briefing.ts`, `skills.ts`, `crew-paths.ts` | Building the briefing, reading skills, paths |
 | `crew-model.ts` | Model resolution (`resolveCrewModel`). A pure function |
 | `mcp-board.ts` | The MCP board's MCP server |
+| `mcp-listener.ts` | The listener that serves `/mcp` alone: loopback only, on a port the OS picks, 503 until the board is wired in |
+| `ship-lock.ts`, `ship-id.ts` | The `desktop.pid` mark of a ship open in the desktop app (process ID and start time), read by the browser version and the settings; the one pattern a ship ID must match before it builds a path or a command line |
 | `a2ui-action.ts`, `a2ui-validate.ts` | A2UI: the answer's action message, and the strict validation of a crew member's messages |
 | `database.ts`, `migrations.ts` | SQLite, and schema versioning |
 | `timeline.ts` | Running items, and composing the snapshot |
@@ -85,6 +90,19 @@ index.ts (wiring layer)
 | `messages.ts`, `language.ts` | Fixed messages the server writes (English text and keys), and language resolution |
 | `logger.ts` | Configured with `configureLogger(...)` |
 | `testing/` | Test helpers |
+
+### Desktop app (`src/electron/`) and its client side
+
+| File | Role |
+|---|---|
+| `main.ts` | The app's entry point: how to start (`start-mode.ts`), one instance per ship, the window, quitting after the ship has stopped. It loads `index.ts` only after deciding, so the ship's configuration is read for the ship being run |
+| `start-mode.ts`, `argv.ts` | One ship / the ship list / the settings; the arguments of a packaged app |
+| `in-memory-fetch.ts` | Serves a request through an in-memory HTTP connection into the Express app (no port); strips the browser-origin headers the local-request guard would refuse |
+| `shell-requests.ts`, `window-fit.ts` | What the page tells the window over the path `/__shell/window` (its header's height and the room it keeps at both ends; the app answers with the page's zoom), and the position of the window buttons and the narrowest window worked out from it |
+| `launcher-page.ts`, `launcher-handler.ts`, `launcher-text.ja.ts` | The ship list (a page with no script) and what it answers |
+| `desktop-runtime.ts`, `running-in-browser.ts` | The settings' view of ships open in the desktop app and running in the browser version |
+| `application-menu.ts` | The menu (with the way to the settings) |
+| `src/client/shell.ts`, `desktop-shell.css`, `use-shell-window.ts` | The page's side: marking the desktop app on macOS, the header as the title bar (room for the window buttons, which a page zoom does not scale), reporting its size to the app |
 
 ### Direction of dependencies
 
