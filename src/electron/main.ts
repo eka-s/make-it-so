@@ -30,6 +30,14 @@ protocol.registerSchemesAsPrivileged([{ scheme: SCHEME, privileges: { standard: 
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 
+// The name shown in the menu bar and the About box (the package name is lower case). Where the data lives does not depend on it.
+app.setName("Make-It-So");
+
+// The ship's configuration (config.ts) and the choice of how to start read `process.argv.slice(2)`: the arguments after a script. A packaged app
+// has no script, so its arguments follow the executable at once and the first of them would be dropped. A stand-in for the script is put
+// there, so the same code reads the arguments either way.
+if (app.isPackaged) process.argv.splice(1, 0, fileURLToPath(import.meta.url));
+
 async function main(): Promise<void> {
   const dir = makeItSoDir(os.homedir());
   const mode = chooseStartMode(process.argv.slice(2), readOverview(dir).ships);
