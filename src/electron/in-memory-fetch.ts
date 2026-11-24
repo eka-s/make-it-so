@@ -37,6 +37,8 @@ export function createInMemoryFetch(handler: http.RequestListener): InMemoryFetc
     // The body is read whole and sent with its length: `http` frames a streamed body only for some methods (not for DELETE), and a body
     // the server cannot see the end of is dropped. Requests of the UI are small, so nothing is gained by streaming them.
     const body = request.body ? Buffer.from(await request.arrayBuffer()) : null;
+    // The page may have given up while the body was being read; the listener below is only for what happens after this.
+    request.signal.throwIfAborted();
     const [clientSide, serverSide] = duplexPair();
     asSocketLike(clientSide);
     asSocketLike(serverSide);
@@ -84,7 +86,7 @@ export function createInMemoryFetch(handler: http.RequestListener): InMemoryFetc
       request.signal.addEventListener("abort", () => {
         outgoing.destroy();
         serverSide.destroy();
-      });
+      }, { once: true });
       outgoing.end(body ?? undefined);
     });
   };

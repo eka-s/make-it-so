@@ -16,21 +16,36 @@ const answering = (body: unknown, ok = true) => (async () => new Response(JSON.s
 
 describe("a ship running in the browser version", () => {
   it("gives the port and the process when the ship itself answers there", async () => {
-    expect(await runningInBrowser(dir, "alpha", { fetch: answering({ status: "ok", shipId: "alpha", pid: 1234 }) })).toEqual({ port: 3971, pid: 1234 });
+    expect(await runningInBrowser(dir, "alpha", { fetch: answering({ status: "ok", shipId: "alpha", pid: 1234 }) })).toEqual({ port: 3971, pid: 1234, confirmed: true });
   });
 
   it("gives no process when what answers does not say a usable one (0, negative and 1 would signal a group or init)", async () => {
     for (const pid of [0, -4, 1, "7", 2.5, undefined]) {
-      expect(await runningInBrowser(dir, "alpha", { fetch: answering({ shipId: "alpha", pid }) })).toEqual({ port: 3971, pid: null });
+      expect(await runningInBrowser(dir, "alpha", { fetch: answering({ shipId: "alpha", pid }) })).toEqual({ port: 3971, pid: null, confirmed: true });
     }
   });
 
-  it("is not running when nothing answers, when another ship answers, or when what answers is not a ship", async () => {
-    const refused = (async () => { throw new Error("ECONNREFUSED"); }) as unknown as typeof fetch;
-    expect(await runningInBrowser(dir, "alpha", { fetch: refused })).toBeNull();
+  it("is not running when another ship answers, or when what answers is not a ship", async () => {
     expect(await runningInBrowser(dir, "alpha", { fetch: answering({ shipId: "beta" }) })).toBeNull();
     expect(await runningInBrowser(dir, "alpha", { fetch: answering("not json") })).toBeNull();
     expect(await runningInBrowser(dir, "alpha", { fetch: answering({ shipId: "alpha" }, false) })).toBeNull();
+  });
+
+  it("counts a port that is listening but does not answer in time as running (a busy ship), without a process to name", async () => {
+    const slow = (async () => { throw new DOMException("The operation timed out", "TimeoutError"); }) as unknown as typeof fetch;
+    expect(await runningInBrowser(dir, "alpha", { fetch: slow })).toEqual({ port: 3971, pid: null, confirmed: false });
+  });
+
+  it("counts the refusal of a ship's own local-request guard as running (a host name in server.host makes the guard refuse the probe's Host)", async () => {
+    for (const error of ["forbidden_host", "forbidden_origin", "forbidden_site"]) {
+      expect(await runningInBrowser(dir, "alpha", { fetch: answering({ error, message: "..." }, false) })).toEqual({ port: 3971, pid: null, confirmed: false });
+    }
+  });
+
+  it("does not count other failures to answer (a refused connection, another program's error page) as running", async () => {
+    const refused = (async () => { throw new TypeError("fetch failed"); }) as unknown as typeof fetch;
+    expect(await runningInBrowser(dir, "alpha", { fetch: refused })).toBeNull();
+    expect(await runningInBrowser(dir, "alpha", { fetch: answering({ error: "something else" }, false) })).toBeNull();
   });
 
   it("asks nobody when the ship has no port or its ID is not one", async () => {

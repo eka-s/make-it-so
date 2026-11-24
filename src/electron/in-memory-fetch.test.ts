@@ -22,6 +22,7 @@ function appWithRoutes(onSseClose: () => void = () => {}, ran: () => void = () =
   app.delete("/api/gone", (_req, res) => { res.status(204).send(); });
   app.get("/api/not-modified", (_req, res) => { res.status(304).end(); });
   app.get("/api/ran", (_req, res) => { ran(); res.json({}); });
+  app.post("/api/ran", (_req, res) => { ran(); res.json({}); });
   app.get("/api/cookie", (_req, res) => { res.append("Set-Cookie", "a=1"); res.append("Set-Cookie", "b=2"); res.end(); });
   return app;
 }
@@ -122,6 +123,26 @@ describe("serving a request without a port", () => {
     abort.abort();
     await expect(serve(new Request("app://ship/api/ran", { signal: abort.signal }))).rejects.toThrow();
     await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(ran).not.toHaveBeenCalled();
+  });
+
+  it("does not run the handler for a request that was aborted while its body was still being read", async () => {
+    const ran = vi.fn();
+    const serve = createInMemoryFetch(appWithRoutes(() => {}, ran));
+    const abort = new AbortController();
+    // A body that finishes only after the page has given up.
+    const body = new ReadableStream<Uint8Array>({
+      async start(controller) {
+        await new Promise((resolve) => setTimeout(resolve, 40));
+        controller.enqueue(new TextEncoder().encode("{}"));
+        controller.close();
+      },
+    });
+    const request = new Request("app://ship/api/ran", { method: "POST", body, signal: abort.signal, duplex: "half", headers: { "Content-Type": "application/json" } } as RequestInit);
+    const served = serve(request);
+    setTimeout(() => abort.abort(), 10);
+    await expect(served).rejects.toThrow();
+    await new Promise((resolve) => setTimeout(resolve, 60));
     expect(ran).not.toHaveBeenCalled();
   });
 

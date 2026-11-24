@@ -83,41 +83,52 @@ async function runShip(dir: string): Promise<void> {
   try {
     // The browser version may be running this ship: its port tells (the desktop app's own lock cannot). A busy ship is slow to answer, so this waits for it.
     const browser = await runningInBrowser(dir, id, { timeoutMs: 2500 });
-    if (browser !== null) throw new Error(`Ship "${id}" is already running in the browser version (port ${browser.port}). Stop it first.`);
+    if (browser !== null) {
+      throw new Error(browser.confirmed
+        ? `Ship "${id}" is already running in the browser version (port ${browser.port}). Stop it first.`
+        : `Something is listening on port ${browser.port}, the port of ship "${id}" in the browser version, and did not say what it is. If it is that ship, stop it first.`);
+    }
     const ship = await buildShip();
-    // Nothing else holds this ship now (the lock above), so what the last run left unfinished can be recorded as interrupted.
-    await ship.recordInterrupted();
-    const serve = withShellRequests(createInMemoryFetch(ship.app), (report) => fitWindowToPage(window, report, SHIP_MIN_WIDTH));
+    // Once the ship is built, a failure has to stop it (its sessions, the MCP listener, the database) before the mark goes: the mark is what tells the other
+    // version this ship is taken.
+    try {
+      // Nothing else holds this ship now (the lock above), so what the last run left unfinished can be recorded as interrupted.
+      await ship.recordInterrupted();
+      const serve = withShellRequests(createInMemoryFetch(ship.app), (report) => fitWindowToPage(window, report, SHIP_MIN_WIDTH));
 
-    await app.whenReady();
-    protocol.handle(SCHEME, (request) => serve(request));
-    const language = launcherLanguage(app.getLocale());
-    Menu.setApplicationMenu(Menu.buildFromTemplate(buildMenuTemplate({
-      platform: process.platform,
-      appName: app.name,
-      settingsLabel: `${settingsLabel(language)}…`,
-      onSettings: openSettings,
-    })));
+      await app.whenReady();
+      protocol.handle(SCHEME, (request) => serve(request));
+      const language = launcherLanguage(app.getLocale());
+      Menu.setApplicationMenu(Menu.buildFromTemplate(buildMenuTemplate({
+        platform: process.platform,
+        appName: app.name,
+        settingsLabel: `${settingsLabel(language)}…`,
+        onSettings: openSettings,
+      })));
 
-    window = createWindow(`${SCHEME}://ship/`, { width: 1280, height: 860 }, { pageIsTitleBar: true, minWidth: SHIP_MIN_WIDTH });
-    window.on("closed", () => { window = null; });
-    app.on("window-all-closed", () => app.quit());
+      window = createWindow(`${SCHEME}://ship/`, { width: 1280, height: 860 }, { pageIsTitleBar: true, minWidth: SHIP_MIN_WIDTH });
+      window.on("closed", () => { window = null; });
+      app.on("window-all-closed", () => app.quit());
 
-    // Stopping the ship (the agents' processes, the database) takes a moment: quit is held until it is done.
-    let stopping = false;
-    app.on("before-quit", (event) => {
-      if (stopping) return;
-      stopping = true;
-      event.preventDefault();
-      ship.stop()
-        .catch((error: unknown) => logger.warn("[make-it-so] Could not stop the ship cleanly:", error))
-        .finally(() => {
-          removeShipLock(dir, id);
-          app.exit(0);
-        });
-    });
-    // Quits the same way when the process is asked to stop (Ctrl+C in the terminal, or "stop" in the settings).
-    for (const signal of ["SIGINT", "SIGTERM"] as const) process.on(signal, () => app.quit());
+      // Stopping the ship (the agents' processes, the database) takes a moment: quit is held until it is done.
+      let stopping = false;
+      app.on("before-quit", (event) => {
+        if (stopping) return;
+        stopping = true;
+        event.preventDefault();
+        ship.stop()
+          .catch((error: unknown) => logger.warn("[make-it-so] Could not stop the ship cleanly:", error))
+          .finally(() => {
+            removeShipLock(dir, id);
+            app.exit(0);
+          });
+      });
+      // Quits the same way when the process is asked to stop (Ctrl+C in the terminal, or "stop" in the settings).
+      for (const signal of ["SIGINT", "SIGTERM"] as const) process.on(signal, () => app.quit());
+    } catch (error) {
+      await ship.stop().catch((stopError: unknown) => logger.warn("[make-it-so] Could not stop the ship cleanly:", stopError));
+      throw error;
+    }
   } catch (error) {
     removeShipLock(dir, id);
     throw error;
