@@ -63,7 +63,7 @@ index.ts (wiring layer)
 |---|---|
 | `cli.ts` | Entry point. Based on the arguments (`cli-args.ts`), loads and runs exactly one of: the settings server, a ship (`index.ts`), or all ships (`--all`) |
 | `settings/` | Settings server (`--settings`). The API for reading and writing `~/.make-it-so`, and serving the UI (`settings.html`). It does not load any ship's configuration |
-| `index.ts` | Wiring layer. **The only module allowed to import `config.ts` directly.** Creates the parts, connects them, and listens |
+| `index.ts` | Wiring layer. **The only module allowed to import `config.ts` directly.** Creates the parts and connects them (`buildShip()` returns the `app` without serving it), and listens on the ship's port (`runShip()`) |
 | `app.ts` | `createApp(deps)`: assembles the Express app |
 | `routes/` | One router per feature (`createXxxRouter(deps)`). `mission-id.ts` shares mission ID resolution |
 | `config.ts` | Calls `load-config.ts` with the `--ship` argument and the home directory, and builds `config` |

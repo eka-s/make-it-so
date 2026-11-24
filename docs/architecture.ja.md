@@ -63,7 +63,7 @@ index.ts（配線層）
 |---|---|
 | `cli.ts` | 入口。引数（`cli-args.ts`）で、設定サーバー・艦（`index.ts`）・全艦の起動（`--all`）のどれか1つだけを読み込んで実行する |
 | `settings/` | 設定サーバー（`--settings`）。`~/.make-it-so` の読み書きの API と、画面（`settings.html`）の配信。艦の設定は読み込まない |
-| `index.ts` | 配線層。**`config.ts` を直接 import してよい唯一のモジュール。** 部品を生成して繋ぎ、listen する |
+| `index.ts` | 配線層。**`config.ts` を直接 import してよい唯一のモジュール。** 部品を生成して繋ぎ（`buildShip()` は、配信はせずに `app` を返す）、船のポートで listen する（`runShip()`） |
 | `app.ts` | `createApp(deps)`: Express アプリの組み立て |
 | `routes/` | 機能ごとの router（`createXxxRouter(deps)`）。`mission-id.ts` は、ミッション ID の解決を共有する |
 | `config.ts` | `--ship` の引数とホームディレクトリを渡して `load-config.ts` を呼び、`config` を作る |
