@@ -13,6 +13,7 @@ import { CrewManager } from "./crew-manager.js";
 import { createAgentClient } from "./agent-client-factory.js";
 import { createHostTunnels } from "./host-tunnel.js";
 import { openMcpListener } from "./mcp-listener.js";
+import { readShipLock } from "./ship-lock.js";
 import { resolveHostAddresses, type HostConfig } from "./ssh.js";
 import os from "node:os";
 import { restrictToOwner } from "./private-dirs.js";
@@ -335,6 +336,9 @@ export async function runShip(): Promise<void> {
   let ship: Ship;
   let server: http.Server;
   try {
+    // The port keeps two browser-version processes apart; a ship open in the desktop app has no port, so its mark is looked at.
+    const openIn = readShipLock(config.fleetRoot, config.shipId);
+    if (openIn !== null) throw new Error(`[make-it-so] Ship "${config.shipId}" is open in the desktop app (process ${openIn}). Close its window first.`);
     ship = await buildShip();
     server = await listenWithRetry(ship.app, config.port, config.host);
     await ship.recordInterrupted();

@@ -3,7 +3,9 @@ import path from "node:path";
 
 // Which ships are open in a window of the desktop app. A ship that is open has no port to ask, so it leaves its process ID in a file
 // of its own directory and removes it when it stops. A file that outlives a crash is told by its process: one that no longer runs is not an open ship.
-// The settings only need this to refuse removing a ship that is open, so a mistake has to err toward "open": the file is written before the ship
+// A ship is one process's, whichever way it is opened: the browser version looks here before it starts (the desktop app looks at the ship's port,
+// running-in-browser.ts), so the two never run the same ship on the same data at once.
+// The settings use it to refuse removing a ship that is open, so a mistake has to err toward "open": the file is written before the ship
 // does anything, and a process that cannot be signalled for lack of permission still counts as running.
 
 const lockFile = (dir: string, id: string) => path.join(dir, "ships", id, "desktop.pid");

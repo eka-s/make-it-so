@@ -3,7 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createDesktopShipRuntime } from "./desktop-runtime.js";
-import { writeShipLock } from "./ship-lock.js";
+import { writeShipLock } from "../server/ship-lock.js";
 
 let dir: string;
 beforeEach(() => {

@@ -1,6 +1,6 @@
 import type { ShipRuntime } from "../server/settings/ship-runtime.js";
 import { shipPort } from "../server/settings/ship-settings.js";
-import { readShipLock } from "./ship-lock.js";
+import { readShipLock } from "../server/ship-lock.js";
 
 export type DesktopRuntimeDeps = {
   /** ~/.make-it-so */

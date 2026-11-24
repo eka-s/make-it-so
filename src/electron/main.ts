@@ -12,7 +12,8 @@ import { buildMenuTemplate } from "./application-menu.js";
 import { createDesktopShipRuntime } from "./desktop-runtime.js";
 import { createInMemoryFetch } from "./in-memory-fetch.js";
 import { launcherLanguage, renderLauncherPage, renderOpeningPage, settingsLabel } from "./launcher-page.js";
-import { removeShipLock, writeShipLock } from "./ship-lock.js";
+import { removeShipLock, writeShipLock } from "../server/ship-lock.js";
+import { runningInBrowser } from "./running-in-browser.js";
 import { chooseStartMode } from "./start-mode.js";
 
 // The desktop app. Opening it runs a ship in this process, and its page is served over an in-memory connection (in-memory-fetch.ts), so no
@@ -73,6 +74,9 @@ async function runShip(dir: string): Promise<void> {
 
   let window: BrowserWindow | null = null;
   if (!holdInstance(id, () => window)) return;
+  // The browser version may be running this ship: its port tells (the desktop app's own lock cannot).
+  const browserPort = await runningInBrowser(dir, id);
+  if (browserPort !== null) throw new Error(`Ship "${id}" is already running in the browser version (port ${browserPort}). Stop it first.`);
   // The mark that tells the settings this ship is open. It comes before anything else the ship does, and goes with the ship.
   writeShipLock(dir, id);
   try {
