@@ -1,9 +1,10 @@
 import express from "express";
-import { describe, expect, it } from "vitest";
+import { Readable } from "node:stream";
+import { describe, expect, it, vi } from "vitest";
 import { createLocalRequestGuard } from "../server/local-guard.js";
 import { createInMemoryFetch } from "./in-memory-fetch.js";
 
-function appWithRoutes(onSseClose: () => void = () => {}): express.Express {
+function appWithRoutes(onSseClose: () => void = () => {}, ran: () => void = () => {}): express.Express {
   const app = express();
   app.use(createLocalRequestGuard());
   app.use(express.json());
@@ -18,6 +19,9 @@ function appWithRoutes(onSseClose: () => void = () => {}): express.Express {
     const timer = setInterval(() => res.write(`event: tick\ndata: ${++n}\n\n`), 10);
     req.on("close", () => { clearInterval(timer); onSseClose(); });
   });
+  app.delete("/api/gone", (_req, res) => { res.status(204).send(); });
+  app.get("/api/not-modified", (_req, res) => { res.status(304).end(); });
+  app.get("/api/ran", (_req, res) => { ran(); res.json({}); });
   app.get("/api/cookie", (_req, res) => { res.append("Set-Cookie", "a=1"); res.append("Set-Cookie", "b=2"); res.end(); });
   return app;
 }
@@ -79,6 +83,46 @@ describe("serving a request without a port", () => {
     const serve = createInMemoryFetch(appWithRoutes());
     const res = await serve(new Request("app://ship/api/cookie"));
     expect(res.headers.getSetCookie()).toEqual(["a=1", "b=2"]);
+  });
+
+  it("answers a 204 and a 304 with no body (a body on those would make the Response constructor throw)", async () => {
+    const serve = createInMemoryFetch(appWithRoutes());
+    const gone = await serve(new Request("app://ship/api/gone", { method: "DELETE" }));
+    expect(gone.status).toBe(204);
+    expect(gone.body).toBeNull();
+    const notModified = await serve(new Request("app://ship/api/not-modified"));
+    expect(notModified.status).toBe(304);
+    expect(notModified.body).toBeNull();
+  });
+
+  it("tells the handler when the page drops the response body without any abort (as the protocol layer does when a page closes an event stream)", async () => {
+    let closed = false;
+    const serve = createInMemoryFetch(appWithRoutes(() => { closed = true; }));
+    const res = await serve(new Request("app://ship/api/events"));
+    const reader = res.body!.getReader();
+    await reader.read();
+    await reader.cancel();
+    await expect.poll(() => closed).toBe(true);
+  });
+
+  it("also notices a body that is destroyed rather than cancelled", async () => {
+    let closed = false;
+    const serve = createInMemoryFetch(appWithRoutes(() => { closed = true; }));
+    const res = await serve(new Request("app://ship/api/events"));
+    const node = Readable.fromWeb(res.body as never);
+    await new Promise((resolve) => node.once("data", resolve));
+    node.destroy();
+    await expect.poll(() => closed).toBe(true);
+  });
+
+  it("does not run the handler for a request that was aborted before it was made", async () => {
+    const ran = vi.fn();
+    const serve = createInMemoryFetch(appWithRoutes(() => {}, ran));
+    const abort = new AbortController();
+    abort.abort();
+    await expect(serve(new Request("app://ship/api/ran", { signal: abort.signal }))).rejects.toThrow();
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(ran).not.toHaveBeenCalled();
   });
 
   it("answers 404 for a path the handler does not know", async () => {
