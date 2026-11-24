@@ -5,7 +5,7 @@ import { logger } from "./logger.js";
 import { FakeAcpProcess } from "./testing/fake-acp-process.js";
 
 const settings = {
-  port: 4000,
+  mcpPort: 4000,
   acp: { kiro: { command: "kiro", args: [] }, claude: { command: "claude-acp", args: ["--flag"] } },
 };
 

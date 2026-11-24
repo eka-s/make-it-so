@@ -33,18 +33,19 @@ The Node.js version follows `.tool-versions`. SQLite uses Node's built-in `node:
 | `npm test` | vitest (no ship needs to be specified) |
 
 - The build does not depend on a ship (`vite.config.ts` reads the configuration only for the dev server). Even with multiple ships, you can build without `--ship`.
-- Serving the UI (`npm start`): only when `clientDir` is passed to `createApp`, it adds static file serving and a handler that routes GETs other than `/api` and `/mcp` to `index.html`. `builtClientDir()` in `index.ts` returns the neighboring `dist/client` only when running as `dist/server/index.js` (during development, Vite serves the UI even if an old build is left over).
+- Serving the UI (`npm start`): only when `clientDir` is passed to `createApp`, it adds static file serving and a handler that routes GETs other than `/api` to `index.html`. `builtClientDir()` in `index.ts` returns the neighboring `dist/client` only when running as `dist/server/index.js` (during development, Vite serves the UI even if an old build is left over).
 - CI (`.github/workflows/ci.yml`) runs lint, type-check, tests and build on pushes to `main` and on pull requests.
 
 ## Process structure
 
 ```
 index.ts (wiring layer)
-  ├─ createApp: Express (JSON, /mcp, SSE, each router, error handling)
+  ├─ createApp: Express (JSON, SSE, each router, error handling)
   ├─ bridge        manages turns (conversations between the captain and the crew) and automatic recovery
   ├─ CrewManager   manages conversation sessions and injects the briefing
   ├─ CrewRunner    runs tasks issued by dispatch_task
   ├─ connectCrewEvents  reflects CrewRunner/CrewManager events into the DB, timeline, SSE and permissions
+  ├─ mcp-listener  Loopback-only listener (OS-picked port) that serves /mcp
   ├─ mcp-board     MCP board (/mcp)
   └─ database      SQLite
 ```

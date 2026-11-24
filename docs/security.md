@@ -33,7 +33,7 @@ make-it-so is a tool that lets AI agents run commands and write files. This docu
 | Browser → server | **No authentication.** Anyone who can reach the host it listens on can operate as the captain. Calls from browsers are narrowed to pages of the same origin by checking `Host` and `Origin` (see below) |
 | Browser → settings server (`--settings`, default 3938) | **No authentication.** It can start, stop and **delete** ships, rewrite `config.yml` (**including changing the command that starts an agent**), and read any directory ("From a project"). It is in the same trust boundary as a ship's server and performs the same checks |
 | Server → agent | The agent acts on the captain's instructions and on the task instructions of other crew members. Its privileges follow the provider's permission mode |
-| Agent → MCP board (`/mcp`) | A secret generated at each start (`x-makeitso-token`) that only the sessions this server starts are given. A call without it is refused with `401`. The caller's role and mission are told apart by identification headers, but this is **not per-caller authentication** |
+| Agent → MCP board (`/mcp`) | Its own listener on `127.0.0.1` (never `server.host`) and an OS-picked port, so it is not on the UI's port. A secret generated at each start (`x-makeitso-token`) that only the sessions this server starts are given. A call without it is refused with `401`. The caller's role and mission are told apart by identification headers, but this is **not per-caller authentication** |
 | Server → remote host | SSH (the user's `~/.ssh/config` and keys). Connection details are not kept in make-it-so's configuration files |
 | Server → provider | The content of conversations is sent to the provider (Anthropic, kiro) |
 

@@ -27,7 +27,7 @@ Reference for the HTTP API, SSE (Server-Sent Events), and MCP board provided by 
 
 - **Format:** Requests and responses are both JSON (the one exception is icon upload, which is raw image bytes). JSON bodies are limited to 1MB.
 - **Listening:** Defaults to `127.0.0.1`. **There is no authentication** ([Security notes](../security.md)). No CORS headers are sent. The following are rejected on every route: requests whose `Host` is not an IP address or `localhost` (`403`, `{ error: "forbidden_host" }`); requests whose `Origin` differs from the server's own origin (`403`, `{ error: "forbidden_origin" }`); and requests whose `Sec-Fetch-Site` is anything other than `same-origin` or `none` (`403`, `{ error: "forbidden_site" }`; GETs that open a page by following a link, i.e. top-level navigations, are let through). `Host` is accepted only in the form `name[:port]`, and `Origin` only with `http:`. Requests without an `Origin` (such as `curl`) are let through.
-- **Serving the UI:** With `npm start`, any GET outside `/api` and `/mcp` returns the built UI (`index.html`). A nonexistent `/api/...` returns 404.
+- **Serving the UI:** With `npm start`, any GET outside `/api` returns the built UI (`index.html`). A nonexistent `/api/...` returns 404.
 - **Error shape:** `{ "error": "<message or code>", "message"?: "<English description>" }`. When `error` is a code (such as `agent_busy`), the UI translates it with a dictionary ([Error Codes](#error-codes)).
 - **Missions:** APIs that take a mission accept `missionId` in the body or the query.
   - Body (`POST`-style): if omitted, empty, or not a string, the default mission (`bridge`) is used. An ID that does not exist returns `404`.
@@ -268,7 +268,7 @@ The type definitions also include `task:progress`, `task:complete`, `notificatio
 
 ## MCP Board
 
-`POST /mcp`. A built-in MCP server that crew sessions use to delegate tasks and fetch reports (stateless mode; a server is created and discarded for each request).
+`POST /mcp`. It is served on its own listener, not on the ship's port: `127.0.0.1` only (whatever `server.host` is) and a port the OS picks at each start. The sessions are given its URL. A built-in MCP server that crew sessions use to delegate tasks and fetch reports (stateless mode; a server is created and discarded for each request).
 
 | Tool | Description |
 |---|---|

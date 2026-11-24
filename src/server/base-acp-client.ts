@@ -137,7 +137,7 @@ export abstract class BaseAcpClient extends BaseAgentClient {
     const mcpServers = [{
       name: "board",
       type: "http",
-      url: `http://127.0.0.1:${this.settings.port}/mcp`,
+      url: `http://127.0.0.1:${this.settings.mcpPort}/mcp`,
       headers: Object.entries(mcpIdentity ?? {}).map(([name, value]) => ({ name, value })),
     }];
     const result = await this.sendRequest("session/new", {

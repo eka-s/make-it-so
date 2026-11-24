@@ -33,18 +33,19 @@ Node.js のバージョンは `.tool-versions` に従います。SQLite は Node
 | `npm test` | vitest（艦の指定は不要） |
 
 - ビルドは艦に依存しません（`vite.config.ts` は開発サーバーのときだけ設定を読む）。艦が複数あっても、`--ship` なしでビルドできます。
-- 画面の配信（`npm start`）: `createApp` に `clientDir` を渡したときだけ、静的ファイルと、`/api`・`/mcp` 以外の GET を `index.html` に回す処理を足します。`index.ts` の `builtClientDir()` は、`dist/server/index.js` として動いているときだけ、隣の `dist/client` を返します（開発中は、古いビルドが残っていても、画面は Vite が配信します）。
+- 画面の配信（`npm start`）: `createApp` に `clientDir` を渡したときだけ、静的ファイルと、`/api` 以外の GET を `index.html` に回す処理を足します。`index.ts` の `builtClientDir()` は、`dist/server/index.js` として動いているときだけ、隣の `dist/client` を返します（開発中は、古いビルドが残っていても、画面は Vite が配信します）。
 - CI（`.github/workflows/ci.yml`）は、`main` への push とプルリクエストで、lint・型検査・テスト・ビルドを実行します。
 
 ## プロセスの構成
 
 ```
 index.ts（配線層）
-  ├─ createApp: Express（JSON、/mcp、SSE、各 router、エラー処理）
+  ├─ createApp: Express（JSON、SSE、各 router、エラー処理）
   ├─ bridge        ターン（艦長とクルーの会話）の管理・自動リカバリ
   ├─ CrewManager   会話用セッションの管理・ブリーフィングの注入
   ├─ CrewRunner    dispatch_task で発行されたタスクの実行
   ├─ connectCrewEvents  CrewRunner/CrewManager のイベントを DB・タイムライン・SSE・承認へ反映
+  ├─ mcp-listener  /mcp 専用のリスナー（127.0.0.1 のみ、OS が選ぶポート）
   ├─ mcp-board     掲示板（/mcp）
   └─ database      SQLite
 ```

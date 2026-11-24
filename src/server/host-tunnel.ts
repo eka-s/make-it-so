@@ -1,6 +1,6 @@
 // An SSH reverse tunnel kept alive, one per remote host.
 //
-// A remote agent calls the main bulletin-board MCP (`http://127.0.0.1:{port}/mcp`)
+// A remote agent calls the main bulletin-board MCP (`http://127.0.0.1:{mcpPort}/mcp`)
 // via the remote localhost. If the port forward for that (ssh -R) were set up per
 // agent session, several crew members on the same host would fight over the same
 // remote port, and when the first connection dropped everyone's MCP would be cut off
@@ -36,7 +36,7 @@ class HostTunnel {
 
   constructor(
     private readonly host: HostConfig,
-    // HTTP port of the main process (connects the remote localhost of the same number to the main /mcp).
+    // Port of the main process's MCP listener (connects the remote localhost of the same number to the main /mcp).
     private readonly port: number,
     private readonly spawn: SpawnTunnel,
   ) {}

@@ -12,6 +12,7 @@ import { broadcast } from "./sse-emitter.js";
 import { CrewManager } from "./crew-manager.js";
 import { createAgentClient } from "./agent-client-factory.js";
 import { createHostTunnels } from "./host-tunnel.js";
+import { openMcpListener, type McpListener } from "./mcp-listener.js";
 import { resolveHostAddresses, type HostConfig } from "./ssh.js";
 import os from "node:os";
 import { restrictToOwner } from "./private-dirs.js";
@@ -57,6 +58,7 @@ configureLogger({
 });
 
 let server: http.Server | null = null;
+let mcpListener: McpListener | null = null;
 // Crew management, directly inside the main process (no separate process).
 let crewManager: CrewManager | null = null;
 let crewRunner: CrewRunner | null = null;
@@ -136,7 +138,10 @@ async function start(): Promise<void> {
   });
 
   // Starts crew management directly inside the main process. Everything here arrives as an event in the same process.
-  const hostTunnels = createHostTunnels(config.port);
+  // Opened first: the sessions' MCP URL and the reverse tunnels need its port before the board's own dependencies (the crew runner) exist.
+  const mcp = await openMcpListener();
+  mcpListener = mcp;
+  const hostTunnels = createHostTunnels(mcp.port);
   // Resolve the connection targets (host name/IP) shown on screen once with `ssh -G` (for display).
   const remoteHosts = new Map<string, HostConfig>();
   for (const member of Object.values(config.crew)) {
@@ -155,7 +160,7 @@ async function start(): Promise<void> {
       skillsDir: config.skillsDir,
       crewLanguage: currentCrewLanguage,
     },
-    createClient: (provider) => createAgentClient(provider, { port: config.port, acp: config.acp }),
+    createClient: (provider) => createAgentClient(provider, { mcpPort: mcp.port, acp: config.acp }),
     ensureTunnel: hostTunnels.ensureTunnel,
     // The scope for running tasks ("__tasks__:missionId") looks up the override of the original mission
     getModelOverride: (role, scope) => getCrewModelOverride(missionFromTaskScope(scope) ?? scope, role),
@@ -281,6 +286,8 @@ async function start(): Promise<void> {
     recordUi: ({ turnId, role, missionId, messages }) => { recordUiShown(turnId, missionId, role, messages); },
   });
 
+  mcp.serve(handleMcpRequest);
+
   connectCrewEvents({
     crewRunner,
     crewManager,
@@ -295,7 +302,6 @@ async function start(): Promise<void> {
   const app = createApp({
     routers,
     pinsRouter: createPinsRouter({ crewRoles: Object.keys(config.crew) }),
-    handleMcpRequest,
     clientDir: builtClientDir(),
   });
   server = await listenWithRetry(app, config.port, config.host);
@@ -348,6 +354,7 @@ async function shutdown(): Promise<void> {
   // so closeAll() alone kills every process.
   crewManager?.closeAll();
   server?.close();
+  await mcpListener?.close();
   // The agents' last words (their exit events) are written first; then the database is folded into one file and closed, so that
   // a copy of bridge.db alone is a complete backup (see docs/guides/backup-and-restore.md).
   await new Promise((resolve) => setTimeout(resolve, 300));

@@ -62,7 +62,7 @@ export function buildRemoteSpawn(
 export const TUNNEL_READY_MARKER = "makeitso-tunnel-ready";
 
 /**
- * An ssh command for the reverse tunnel that makes the main HTTP (`/mcp`) reachable from the remote localhost.
+ * An ssh command for the reverse tunnel that makes the main MCP listener (`/mcp`) reachable from the remote localhost.
  * Only one is kept resident per host (host-tunnel.ts).
  *
  * The reasons for running `echo ...; exec cat` on the remote instead of `-N` are twofold:
