@@ -149,7 +149,7 @@ Confine differences to each provider's client. Do not write branches like `if (p
 1. Create a subclass of `BaseAcpClient` (or `BaseAgentClient`). Implement the spawn arguments (`buildSpawnArgs`), session creation and resumption, provider-specific notifications (`handleProviderNotification`), and so on.
 2. Register it in `agent-client-factory.ts`.
 3. Add a branch to `usage-fetcher.ts` for the command that fetches usage.
-4. Check the registration of the MCP board (MCP). Inject it dynamically with `session/new` and attach a per-session identification header. Without this, `dispatch_task` and the like cannot be used.
+4. Check the registration of the MCP board (MCP). Inject it dynamically with `session/new` and attach a per-session identification header and the ship's `/mcp` secret. Without this, `dispatch_task` and the like cannot be used.
 5. Check provider-specific mechanisms such as the permission allowlist. Unless `Write`, `Read`, `Edit` and the MCP board's tools are allowed, ordinary work will be full of pending permissions.
 6. Check for provider-specific pitfalls such as workspace trust (Claude Code shows no trust prompt when headless, and permission rules are ignored in untrusted directories).
 7. `targets` / `access` (the area of responsibility) are an agreement in the prompt and do not depend on the provider, so they need not be added.

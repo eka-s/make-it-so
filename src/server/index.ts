@@ -1,4 +1,5 @@
 import express from "express";
+import { randomBytes } from "node:crypto";
 import http from "node:http";
 import { config, agentToRole, crewDisplayName } from "./config.js";
 import { createBridge, type Bridge } from "./bridge.js";
@@ -142,8 +143,11 @@ async function start(): Promise<void> {
     if (member.host) remoteHosts.set(member.host.name, member.host);
   }
   const hostAddresses = await resolveHostAddresses([...remoteHosts.values()]);
+  // Regenerated at every start: it only has to match what the sessions of this process were given.
+  const mcpToken = randomBytes(32).toString("hex");
   crewManager = new CrewManager({
     settings: {
+      mcpToken,
       crew: config.crew,
       defaultProvider: config.acp.provider,
       fleetRoot: config.fleetRoot,
@@ -262,6 +266,7 @@ async function start(): Promise<void> {
   }));
   routers.push(createA2uiRouter({ bridge, getUi: getUiOfTurn, dismissUi: recordUiDismissed }));
   const handleMcpRequest = createMcpHandler({
+    token: mcpToken,
     crewRunner,
     recordUnreportedFetch: bridge.recordUnreportedFetch,
     displayName: crewDisplayName,

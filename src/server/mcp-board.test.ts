@@ -5,7 +5,7 @@ import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { MCP_AGENT_HEADER, MCP_MISSION_HEADER } from "./crew-manager.js";
+import { MCP_AGENT_HEADER, MCP_MISSION_HEADER, MCP_TOKEN_HEADER } from "./crew-manager.js";
 import { createBoardServer, createMcpHandler, type McpBoardDeps } from "./mcp-board.js";
 import {
   closeDatabase,
@@ -42,6 +42,7 @@ beforeEach(() => {
   currentTurn = vi.fn(() => ({ turnId: "turn-1", agentName: "first_officer" })); // the turn of `caller`
   ranks = { first_officer: "commander", chief_engineer: "chief", ensign: "crew" };
   deps = {
+    token: "test-token",
     crewRunner: { dispatch },
     recordUnreportedFetch,
     displayName: (agentDir) => names[agentDir] ?? agentDir,
@@ -404,15 +405,24 @@ describe("HTTP endpoint (identification header)", () => {
   }
 
   it("determines the caller (crew member, mission) from the identification header", async () => {
-    const client = await connectOverHttp({ [MCP_AGENT_HEADER]: "first_officer", [MCP_MISSION_HEADER]: "m1" });
+    const client = await connectOverHttp({ [MCP_AGENT_HEADER]: "first_officer", [MCP_MISSION_HEADER]: "m1", [MCP_TOKEN_HEADER]: "test-token" });
     await call(client, "dispatch_task", { agent: "sam", task_name: "a", instruction: "i" });
     expect(dispatch.mock.calls[0][0]).toMatchObject({ taskId: "chief_engineer_0001", missionId: "m1" });
   });
 
   it("if there is no header, the caller is not guessed and an error is returned", async () => {
-    const client = await connectOverHttp({});
+    const client = await connectOverHttp({ [MCP_TOKEN_HEADER]: "test-token" });
     const result = await call(client, "dispatch_task", { agent: "sam", task_name: "a", instruction: "i" });
     expect(result.isError).toBe(true);
+    expect(dispatch).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["no secret", {}],
+    ["a wrong secret", { [MCP_TOKEN_HEADER]: "wrong-token" }],
+    ["a secret of another length", { [MCP_TOKEN_HEADER]: "x" }],
+  ])("refuses a call that carries %s, before any tool runs", async (_label, headers) => {
+    await expect(connectOverHttp({ [MCP_AGENT_HEADER]: "first_officer", [MCP_MISSION_HEADER]: "m1", ...headers })).rejects.toThrow();
     expect(dispatch).not.toHaveBeenCalled();
   });
 });
