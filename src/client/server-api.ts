@@ -106,6 +106,8 @@ export function createApi(options: ApiOptions = {}) {
      * middle of it and keep the window wide enough; the answer is the page's zoom. It is answered by the app around the page, not by the ship: outside the desktop app nothing answers it, and nothing asks.
      */
     reportShellWindow: (info: { height: number; room: number }) => send<{ zoom: number }>("POST", "/__shell/window", info),
+    /** Tells the app around the page which theme and languages the page shows, so its View menu can mark them. Answered by the app, like the report above. */
+    reportShellAppearance: (info: { theme: Theme; language: Language; crewLanguage?: Language }) => send<null>("POST", "/__shell/appearance", info),
     /** Saves the UI language on the server. */
     setLanguage: (language: Language) => send<{ language: Language }>("PUT", "/api/config/language", { language }),
     /** Saves the language the crew speaks on the server (separate from the UI language). */

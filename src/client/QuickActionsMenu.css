@@ -12,7 +12,7 @@
   right: 0;
   max-height: 60vh;
   overflow-y: auto;
-  width: 300px;
+  width: min(300px, calc(100vw - 40px));
   background: var(--surface-2);
   border: 1px solid var(--border);
   border-radius: 8px;
@@ -93,6 +93,7 @@
 .qa-dialog {
   width: min(720px, 100%);
   max-height: calc(100vh - 32px);
+  max-height: calc(100dvh - 32px);
   display: flex;
   flex-direction: column;
   background: var(--surface-popup);
@@ -166,4 +167,17 @@
   background: var(--lc-amber);
   border-color: var(--lc-amber);
   color: var(--text-on-accent);
+}
+
+/* The buttons moved here from beside the message box keep their own look (.chat-input-btn); they sit in a row, as wide as the list allows. */
+.quick-actions-leading {
+  display: flex;
+  gap: 4px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--border);
+}
+
+.quick-actions-leading .chat-input-btn {
+  flex: 1;
+  padding: 10px 8px;
 }

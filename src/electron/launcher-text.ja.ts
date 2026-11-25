@@ -6,4 +6,12 @@ export const LAUNCHER_TEXT_JA = {
   settings: "設定",
   broken: "開けません",
   opening: "開いています…",
+  view: "表示",
+  theme: "テーマ",
+  language: "言語",
+  crewLanguage: "クルーの言語",
+  classic: "クラシック",
+  light: "ライト",
+  dark: "ダーク",
+  japanese: "日本語",
 } as const;

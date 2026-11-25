@@ -1,31 +1,23 @@
 import { useEffect, useRef, useState } from "react";
 import "./LanguageSwitch.css";
 import { useI18n } from "./i18n/I18nProvider";
-import { LANGUAGE_LABELS } from "./i18n/languages";
-import type { Language } from "./types";
+import { LANGUAGE_LABELS, LANGUAGE_OPTIONS } from "./i18n/languages";
 
-const ORDER: Language[] = ["en", "ja"];
-
-/**
- * "EN | 日本語" switch in the header. `target` picks which setting it changes: the UI language
- * or the language the crew speaks (two separate settings, both saved on the server).
- */
-export function LanguageSwitch({ target }: { target: "ui" | "crew" }) {
-  const i18n = useI18n();
-  const { t } = i18n;
-  const language = target === "ui" ? i18n.language : i18n.crewLanguage;
-  const setLanguage = target === "ui" ? i18n.setLanguage : i18n.setCrewLanguage;
+/** "EN | 日本語" switch for the UI language (the settings window's header; the language of the crew is chosen in the left pane's settings). */
+export function LanguageSwitch() {
+  const { t, language, setLanguage } = useI18n();
   return (
-    <div className="language-switch" role="group" aria-label={t(target === "ui" ? "language.switch.label" : "language.switch.crew.label")}>
-      <span className="language-switch-tag">{t(target === "ui" ? "language.switch.tag.ui" : "language.switch.tag.crew")}</span>
-      {ORDER.map((code) => (
+    <div className="language-switch" role="group" aria-label={t("language.switch.label")}>
+      <span className="language-switch-tag">{t("language.switch.tag.ui")}</span>
+      {LANGUAGE_OPTIONS.map(({ value, label }) => (
         <button
-          key={code}
-          className={`language-switch-btn${code === language ? " language-switch-btn--active" : ""}`}
-          aria-pressed={code === language}
-          onClick={() => { if (code !== language) void setLanguage(code); }}
+          key={value}
+          lang={value}
+          className={`language-switch-btn${value === language ? " language-switch-btn--active" : ""}`}
+          aria-pressed={value === language}
+          onClick={() => { if (value !== language) void setLanguage(value); }}
         >
-          {LANGUAGE_LABELS[code]}
+          {label}
         </button>
       ))}
     </div>
@@ -45,12 +37,11 @@ export function LanguageNotice() {
 }
 
 /**
- * Header control for the two languages: a quiet "UI / crew" label (like the search and split buttons)
- * that opens a small popup holding the two switches. The hover text spells out what the label means.
- * `crew={false}` is for a screen that has only the UI language (the settings): the label is that language alone and the popup holds one switch.
+ * Header control for the UI language: a quiet label (like the search and split buttons) that opens a small popup holding the switch.
+ * The hover text spells out what the label means.
  */
-export function LanguageMenu({ crew = true }: { crew?: boolean } = {}) {
-  const { t, language, crewLanguage } = useI18n();
+export function LanguageMenu() {
+  const { t, language } = useI18n();
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
 
@@ -60,7 +51,7 @@ export function LanguageMenu({ crew = true }: { crew?: boolean } = {}) {
       if (rootRef.current && !rootRef.current.contains(e.target as Node)) setOpen(false);
     };
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setOpen(false);
+      if (e.key === "Escape") { e.preventDefault(); setOpen(false); }
     };
     document.addEventListener("mousedown", onDown);
     document.addEventListener("keydown", onKey);
@@ -70,7 +61,7 @@ export function LanguageMenu({ crew = true }: { crew?: boolean } = {}) {
     };
   }, [open]);
 
-  const detail = crew ? t("language.menu.detail", { ui: LANGUAGE_LABELS[language], crew: LANGUAGE_LABELS[crewLanguage] }) : t("language.menu.detailUi", { ui: LANGUAGE_LABELS[language] });
+  const detail = t("language.menu.detailUi", { ui: LANGUAGE_LABELS[language] });
   return (
     <div className="language-menu" ref={rootRef}>
       <button
@@ -81,12 +72,11 @@ export function LanguageMenu({ crew = true }: { crew?: boolean } = {}) {
         title={detail}
         aria-label={detail}
       >
-        {crew ? `${LANGUAGE_LABELS[language]} / ${LANGUAGE_LABELS[crewLanguage]}` : LANGUAGE_LABELS[language]}
+        {LANGUAGE_LABELS[language]}
       </button>
       {open && (
-        <div className="language-menu-popup" role="dialog" aria-label={crew ? t("language.menu.title") : t("language.switch.label")}>
-          <LanguageSwitch target="ui" />
-          {crew && <LanguageSwitch target="crew" />}
+        <div className="language-menu-popup" role="dialog" aria-label={t("language.switch.label")}>
+          <LanguageSwitch />
         </div>
       )}
     </div>

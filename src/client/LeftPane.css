@@ -68,3 +68,30 @@
   background: var(--lc-periwinkle);
   border-radius: 3px;
 }
+
+.left-column--hidden {
+  display: none;
+}
+
+/* A narrow window: the pane is a drawer that opens over the conversation (the button in the header opens and closes it; so does a press outside it or Escape).
+   It leaves a strip of the conversation at the right to press, and its width is not changed by dragging (the handle would only shrink what was kept for the
+   wide window). */
+.left-column--drawer {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 20;
+  max-width: calc(100% - 24px);
+  box-shadow: 6px 0 24px rgba(0, 0, 0, 0.45);
+}
+
+.left-column--drawer .left-column-resize-handle {
+  display: none;
+}
+
+.left-column-backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 19;
+}

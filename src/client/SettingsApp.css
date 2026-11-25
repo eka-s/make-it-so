@@ -3,12 +3,14 @@ body {
   /* The ship's screen gets this from the reset in App.css, which the settings do not load: without it the browser's own margin shows as a frame around the window. */
   margin: 0;
   height: 100vh;
+  height: 100dvh;
   overflow: hidden;
   background: var(--bg);
 }
 
 #root {
   height: 100vh;
+  height: 100dvh;
 }
 
 .settings-app {
@@ -16,6 +18,7 @@ body {
   display: flex;
   flex-direction: column;
   height: 100vh;
+  height: 100dvh;
   padding-left: calc(var(--frame-spine) + var(--frame-gap));
   background: var(--bg);
   color: var(--text);

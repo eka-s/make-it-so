@@ -153,11 +153,6 @@
   color: var(--text);
 }
 
-:is([data-theme="light"], [data-theme="dark"]) .app-title-sub {
-  font-size: 0.85rem;
-  color: var(--text-dim);
-}
-
 :is([data-theme="light"], [data-theme="dark"]) .app-ship-name {
   color: var(--text-dim);
 }
@@ -308,13 +303,11 @@
 
 :is([data-theme="light"], [data-theme="dark"]) .app-header h1,
 :is([data-theme="light"], [data-theme="dark"]) .settings-header h1,
-:is([data-theme="light"], [data-theme="dark"]) .app-title-sub,
 :is([data-theme="light"], [data-theme="dark"]) .app-ship-name,
 :is([data-theme="light"], [data-theme="dark"]) .settings-title {
   color: #ffffff;
 }
 
-:is([data-theme="light"], [data-theme="dark"]) .app-title-sub,
 :is([data-theme="light"], [data-theme="dark"]) .settings-title {
   opacity: 0.8;
 }
@@ -344,4 +337,14 @@
 /* "Engage!" is a flourish of the classic look; the other themes do not show it. */
 :is([data-theme="light"], [data-theme="dark"]) .chat-input-btn--engage {
   display: none;
+}
+
+/* The button that shows or hides the left pane sits at the left end of the bar, after the window buttons where there are any. */
+:is([data-theme="light"], [data-theme="dark"]) .app-pane-toggle {
+  margin-left: 12px;
+}
+
+/* The gap after the button is the header's own; the title's left padding, for when it comes first, would double it. */
+:is([data-theme="light"], [data-theme="dark"]) .app-pane-toggle + h1 {
+  padding-left: 0;
 }

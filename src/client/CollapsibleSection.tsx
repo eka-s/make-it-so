@@ -16,6 +16,8 @@ type CollapsibleSectionProps = {
   // that size is remembered.
   height: number | null;
   onResize: (height: number) => void;
+  /** The color of the heading and the bar beside the body; each section has its own. */
+  tone?: "peach" | "lilac" | "periwinkle";
   children: React.ReactNode;
 };
 
@@ -24,7 +26,7 @@ type CollapsibleSectionProps = {
 // by dragging the handle at the bottom edge. Each stretches and shrinks independently and they do not fight over each other's height — but
 // they cannot be widened beyond the height at which the whole list inside is visible (the upper limit is computed from the difference
 // between bodyRef's scrollHeight/clientHeight at the start of the drag and fixed).
-export function CollapsibleSection({ title, isOpen, badge = 0, onToggle, height, onResize, children }: CollapsibleSectionProps) {
+export function CollapsibleSection({ title, isOpen, badge = 0, onToggle, height, onResize, tone = "peach", children }: CollapsibleSectionProps) {
   const t = useT();
   const [isDragging, setIsDragging] = useState(false);
   const startYRef = useRef(0);
@@ -66,7 +68,7 @@ export function CollapsibleSection({ title, isOpen, badge = 0, onToggle, height,
 
   return (
     <div
-      className="left-section"
+      className={`left-section left-section--${tone}`}
       ref={sectionRef}
       style={isOpen && height !== null ? { height: `${height}px` } : undefined}
     >

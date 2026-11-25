@@ -21,12 +21,16 @@ function loadStoredWidth(): number {
 }
 
 type LeftColumnProps = {
+  /** Hidden, not unmounted: what is open in it and how wide it is stay as they are. */
+  hidden?: boolean;
+  /** Over the conversation instead of beside it (a narrow window). */
+  drawer?: boolean;
   children: React.ReactNode;
 };
 
-// The frame of the whole left pane. A permanent, single resizable column with the collapsible sections for
-// missions/crew status/pins (CollapsibleSection) stacked vertically inside.
-export function LeftColumn({ children }: LeftColumnProps) {
+// The frame of the whole left pane: a single column, resizable by dragging, with the collapsible sections (CollapsibleSection) stacked vertically inside. It can be
+// hidden, and as a drawer (a narrow window) it is over the conversation instead of beside it and its width is not dragged.
+export function LeftColumn({ hidden = false, drawer = false, children }: LeftColumnProps) {
   const t = useT();
   const [width, setWidth] = useState(loadStoredWidth);
   const [isDragging, setIsDragging] = useState(false);
@@ -67,7 +71,8 @@ export function LeftColumn({ children }: LeftColumnProps) {
 
   return (
     <div
-      className={`left-column ${isDragging ? "left-column--dragging" : ""}`}
+      id="left-pane"
+      className={`left-column ${isDragging ? "left-column--dragging" : ""} ${hidden ? "left-column--hidden" : ""} ${drawer ? "left-column--drawer" : ""}`}
       style={{ width: `${width}px` }}
     >
       <div className="left-column-body">{children}</div>

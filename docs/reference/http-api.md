@@ -283,7 +283,10 @@ The type definitions also include `task:progress`, `task:complete`, `notificatio
 
 ## The desktop app's own path
 
-In the desktop app the page's requests are answered by the ship's Express app through an in-memory connection, with one exception: the path `/__shell/window` is answered by the app around the page and never reaches the ship. The page sends a `POST` there with `{ height, room }` (the header's height, and the room it keeps at both ends, in CSS pixels) and gets `{ zoom }` back (the page's zoom, which the app knows exactly). The app uses them to put the window buttons in the middle of the header and to keep the window wide enough. A body that is not two such integers gets `400`, and anything but a `POST` gets `405`. Outside the desktop app nothing answers it and the page does not ask.
+In the desktop app the page's requests are answered by the ship's Express app through an in-memory connection, with one exception: the paths under `/__shell/` are answered by the app around the page and never reach the ship (they are deliberately outside the router pattern: they are about the window, not the ship). Outside the desktop app nothing answers them and the page does not ask. For both, anything but a `POST` gets `405`, and a body that is not understood gets `400`.
+
+- `/__shell/window`: the page sends a `POST` with `{ height, room }` (the header's height, and the room it keeps at both ends, in CSS pixels; two integers) and gets `{ zoom }` back (the page's zoom, which the app knows exactly). The app uses them to keep the window wide enough on every system and, on macOS, to put the window buttons in the middle of the header.
+- `/__shell/appearance`: the page sends a `POST` with `{ theme, language }` and, from a page that has a crew, `crewLanguage` (`theme`: `classic` / `light` / `dark`; the languages: `en` / `ja`) and gets `204`. It tells the app what the page shows now, so that the View menu marks it. The other way, from the app to the page, is not a request: a choice in the View menu is sent to the page as a `makeitso:appearance` event, which the page applies as it applies its own switches.
 
 ## Settings Server API (`--settings`)
 

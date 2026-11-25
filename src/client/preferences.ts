@@ -142,6 +142,25 @@ export function persistSplitEnabled(enabled: boolean): void {
   }
 }
 
+// Whether the left pane (missions, crew, pins, settings) is shown. Shown by default.
+const LEFT_PANE_OPEN_STORAGE_KEY = "left-pane-open";
+
+export function loadStoredLeftPaneOpen(): boolean {
+  try {
+    return localStorage.getItem(LEFT_PANE_OPEN_STORAGE_KEY) !== "0";
+  } catch {
+    return true;
+  }
+}
+
+export function persistLeftPaneOpen(open: boolean): void {
+  try {
+    localStorage.setItem(LEFT_PANE_OPEN_STORAGE_KEY, open ? "1" : "0");
+  } catch {
+    // Ignore (when localStorage is unavailable, e.g. in private browsing)
+  }
+}
+
 // The look of the screen. The server only gives the default (config.yml); a choice made with the switch is kept
 // here, per browser, and wins over it. The default is cached too, so the first paint does not flash the wrong look.
 const THEME_CHOICE_KEY = "theme-choice";

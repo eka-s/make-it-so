@@ -1,6 +1,7 @@
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, type ReactNode } from "react";
 import "./QuickActionsMenu.css";
 import { useI18n } from "./i18n/I18nProvider";
+import { HamburgerIcon } from "./HamburgerIcon";
 import { api } from "./server-api";
 import type { QuickActionItem } from "./types";
 import { NEW_ROW, QuickActionsEditor, type EditRow } from "./QuickActionsEditor";
@@ -11,20 +12,30 @@ type QuickActionsMenuProps = {
   /** Puts text in the message box without sending it. */
   onFill: (text: string) => void;
   disabled: boolean;
+  /** Buttons shown at the top of the list, as they are (the ones the message box has no room for). Choosing one closes the list. */
+  leading?: ReactNode;
+  /** The button is the three lines of a hamburger menu instead of the word (where there is little room). */
+  hamburger?: boolean;
+  /** Opens the editor of the items (QuickActionsDialog, which the owner shows: it must outlive this menu, which is drawn again when the layout changes). */
+  onOpenSettings: () => void;
 };
 
 // The custom menu button (the last of the buttons beside the message box). Clicking opens the list of this ship's items; an item is
-// sent at once or put in the message box, as it was set up. "Settings…" at the bottom opens the editor, whose changes apply to this ship.
+// sent at once or put in the message box, as it was set up. "Settings…" at the bottom opens the editor (QuickActionsDialog), whose changes apply to this ship.
 // The list is the server's: it is read when the menu opens and after each save.
-export function QuickActionsMenu({ onSend, onFill, disabled }: QuickActionsMenuProps) {
+export function QuickActionsMenu({ onSend, onFill, disabled, leading, hamburger = false, onOpenSettings }: QuickActionsMenuProps) {
   const { t } = useI18n();
   const [isOpen, setIsOpen] = useState(false);
-  const [editing, setEditing] = useState(false);
   const [items, setItems] = useState<QuickActionItem[] | null>(null);
   const [failed, setFailed] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
 
-  const close = useCallback(() => setIsOpen(false), []);
+  // A list that closes while the focus is in it (a choice was made, or Escape) takes the focus with it: it goes back to the button that opened it.
+  const close = useCallback(() => {
+    if (containerRef.current?.contains(document.activeElement) && document.activeElement !== buttonRef.current) buttonRef.current?.focus();
+    setIsOpen(false);
+  }, []);
 
   const load = useCallback(() => {
     setFailed(false);
@@ -48,7 +59,10 @@ export function QuickActionsMenu({ onSend, onFill, disabled }: QuickActionsMenuP
       if (containerRef.current && !containerRef.current.contains(e.target as Node)) close();
     };
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") close();
+      if (e.key === "Escape") {
+        e.preventDefault();
+        close();
+      }
     };
     document.addEventListener("mousedown", handleOutsideClick);
     document.addEventListener("keydown", handleKeyDown);
@@ -67,25 +81,25 @@ export function QuickActionsMenu({ onSend, onFill, disabled }: QuickActionsMenuP
   return (
     <div className="quick-actions-menu" ref={containerRef}>
       <button
+        ref={buttonRef}
         className="chat-input-btn chat-input-btn--menu"
         onClick={() => setIsOpen((v) => !v)}
         disabled={disabled}
         title={t("quickActions.title")}
         aria-label={t("quickActions.title")}
         aria-expanded={isOpen}
-        aria-haspopup="menu"
       >
-        {t("quickActions.button")} ▴
+        {hamburger ? <HamburgerIcon /> : <>{t("quickActions.button")} ▴</>}
       </button>
       {isOpen && (
-        <div className="quick-actions-dropdown" role="menu">
+        <div className="quick-actions-dropdown" role="group" aria-label={t("quickActions.title")}>
+          {leading && <div className="quick-actions-leading" onClick={(e) => { if ((e.target as Element).closest("button")) close(); }}>{leading}</div>}
           {failed && <p className="quick-actions-note">{t("quickActions.loadFailed")}</p>}
           {!failed && items !== null && items.length === 0 && <p className="quick-actions-note">{t("quickActions.empty")}</p>}
           {(items ?? []).map((item) => (
             <button
               key={item.id}
               className="quick-actions-item"
-              role="menuitem"
               onClick={() => run(item)}
               disabled={disabled}
               title={item.command}
@@ -98,18 +112,17 @@ export function QuickActionsMenu({ onSend, onFill, disabled }: QuickActionsMenuP
               <span className="quick-actions-item-command">{item.command}</span>
             </button>
           ))}
-          <button className="quick-actions-item quick-actions-item--settings" role="menuitem" onClick={() => { close(); setEditing(true); }}>
+          <button className="quick-actions-item quick-actions-item--settings" onClick={() => { setIsOpen(false); onOpenSettings(); }}>
             {t("quickActions.settings")}
           </button>
         </div>
       )}
-      {editing && <QuickActionsDialog onClose={() => setEditing(false)} />}
     </div>
   );
 }
 
 /** The editor popup for this ship's menu. */
-function QuickActionsDialog({ onClose }: { onClose: () => void }) {
+export function QuickActionsDialog({ onClose }: { onClose: () => void }) {
   const { t, tError } = useI18n();
   const [rows, setRows] = useState<EditRow[] | null>(null);
   // The IDs the list had when it was loaded: the server leaves alone an item added since (by the settings screen, say).
@@ -135,7 +148,10 @@ function QuickActionsDialog({ onClose }: { onClose: () => void }) {
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+      if (e.key === "Escape") {
+        e.preventDefault();
+        onClose();
+      }
     };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);

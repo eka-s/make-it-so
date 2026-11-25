@@ -43,7 +43,9 @@ Only the following are stored in the browser's `localStorage` (personal display 
 | `left-panel-width` | The width of the left pane |
 | `chat-split-enabled` | Whether the split conversation view is enabled |
 | `chat-split-ratio` | The height ratio of the top view when split |
-| `left-section-height-mission`, `-crew`, `-accounts`, `-pin` | The height of each section of the left pane |
+| `left-section-height-mission`, `-crew`, `-accounts`, `-pin`, `-settings` | The height of each section of the left pane |
+| `left-pane-open` | Whether the left pane is shown (in a wide window; the drawer of a narrow window is not saved) |
+| `theme-choice` | The theme chosen in this browser (it wins over the default in `config.yml`) |
 | `language-cache` | The UI language (a copy of the server's value, so the language does not flicker on the first render) |
 | `settings-language-choice` | The language of the settings screen (what was chosen in the settings screen; not sent to the server) |
 
@@ -55,8 +57,10 @@ Only the following are stored in the browser's `localStorage` (personal display 
 ## Screen Layout
 
 - It consists of the left pane, the conversation, the input box, and the header.
-- The header shows, from the left: the title, the search button, the split button, the language label, and **the ship's name at the right end** (so you can tell which ship a tab belongs to when several are open).
-- The language label (for example `EN / 日本語`: the UI language, then the crew language) is quiet on purpose. Hovering shows what it means; clicking opens a small popup with the two switches ([Switching the Language](../guides/switch-language.md)).
+- The header shows, from the left: the button that shows or hides the left pane (three lines), the title, the search button, the split button, and **the ship's name at the right end** (so you can tell which ship a tab belongs to when several are open). In a narrow window the ship's name gives way first, then the end of the title.
+- The theme and the languages are chosen in the "SETTINGS" section at the bottom of the left pane (radio buttons; [Switching the Language](../guides/switch-language.md)), and in the desktop app also in the View menu.
+- The button at the left of the header hides the left pane (the choice is saved) and shows it again.
+- **A narrow window (860 px wide or less):** the left pane is a drawer over the conversation. It is closed at first; the same button opens it. It closes with a press outside it, with Esc, or when you pick a mission, a crew member's task or a pin. While it is open the conversation takes no keys or clicks, and when it closes the focus goes back to the button. What was chosen for a wide window is kept for when the window is wide again.
 - The width of the left pane can be changed by dragging its right edge. The sections inside can each be opened and closed independently (several can stay open at the same time). An opened section can be resized by dragging its bottom edge, but **it cannot be made taller than the height at which all its contents are visible.**
 - The sections of the left pane (from the top):
 
@@ -66,6 +70,7 @@ Only the following are stored in the browser's `localStorage` (personal display 
 | CREW STATUS | Open | [Crew Status](#crew-status) |
 | PINS | Closed | The PINs of the current mission |
 | ACCOUNTS | Open | [Usage Display](#usage-display) |
+| SETTINGS | Open | Radio buttons for the theme, the UI language and the crew language |
 
 ## Conversation Display
 
@@ -188,6 +193,7 @@ The send button (▶) is on the left. To its right, from the top, four buttons a
 | Menu | Opens the custom menu |
 
 - The first three send at once, to the current target (the one-message target, if there is one). They, and the Menu button, are disabled while a reply is in progress.
+- **A phone's width (600 px wide or less):** the message box takes the whole width, and the buttons are in a row under it. The send button is at the right end and the Menu button (three lines) to its left. "Make it so", "Engage!" and "Report" run from the left end of the row; those that do not fit slide under the Menu and send buttons (they can still be pressed where they show). The same three buttons are also at the top of the Menu's list, which is where the keyboard goes: the list is a plain group of buttons that opens with the Menu button and closes with Esc or a choice, and the focus goes back to the Menu button.
 - **The custom menu** lists the items enabled on this ship, in the order of [`quick-actions.yml`](configuration.md#quick-actionsyml). Each item shows its name and, below it, the text it sends. Clicking an item sends that text (a message, or a slash command) **or** puts it in the input box, as the item was set up. An item that only fills the box is marked with "…". The list is read from the server each time the menu opens.
 - "Settings…" at the bottom of the list opens an editor for **this ship's** items: add, rename, change the kind (message / slash command) and the text, choose "send at once" or "put in the message box only", reorder, and remove. A new item is enabled on this ship only. An item that other ships use too says so, and changing it changes it for them as well; removing it only takes it off this ship (an item enabled on "All ships" is switched off for this ship only; ships made later still get it).
 - The settings screen has a "Custom menu" tab that edits every item and the ships each one is enabled on.

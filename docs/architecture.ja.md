@@ -98,11 +98,12 @@ index.ts（配線層）
 | `main.ts` | アプリの入口。起動のしかた（`start-mode.ts`）、艦ごとに1つのインスタンス、ウィンドウ、艦が止まってから終了すること。起動の判断をしてから `index.ts` を読み込むので、設定は、動かす艦のものになる |
 | `start-mode.ts`、`argv.ts` | 艦を1隻/艦の一覧/設定、パッケージ版の引数 |
 | `in-memory-fetch.ts` | リクエストを、メモリ上の HTTP 接続を通して、Express に渡す（ポートなし）。ローカル用の検査が断るブラウザ由来のヘッダーを外す |
-| `shell-requests.ts`、`window-fit.ts` | ページが、パス `/__shell/window` でウィンドウに伝えること（ヘッダーの高さと、両端に空ける余白。アプリは、ページの拡大率を返す）と、そこから決める、ウィンドウのボタンの位置と、最小の幅 |
+| `shell-requests.ts`、`window-fit.ts` | ページが、パス `/__shell/window`（ヘッダーの高さと、両端に空ける余白。アプリは、ページの拡大率を返す）と `/__shell/appearance`（表示しているテーマと言語。表示メニューの印のため）で、アプリに伝えること。前者から決める、ウィンドウのボタンの位置と、最小の幅 |
 | `launcher-page.ts`、`launcher-handler.ts`、`launcher-text.ja.ts` | 艦の一覧（スクリプトなしのページ）と、その応答 |
 | `desktop-runtime.ts`、`running-in-browser.ts` | 設定から見た、デスクトップアプリで開いている艦と、ブラウザ版で動いている艦 |
-| `application-menu.ts` | メニュー（設定への道を含む） |
-| `src/client/shell.ts`、`desktop-shell.css`、`use-shell-window.ts` | ページ側。macOS のデスクトップアプリであることの印、タイトルバーを兼ねるヘッダー（ウィンドウのボタンの余白は、ページの拡大で伸び縮みさせない）、大きさをアプリに知らせること |
+| `application-menu.ts` | メニュー。設定への道と、テーマ、UI の言語、クルーの言語を選ぶ表示メニュー（ページが、表示しているものを報告し、選んだものは、`makeitso:appearance` イベントとしてページに送られる。`/__shell/*` への答えを除くと、アプリからページへの唯一の道） |
+| `src/client/shell.ts`、`desktop-shell.css`、`use-shell-window.ts`、`use-shell-appearance.ts` | ページ側。デスクトップアプリ（と macOS）であることの印、macOS でタイトルバーを兼ねるヘッダー（ウィンドウのボタンの余白は、ページの拡大で伸び縮みさせない）、大きさと、表示しているものをアプリに知らせること、表示メニューの選択を反映すること |
+| `src/client/layout-mode.ts`、`use-left-pane.ts`、`RadioGroup.tsx` | レイアウトが変わる幅（1か所に置き、スタイルシートのために、ページが `<html>` に印を付ける）、左ペインを出すか（会話の隣に置くか、狭いウィンドウでは、会話の上に重ねるドロワーにするか）、設定セクションのラジオボタン |
 
 ### 依存の向き
 

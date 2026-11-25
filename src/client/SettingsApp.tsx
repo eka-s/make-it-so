@@ -12,6 +12,7 @@ import { SettingsShipsForm } from "./SettingsShipsForm";
 import { SettingsImportForm } from "./SettingsImportForm";
 import { ThemeMenu } from "./ThemeMenu";
 import { useTheme } from "./use-theme";
+import { useShellAppearance } from "./use-shell-appearance";
 import { useShellWindow } from "./use-shell-window";
 import { confirmDiscard, type DirtyRegistry } from "./use-unsaved";
 import "./SettingsApp.css";
@@ -25,6 +26,7 @@ export function SettingsApp() {
   const { theme, setTheme } = useTheme();
   const headerRef = useRef<HTMLElement>(null);
   useShellWindow(headerRef);
+  useShellAppearance(theme, setTheme, { crew: false });
   const [overview, setOverview] = useState<SettingsOverview | null>(null);
   const [failed, setFailed] = useState(false);
   const [tab, setTab] = useState<Tab>("overview");
@@ -71,7 +73,7 @@ export function SettingsApp() {
       <header className="settings-header" ref={headerRef}>
         <h1>Make-It-So</h1>
         <span className="settings-title">{t("settings.title")}</span>
-        <div className="settings-header-switch"><ThemeMenu theme={theme} onSelect={setTheme} /><LanguageMenu crew={false} /></div>
+        <div className="settings-header-switch"><ThemeMenu theme={theme} onSelect={setTheme} /><LanguageMenu /></div>
         {!desktop && (
           <span className="settings-status">
             <span className={runtime.some((s) => s.state === "running") ? "settings-dot settings-dot--running" : "settings-dot"} aria-hidden="true" />

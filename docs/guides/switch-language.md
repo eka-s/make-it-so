@@ -6,14 +6,14 @@ There are two language settings.
 
 | Setting | Applies to | How to switch |
 |---|---|---|
-| UI language | The text on the screen | The language label in the header (click it) |
-| Crew language | The language the crew speaks | The same popup, second switch |
+| UI language | The text on the screen | The "Settings" section at the bottom of the left pane, or the View menu in the desktop app |
+| Crew language | The language the crew speaks | The same section, or the same menu |
 
 The supported values are `en` and `ja`.
 
 ## Switching from the screen
 
-The header shows a small label such as `EN / 日本語`: the UI language first, then the crew language. Hover over it to see what it means, and click it to open a popup with two switches, "UI" and "Crew".
+The "Settings" section at the bottom of the left pane has radio buttons for the theme, the UI language and the crew language. In the desktop app the View menu has the same choices (the words of the menu follow the UI language). The left pane can be hidden with the button at the left of the header; show it again to reach the choices (in a narrow window it opens over the conversation).
 
 - When you switch, it is saved in the ship's DB. From then on, that value takes precedence over the default in `config.yml`.
 - The UI language takes effect immediately.
