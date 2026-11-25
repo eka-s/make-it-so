@@ -36,4 +36,4 @@ The app is **not signed**, so macOS may warn when it is opened from a downloaded
 
 ## Releasing
 
-Pushing a tag that matches `version` in `package.json` (for example `v0.1.0`) runs the Release workflow: it checks, builds the dmg on macOS and attaches it to a **draft** GitHub release. Read the generated notes, then publish the draft by hand. Windows and Linux builds are not part of it yet.
+Pushing a tag that matches `version` in `package.json` (for example `v0.1.0`) runs the Release workflow: it checks, builds on macOS (dmg), Windows (NSIS installer) and Linux (AppImage), and attaches all three to a **draft** GitHub release. Read the generated notes, then publish the draft by hand. None of them is signed, and the Windows and Linux builds have not been run on a real machine yet.

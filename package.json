@@ -84,6 +84,21 @@
       "target": [
         "dmg"
       ]
+    },
+    "win": {
+      "target": [
+        "nsis"
+      ]
+    },
+    "nsis": {
+      "artifactName": "${productName}-${version}-${arch}-setup.${ext}"
+    },
+    "linux": {
+      "category": "Development",
+      "target": [
+        "AppImage"
+      ],
+      "artifactName": "${productName}-${version}-${arch}.${ext}"
     }
   },
   "overrides": {

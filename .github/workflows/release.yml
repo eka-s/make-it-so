@@ -1,7 +1,7 @@
 name: Release
 
 # Builds the desktop app when a version tag is pushed and attaches it to a draft GitHub release (published by hand after a look).
-# macOS only: the Windows and Linux builds are not configured or tried yet. The app is not signed, so macOS asks to be told to open it.
+# None of the builds is signed: macOS asks to be told to open it, Windows shows SmartScreen. Only the macOS build has been run on a real machine.
 on:
   push:
     tags: ["v*"]
@@ -10,15 +10,15 @@ permissions:
   contents: write
 
 jobs:
-  macos:
-    runs-on: macos-latest
+  check:
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version-file: .tool-versions
           cache: npm
-      # A tag that does not match package.json would ship a file named for another version.
+      # A tag that does not match package.json would ship files named for another version.
       - name: Check the tag against package.json
         run: |
           version="$(node -p "require('./package.json').version")"
@@ -30,12 +30,51 @@ jobs:
       - run: npm run lint
       - run: npm run typecheck
       - run: npm test
-      # No signing identity exists, so keep electron-builder from looking for one (and from publishing: the release is made below).
+
+  build:
+    needs: check
+    strategy:
+      # One platform failing must not hide whether the others build.
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            flag: --mac
+            files: release/*.dmg
+          - os: windows-latest
+            flag: --win
+            files: release/*-setup.exe
+          - os: ubuntu-latest
+            flag: --linux
+            files: release/*.AppImage
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .tool-versions
+          cache: npm
+      - run: npm ci
       - run: npm run build
-      - run: npx electron-builder --publish never
+      # No signing identity exists, so keep electron-builder from looking for one (and from publishing: the release is made below).
+      - run: npx electron-builder ${{ matrix.flag }} --publish never
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: "false"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: app-${{ matrix.os }}
+          path: ${{ matrix.files }}
+          if-no-files-found: error
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: assets
+          merge-multiple: true
       - name: Create the draft release
-        run: gh release create "$GITHUB_REF_NAME" release/*.dmg --draft --generate-notes --title "$GITHUB_REF_NAME"
+        run: gh release create "$GITHUB_REF_NAME" assets/* --repo "$GITHUB_REPOSITORY" --draft --generate-notes --title "$GITHUB_REF_NAME"
         env:
           GH_TOKEN: ${{ github.token }}
