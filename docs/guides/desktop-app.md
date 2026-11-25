@@ -33,3 +33,7 @@ npm run dist   # release/Make-It-So-<version>-arm64.dmg
 ```
 
 The app is **not signed**, so macOS may warn when it is opened from a downloaded file. Signing and notarizing it needs a Developer ID certificate, which is not set up here. Only macOS (Apple silicon) has been built and run so far.
+
+## Releasing
+
+Pushing a tag that matches `version` in `package.json` (for example `v0.1.0`) runs the Release workflow: it checks, builds the dmg on macOS and attaches it to a **draft** GitHub release. Read the generated notes, then publish the draft by hand. Windows and Linux builds are not part of it yet.
