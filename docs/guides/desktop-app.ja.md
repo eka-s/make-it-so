@@ -36,4 +36,4 @@ npm run dist   # release/Make-It-So-<バージョン>-arm64.dmg
 
 ## リリースする
 
-`package.json` の `version` と一致するタグ(例: `v0.1.0`)を push すると、Release ワークフローが動きます。検査とビルドを macOS で行い、dmg を GitHub の**下書き**リリースに添付します。生成されたノートを確認して、手で公開してください。Windows と Linux のビルドは、まだ含まれていません。
+`package.json` の `version` と一致するタグ(例: `v0.1.0`)を push すると、Release ワークフローが動きます。検査のあと、macOS(dmg)、Windows(NSIS のインストーラー)、Linux(AppImage)でビルドして、3つとも GitHub の**下書き**リリースに添付します。生成されたノートを確認して、手で公開してください。どれも署名がなく、Windows と Linux のビルドは、まだ実機で動かしていません。
