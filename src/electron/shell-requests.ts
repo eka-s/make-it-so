@@ -1,7 +1,13 @@
+import { isLanguage, type Language } from "../server/language.js";
+import { isTheme, type Theme } from "../server/theme.js";
 import type { InMemoryFetch } from "./in-memory-fetch.js";
 
-/** The path the page asks the app itself on, instead of the ship: what only the window around the page can do. */
+/** The paths the page asks the app itself on, instead of the ship: what only the window around the page can do. */
 export const WINDOW_PATH = "/__shell/window";
+export const APPEARANCE_PATH = "/__shell/appearance";
+
+/** What the page is showing now, told to the app so that the menu can mark it. A page that has no crew to speak to (the settings) leaves `crewLanguage` out. */
+export type PageAppearance = { theme: Theme; language: Language; crewLanguage?: Language };
 
 /** What the page tells the window, in CSS pixels: how tall its header is, and how much room the header keeps at both ends together (for the window buttons). */
 export type PageReport = { height: number; room: number };
@@ -23,17 +29,40 @@ function parseReport(text: string): PageReport | null {
   }
 }
 
+function parseAppearance(text: string): PageAppearance | null {
+  try {
+    const { theme, language, crewLanguage } = (JSON.parse(text) ?? {}) as { theme?: unknown; language?: unknown; crewLanguage?: unknown };
+    if (!isTheme(theme) || !isLanguage(language)) return null;
+    if (crewLanguage === undefined) return { theme, language };
+    return isLanguage(crewLanguage) ? { theme, language, crewLanguage } : null;
+  } catch {
+    return null;
+  }
+}
+
+export type ShellHandlers = {
+  /** Fits the window to the report and gives back the page's zoom, which is the answer. */
+  onWindow: (report: PageReport) => { zoom: number };
+  onAppearance: (appearance: PageAppearance) => void;
+};
+
 /**
- * Answers the page's reports to the window itself and hands every other request to the ship. `onReport` fits the window to the report and gives back the
- * page's zoom, which is the answer. A report that is not understood is answered with 400, so a page that sends a wrong value is told rather than ignored.
+ * Answers the page's reports to the window itself and hands every other request to the ship. A report that is not understood is answered with 400,
+ * so a page that sends a wrong value is told rather than ignored.
  */
-export function withShellRequests(serve: InMemoryFetch, onReport: (report: PageReport) => { zoom: number }): InMemoryFetch {
+export function withShellRequests(serve: InMemoryFetch, handlers: ShellHandlers): InMemoryFetch {
   return async (request) => {
-    const url = new URL(request.url);
-    if (url.pathname !== WINDOW_PATH) return serve(request);
+    const { pathname } = new URL(request.url);
+    if (pathname !== WINDOW_PATH && pathname !== APPEARANCE_PATH) return serve(request);
     if (request.method !== "POST") return new Response(null, { status: 405 });
-    const report = parseReport(await request.text());
-    if (!report) return new Response("not a window report", { status: 400 });
-    return Response.json(onReport(report));
+    const text = await request.text();
+    if (pathname === WINDOW_PATH) {
+      const report = parseReport(text);
+      return report ? Response.json(handlers.onWindow(report)) : new Response("not a window report", { status: 400 });
+    }
+    const appearance = parseAppearance(text);
+    if (!appearance) return new Response("not an appearance report", { status: 400 });
+    handlers.onAppearance(appearance);
+    return new Response(null, { status: 204 });
   };
 }

@@ -113,7 +113,7 @@ make-it-so 本体の共通設定です。雛形は、リポジトリの [`config
 |---|---|---|---|
 | `language` | `en` \| `ja` | `en` | UIの言語。画面から変えた値は艦のDBに保存され、こちらより優先される |
 | `crew_language` | `en` \| `ja` | `language` と同じ | クルーが話す言語。画面から変えた値はDBに保存され、こちらより優先される |
-| `theme` | `classic` \| `light` \| `dark` | `classic` | 画面の既定の見た目。ブラウザのテーマ切替スイッチで選んだ値は、そのブラウザに保存され、こちらより優先される |
+| `theme` | `classic` \| `light` \| `dark` | `classic` | 画面の既定の見た目。左ペインの「設定」区画（デスクトップアプリでは表示メニュー）で選んだ値は、そのブラウザに保存され、こちらより優先される |
 | `acp.provider` | `kiro` \| `claude` | `claude` | `roster.yml` でプロバイダーを指定していないクルーに使う、既定のプロバイダー |
 | `acp.kiro.command` | 文字列 | `kiro-cli` | kiro の起動コマンド |
 | `acp.kiro.args` | 文字列の配列 | `["acp"]` | kiro の起動引数 |

@@ -14,9 +14,9 @@ import { withScript } from "./argv.js";
 import { createDesktopShipRuntime } from "./desktop-runtime.js";
 import { createInMemoryFetch } from "./in-memory-fetch.js";
 import { createLauncherHandler } from "./launcher-handler.js";
-import { launcherLanguage, settingsLabel } from "./launcher-page.js";
+import { launcherLanguage, menuText, settingsLabel } from "./launcher-page.js";
 import { removeShipLock, writeShipLock } from "../server/ship-lock.js";
-import { withShellRequests, type PageReport } from "./shell-requests.js";
+import { withShellRequests, type PageAppearance, type PageReport } from "./shell-requests.js";
 import { minimumWindowWidth, windowButtonsTop } from "./window-fit.js";
 import { runningInBrowser } from "./running-in-browser.js";
 import { chooseStartMode } from "./start-mode.js";
@@ -94,17 +94,12 @@ async function runShip(dir: string): Promise<void> {
     try {
       // Nothing else holds this ship now (the lock above), so what the last run left unfinished can be recorded as interrupted.
       await ship.recordInterrupted();
-      const serve = withShellRequests(createInMemoryFetch(ship.app), (report) => fitWindowToPage(window, report, SHIP_MIN_WIDTH));
-
       await app.whenReady();
+      const serve = withShellRequests(createInMemoryFetch(ship.app), {
+        onWindow: (report) => fitWindowToPage(window, report, SHIP_MIN_WIDTH),
+        onAppearance: installMenu(() => window, { onSettings: openSettings, crew: true }),
+      });
       protocol.handle(SCHEME, (request) => serve(request));
-      const language = launcherLanguage(app.getLocale());
-      Menu.setApplicationMenu(Menu.buildFromTemplate(buildMenuTemplate({
-        platform: process.platform,
-        appName: app.name,
-        settingsLabel: `${settingsLabel(language)}…`,
-        onSettings: openSettings,
-      })));
 
       window = createWindow(`${SCHEME}://ship/`, { width: 1280, height: 860 }, { pageIsTitleBar: true, minWidth: SHIP_MIN_WIDTH });
       window.on("closed", () => { window = null; });
@@ -141,14 +136,15 @@ async function runSettings(dir: string): Promise<void> {
   if (!holdInstance("settings", () => window)) return;
   restrictToOwner(dir);
   const runtime = createDesktopShipRuntime({ dir, openShip, kill: (pid, signal) => process.kill(pid, signal) });
+  await app.whenReady();
   const serve = withShellRequests(
     createInMemoryFetch(createSettingsApp({ dir, clientDir: path.join(here, "..", "client"), runtime, desktop: true })),
-    (report) => fitWindowToPage(window, report, SETTINGS_MIN_WIDTH),
+    {
+      onWindow: (report) => fitWindowToPage(window, report, SETTINGS_MIN_WIDTH),
+      onAppearance: installMenu(() => window, {}),
+    },
   );
-
-  await app.whenReady();
   protocol.handle(SCHEME, (request) => serve(request));
-  Menu.setApplicationMenu(Menu.buildFromTemplate(buildMenuTemplate({ platform: process.platform, appName: app.name, settingsLabel: "" })));
   window = createWindow(`${SCHEME}://settings/`, { width: 1100, height: 820 }, { pageIsTitleBar: true, minWidth: SETTINGS_MIN_WIDTH });
   window.on("closed", () => { window = null; });
   app.on("window-all-closed", () => app.quit());
@@ -172,8 +168,9 @@ async function runLauncher(dir: string): Promise<void> {
   app.on("window-all-closed", () => app.quit());
 }
 
-// Narrower than this (in CSS pixels, at no zoom) the header (title, buttons, language, and the room kept at both ends) no longer fits on its one line.
-const SHIP_MIN_WIDTH = 960;
+// Narrower than this (in CSS pixels, at no zoom) the header (the button for the left pane, the title, the buttons, and the room kept at both ends) no longer
+// fits on its one line. The page's layout (layout-mode.ts) has the left pane as a drawer and the message box as a phone's well below this width.
+const SHIP_MIN_WIDTH = 375;
 const SETTINGS_MIN_WIDTH = 800;
 
 /**
@@ -209,6 +206,47 @@ function openShip(id: string): void {
   spawnSelf([`--ship=${id}`]);
 }
 
+/**
+ * Sets the menu and gives back what to call when the page says what it shows (the View menu marks it). The page keeps its theme and its language
+ * (it is where they are kept and drawn), so a choice in the menu is sent to the page, which reports back what it now shows. This and `/__shell/*` are the
+ * only ways between the app and the page. `crew`: the page has a crew, whose language the menu chooses too.
+ */
+function installMenu(window: () => BrowserWindow | null, options: { onSettings?: () => void; crew?: boolean }): (appearance: PageAppearance) => void {
+  const systemLanguage = launcherLanguage(app.getLocale());
+  let current: PageAppearance | null = null;
+  const tellPage = (change: Partial<PageAppearance>) => {
+    const page = window();
+    if (!page || page.isDestroyed()) return;
+    // The change is made of values from a fixed list (the menu's own items), so it is written into the script as it is.
+    page.webContents.executeJavaScript(`window.dispatchEvent(new CustomEvent("makeitso:appearance", { detail: ${JSON.stringify(change)} }))`)
+      .catch((error: unknown) => logger.warn("[make-it-so] Could not tell the page:", error));
+  };
+  const build = () => {
+    // The words follow the language the page shows, once it has said (the system's until then).
+    const language = current?.language ?? systemLanguage;
+    Menu.setApplicationMenu(Menu.buildFromTemplate(buildMenuTemplate({
+      platform: process.platform,
+      appName: app.name,
+      settingsLabel: options.onSettings ? `${settingsLabel(language)}…` : "",
+      onSettings: options.onSettings,
+      appearance: {
+        current,
+        text: menuText(language),
+        // Choosing a radio marks it at once, but only the page knows whether the choice was taken (a language is saved on the server and can fail): the marks are
+        // drawn again from what the page showed last, and from what it reports next.
+        onTheme: (theme) => { tellPage({ theme }); setImmediate(build); },
+        onLanguage: (next) => { tellPage({ language: next }); setImmediate(build); },
+        onCrewLanguage: options.crew ? (next) => { tellPage({ crewLanguage: next }); setImmediate(build); } : undefined,
+      },
+    })));
+  };
+  build();
+  return (appearance) => {
+    current = appearance;
+    build();
+  };
+}
+
 function openSettings(): void {
   spawnSelf(["--settings"]);
 }
@@ -216,6 +254,8 @@ function openSettings(): void {
 function createWindow(url: string, size: { width: number; height: number }, options: { pageIsTitleBar?: boolean; minWidth?: number } = {}): BrowserWindow {
   const window = new BrowserWindow({
     ...size,
+    // The sizes are those of the page, not of the frame around it (which is not the same on every system): the page's own width is what the minimum is about.
+    useContentSize: true,
     // The minimum is changed with the page's zoom (fitWindowToPage); this is the one before the page has said anything.
     ...(options.minWidth ? { minWidth: options.minWidth } : {}),
     // On macOS the page's own header is the title bar (desktop-shell.css leaves room for the window buttons, which are put at the middle of its height).

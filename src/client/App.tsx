@@ -2,6 +2,7 @@ import { useState, useEffect, useLayoutEffect, useRef, useCallback, useReducer, 
 import { MessageList } from "./MessageList";
 import { ChatInput } from "./ChatInput";
 import { MissionPanel } from "./MissionPanel";
+import { HamburgerIcon } from "./HamburgerIcon";
 import { LeftColumn } from "./LeftColumn";
 import { CollapsibleSection } from "./CollapsibleSection";
 import { CrewStatusPanel } from "./CrewStatusPanel";
@@ -14,14 +15,17 @@ import { animateScrollTo, scrollTopToReveal } from "./smooth-scroll";
 import { PinSidebar } from "./PinSidebar";
 import { TaskReportPopup } from "./TaskReportPopup";
 import { PermissionTray } from "./PermissionTray";
-import { LanguageMenu, LanguageNotice } from "./LanguageSwitch";
+import { LanguageNotice } from "./LanguageSwitch";
+import { LANGUAGE_OPTIONS } from "./i18n/languages";
+import { RadioGroup } from "./RadioGroup";
 import { useSSE } from "./useSSE";
 import { useCrewStatus } from "./useCrewStatus";
 import type { SearchHit } from "./types";
 import { consumeOnce, effectiveTarget, pruneTargets, selectTarget, type TargetState } from "./target-state";
-import { useTheme } from "./use-theme";
+import { THEME_ORDER, useTheme } from "./use-theme";
+import { useLeftPane } from "./use-left-pane";
+import { useShellAppearance } from "./use-shell-appearance";
 import { useShellWindow } from "./use-shell-window";
-import { ThemeMenu } from "./ThemeMenu";
 import { usePendingAttention } from "./usePendingAttention";
 import { countByMission, countByRole, permissionsOfMission } from "./permission-summary";
 import { usePermissions } from "./usePermissions";
@@ -45,17 +49,20 @@ import "./App.css";
 import { useI18n } from "./i18n/I18nProvider";
 
 export function App() {
-  const { t, tError } = useI18n();
+  const { t, tError, language, setLanguage, crewLanguage, setCrewLanguage } = useI18n();
   const { theme, setTheme } = useTheme();
   const headerRef = useRef<HTMLElement>(null);
   useShellWindow(headerRef);
+  useShellAppearance(theme, setTheme, { crew: true });
   // Open/closed state of the collapsible sections of the left pane (crew status/pins). Unlike missions,
   // they are not mutually exclusive (both can be kept open at the same time).
   const [isCrewOpen, setIsCrewOpen] = useState(true);
   const [isAccountsOpen, setIsAccountsOpen] = useState(true);
   const [isPinOpen, setIsPinOpen] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(true);
   const [crewHeight, setCrewHeight] = useState<number | null>(() => loadStoredNumber("left-section-height-crew"));
   const [accountsHeight, setAccountsHeight] = useState<number | null>(() => loadStoredNumber("left-section-height-accounts"));
+  const [settingsHeight, setSettingsHeight] = useState<number | null>(() => loadStoredNumber("left-section-height-settings"));
   const [pinHeight, setPinHeight] = useState<number | null>(() => loadStoredNumber("left-section-height-pin"));
 
   const handleResizeCrew = useCallback((height: number) => {
@@ -66,6 +73,11 @@ export function App() {
   const handleResizeAccounts = useCallback((height: number) => {
     setAccountsHeight(height);
     persistNumber("left-section-height-accounts", height);
+  }, []);
+
+  const handleResizeSettings = useCallback((height: number) => {
+    setSettingsHeight(height);
+    persistNumber("left-section-height-settings", height);
   }, []);
 
   const handleResizePin = useCallback((height: number) => {
@@ -155,6 +167,7 @@ export function App() {
   const topContainerRef = useRef<HTMLDivElement>(null);
   const chatAreaRef = useRef<HTMLElement>(null);
   const [splitEnabled, setSplitEnabled] = useState(loadStoredSplitEnabled);
+  const leftPane = useLeftPane();
   const [splitRatio, setSplitRatio] = useState(() => clampSplitRatio(loadStoredNumber("chat-split-ratio") ?? DEFAULT_SPLIT_RATIO));
   const [isSplitDragging, setIsSplitDragging] = useState(false);
   // The top pane starts at its bottom (the latest history) when the split is turned on or the mission changes.
@@ -466,7 +479,7 @@ export function App() {
   // The ship name is also reflected in the browser tab title — so that when several ships are open
   // in different tabs, you can tell which one you are looking at from the tab alone.
   // While there are pending approvals, it tells the user through the title and icon (so that it is noticed even while looking at another tab).
-  usePendingAttention(shipName ? `Make-It-So Bridge Console — ${shipName}` : "Make-It-So Bridge Console", pendingList.length);
+  usePendingAttention(shipName ? `Make-It-So — ${shipName}` : "Make-It-So", pendingList.length);
 
   // Loads older messages (before the oldest one currently shown).
   // scrollRestorationRef holds the data needed to restore the scroll position after the DOM update
@@ -860,18 +873,18 @@ export function App() {
   return (
     <div className="app">
       <header className="app-header" ref={headerRef}>
-        <h1>
-          Make-It-So
-          <span className="app-title-sub">Bridge Console</span>
-        </h1>
-        <button className="app-search-btn" onClick={() => setSearchOpen(true)} title={t("search.open")} aria-label={t("search.open")}>
+        <button ref={leftPane.toggleRef} className="app-header-btn app-pane-toggle" onClick={leftPane.toggle} aria-expanded={leftPane.shown} aria-controls="left-pane" title={t("app.leftPane.toggle")} aria-label={t("app.leftPane.toggle")}>
+          <HamburgerIcon short />
+        </button>
+        <h1>Make-It-So</h1>
+        <button className="app-header-btn" onClick={() => setSearchOpen(true)} title={t("search.open")} aria-label={t("search.open")}>
           <svg className="app-icon" viewBox="0 0 16 16" aria-hidden="true">
             <circle cx="6.5" cy="6.5" r="4.5" />
             <line x1="10" y1="10" x2="14.5" y2="14.5" />
           </svg>
         </button>
         <button
-          className={`app-split-btn ${splitEnabled ? "app-split-btn--on" : ""}`}
+          className={`app-header-btn ${splitEnabled ? "app-header-btn--on" : ""}`}
           onClick={toggleSplit}
           aria-pressed={splitEnabled}
           title={t("app.split")}
@@ -882,42 +895,46 @@ export function App() {
             <line x1="2" y1="8" x2="14" y2="8" />
           </svg>
         </button>
-        <ThemeMenu theme={theme} onSelect={setTheme} />
-        <LanguageMenu />
         {shipName && <span className="app-ship-name">{shipName}</span>}
       </header>
       <LanguageNotice />
       {!sseConnected && <div className="connection-notice" role="status">{t("app.disconnected")}</div>}
 
       <div className="app-body">
+        {leftPane.drawerShown && <div className="left-column-backdrop" onMouseDown={leftPane.closeDrawer} />}
         {/*
-           The left pane is a permanent, single resizable column. Missions/crew
-                       status/pins all line up inside it as collapsible sections (CollapsibleSection)
-                       — a mission normally shows only the current mission name in the heading,
-                       and opening with ▼ allows listing, switching, and creating.
+           The left pane is a single column, resizable by dragging, that can be hidden (and in a narrow window is a drawer over the conversation, see use-left-pane.ts).
+           Missions, crew status, pins, accounts and the settings all line up inside it as collapsible sections (CollapsibleSection)
+           — a mission normally shows only the current mission name in the heading, and opening with ▼ allows listing, switching, and creating.
            */}
-        <LeftColumn>
+        <LeftColumn hidden={!leftPane.shown} drawer={leftPane.drawer}>
           <MissionPanel
             missions={missions}
             activeMissionId={activeMissionId}
-            onSelect={handleSelectMission}
+            onSelect={(missionId) => { handleSelectMission(missionId); leftPane.closeDrawer(); }}
             onCreate={handleCreateMission}
             onArchive={handleArchiveMission}
             pendingByMission={pendingByMission}
             flash={missionFlash}
           />
-          <CollapsibleSection title={t("app.crewStatus")} badge={pendingInMission.length} isOpen={isCrewOpen} onToggle={() => setIsCrewOpen((v) => !v)} height={crewHeight} onResize={handleResizeCrew}>
-            <CrewStatusPanel crewGroups={crewGroups} onCrewChanged={() => void loadCrewConfig()} crewConfig={crewConfig} onJump={(taskId, timestamp) => void jumpToMessage({ messageId: taskId, timestamp: timestamp ?? new Date().toISOString() })} onOpenResult={openResult} activitySignal={crewActivitySignal} missionId={activeMissionId} pendingByRole={pendingByRole} />
+          <CollapsibleSection title={t("app.crewStatus")} tone="lilac" badge={pendingInMission.length} isOpen={isCrewOpen} onToggle={() => setIsCrewOpen((v) => !v)} height={crewHeight} onResize={handleResizeCrew}>
+            <CrewStatusPanel crewGroups={crewGroups} onCrewChanged={() => void loadCrewConfig()} crewConfig={crewConfig} onJump={(taskId, timestamp) => { void jumpToMessage({ messageId: taskId, timestamp: timestamp ?? new Date().toISOString() }); leftPane.closeDrawer(); }} onOpenResult={openResult} activitySignal={crewActivitySignal} missionId={activeMissionId} pendingByRole={pendingByRole} />
           </CollapsibleSection>
-          <CollapsibleSection title={t("app.pins")} isOpen={isPinOpen} onToggle={() => setIsPinOpen((v) => !v)} height={pinHeight} onResize={handleResizePin}>
-            <PinSidebar pinnedMessages={pinnedMessages} onJump={jumpToPin} onOpenPopup={openPinPopup} />
+          <CollapsibleSection title={t("app.pins")} tone="periwinkle" isOpen={isPinOpen} onToggle={() => setIsPinOpen((v) => !v)} height={pinHeight} onResize={handleResizePin}>
+            <PinSidebar pinnedMessages={pinnedMessages} onJump={(...args) => { jumpToPin(...args); leftPane.closeDrawer(); }} onOpenPopup={openPinPopup} />
           </CollapsibleSection>
           <CollapsibleSection title={t("app.accounts")} isOpen={isAccountsOpen} onToggle={() => setIsAccountsOpen((v) => !v)} height={accountsHeight} onResize={handleResizeAccounts}>
             <AccountsPanel snapshot={accounts} onRefresh={handleRefreshCredits} />
           </CollapsibleSection>
+          <CollapsibleSection title={t("app.settings")} tone="lilac" isOpen={isSettingsOpen} onToggle={() => setIsSettingsOpen((v) => !v)} height={settingsHeight} onResize={handleResizeSettings}>
+            <RadioGroup label={t("theme.menu.title")} options={THEME_ORDER.map((code) => ({ value: code, label: t(`theme.${code}`) }))} value={theme} onChange={setTheme} />
+            <RadioGroup label={t("language.switch.label")} options={LANGUAGE_OPTIONS} value={language} onChange={(next) => void setLanguage(next)} />
+            <RadioGroup label={t("language.switch.crew.label")} options={LANGUAGE_OPTIONS} value={crewLanguage} onChange={(next) => void setCrewLanguage(next)} />
+          </CollapsibleSection>
         </LeftColumn>
 
-        <div className="app-main">
+        {/* While the drawer is over it, the conversation is inert: it takes no keys or clicks (the Tab key would otherwise go to buttons nobody can see). `inert` is not in React 18's attributes. */}
+        <div className="app-main" {...(leftPane.drawerShown ? { inert: "" } : {})}>
           <main className="chat-container" ref={chatAreaRef}>
             {splitEnabled && (
               <>

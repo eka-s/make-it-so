@@ -101,7 +101,7 @@ export const ChatTargetBar = forwardRef<ChatTargetBarHandle, ChatTargetBarProps>
       if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) setMenuOpen(false);
     };
     const onKey = (e: globalThis.KeyboardEvent) => {
-      if (e.key === "Escape") setMenuOpen(false);
+      if (e.key === "Escape") { e.preventDefault(); setMenuOpen(false); }
     };
     document.addEventListener("mousedown", onOutside);
     document.addEventListener("keydown", onKey);

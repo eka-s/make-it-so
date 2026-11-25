@@ -11,6 +11,13 @@ const TEXT = {
     settings: "Settings",
     broken: "Cannot be opened",
     opening: "Opening…",
+    view: "View",
+    theme: "Theme",
+    language: "Language",
+    crewLanguage: "Crew language",
+    classic: "Classic",
+    light: "Light",
+    dark: "Dark",
   },
   ja: LAUNCHER_TEXT_JA,
 } as const;
@@ -18,6 +25,19 @@ const TEXT = {
 /** The word for the settings, also used by the app menu. */
 export function settingsLabel(language: LauncherLanguage): string {
   return TEXT[language].settings;
+}
+
+/** The words of the app menu's appearance items. A language is named in its own language, whichever one the menu is in. */
+export function menuText(language: LauncherLanguage) {
+  const text = TEXT[language];
+  return {
+    view: text.view,
+    theme: text.theme,
+    themes: { classic: text.classic, light: text.light, dark: text.dark },
+    language: text.language,
+    crewLanguage: text.crewLanguage,
+    languages: { en: "English", ja: LAUNCHER_TEXT_JA.japanese },
+  };
 }
 
 /** The language of the page: Japanese for a Japanese system, English otherwise. */

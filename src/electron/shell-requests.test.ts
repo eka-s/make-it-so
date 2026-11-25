@@ -1,10 +1,11 @@
 import { describe, expect, it, vi } from "vitest";
-import { WINDOW_PATH, withShellRequests } from "./shell-requests.js";
+import { APPEARANCE_PATH, WINDOW_PATH, withShellRequests } from "./shell-requests.js";
 
 function setup() {
   const serve = vi.fn(async () => new Response("from the ship", { status: 200 }));
   const onReport = vi.fn(() => ({ zoom: 1.5 }));
-  return { serve, onReport, handle: withShellRequests(serve, onReport) };
+  const onAppearance = vi.fn();
+  return { serve, onReport, onAppearance, handle: withShellRequests(serve, { onWindow: onReport, onAppearance }) };
 }
 const post = (body: string, path = WINDOW_PATH) => new Request(`app://ship${path}`, { method: "POST", body });
 
@@ -47,5 +48,32 @@ describe("the page's reports to the window", () => {
     const res = await handle(new Request("app://ship/api/config"));
     expect(await res.text()).toBe("from the ship");
     expect(serve).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("the page's report of its appearance", () => {
+  it("takes the theme and the language for the menu, without bothering the ship", async () => {
+    const { handle, serve, onAppearance } = setup();
+    const res = await handle(post(JSON.stringify({ theme: "dark", language: "ja" }), APPEARANCE_PATH));
+    expect(res.status).toBe(204);
+    expect(onAppearance).toHaveBeenCalledWith({ theme: "dark", language: "ja" });
+    expect(serve).not.toHaveBeenCalled();
+  });
+
+  it("refuses a theme or a language that does not exist, and anything but POST", async () => {
+    const { handle, onAppearance } = setup();
+    const bad = ["", "null", "5", "[]", "not json", "{}", JSON.stringify({ theme: "neon", language: "ja" }), JSON.stringify({ theme: "dark", language: "fr" }), JSON.stringify({ theme: "dark" }),
+      JSON.stringify({ theme: "dark", language: "ja", crewLanguage: "fr" })];
+    for (const body of bad) {
+      expect((await handle(post(body, APPEARANCE_PATH))).status).toBe(400);
+    }
+    expect((await handle(new Request(`app://ship${APPEARANCE_PATH}`))).status).toBe(405);
+    expect(onAppearance).not.toHaveBeenCalled();
+  });
+
+  it("takes the language of the crew when the page has one", async () => {
+    const { handle, onAppearance } = setup();
+    expect((await handle(post(JSON.stringify({ theme: "light", language: "en", crewLanguage: "ja" }), APPEARANCE_PATH))).status).toBe(204);
+    expect(onAppearance).toHaveBeenCalledWith({ theme: "light", language: "en", crewLanguage: "ja" });
   });
 });

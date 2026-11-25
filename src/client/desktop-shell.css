@@ -6,7 +6,13 @@
      kept for them is divided by it to stay the same size on the screen. */
   --shell-zoom: 1;
   /* Room the window buttons take at the left of the header. */
-  --window-buttons-width: calc(88px / var(--shell-zoom));
+  --window-buttons-base: calc(88px / var(--shell-zoom));
+  --window-buttons-width: var(--window-buttons-base);
+  /* Light and dark keep the button that shows or hides the left pane after the window buttons: a gap, then room as wide as the button and the gap after it. */
+  --pane-toggle-gap: calc(4px / var(--shell-zoom));
+  --pane-toggle-room: calc(52px / var(--shell-zoom));
+  /* What is kept at the right end of a narrow header on macOS, which has no window buttons there. */
+  --header-margin-narrow: calc(24px / var(--shell-zoom));
   /* Classic: the orange block the window buttons sit on ends here, a little before the title. */
   --window-buttons-block: calc(var(--window-buttons-width) - 12px / var(--shell-zoom));
   /* The same at the right end, mirrored: the room Windows takes there for its own window buttons (minimize, maximize and close are 46px each: 138px, and a
@@ -91,4 +97,28 @@
 
 :root[data-shell="desktop-mac"]:is([data-theme="light"], [data-theme="dark"]) :is(.app-header, .settings-header) h1 {
   padding-left: 0;
+}
+
+/* Light and dark: the header's contents are centered, and the button that shows or hides the left pane is kept out of them, at the left end after the
+   window buttons (their room is widened by the button's). */
+:root[data-shell="desktop-mac"]:is([data-theme="light"], [data-theme="dark"]) .app-header {
+  --window-buttons-width: calc(var(--window-buttons-base) + var(--pane-toggle-room));
+}
+
+:root[data-shell="desktop-mac"]:is([data-theme="light"], [data-theme="dark"]) .app-pane-toggle {
+  position: absolute;
+  left: calc(var(--window-buttons-base) + var(--pane-toggle-gap));
+  top: 50%;
+  margin: 0;
+  transform: translateY(-50%);
+}
+
+/* A narrow window (a phone's width, see layout-mode.ts): the room at the right end, kept for the window buttons Windows draws there, is almost all that is left of the
+   header. The macOS window has nothing at the right, so only a margin is kept. */
+:root[data-shell="desktop-mac"][data-compact] {
+  --window-buttons-width-right: var(--header-margin-narrow);
+}
+
+:root[data-shell="desktop-mac"][data-compact]:is([data-theme="light"], [data-theme="dark"]) :is(.app-header, .settings-header) {
+  padding-inline-end: var(--header-margin-narrow);
 }

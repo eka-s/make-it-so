@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef, useEffect, useMemo } from "react";
 import type { KeyboardEvent, DragEvent, ChangeEvent } from "react";
-import { QuickActionsMenu } from "./QuickActionsMenu";
+import { QuickActionsDialog, QuickActionsMenu } from "./QuickActionsMenu";
 import { CaptainHistoryMenu, type CaptainHistoryItem } from "./CaptainHistoryMenu";
 import { caretOnFirstRow } from "./caret-row";
 import { api } from "./server-api";
@@ -10,6 +10,7 @@ import { completeSlash, filterSlashCommands, slashMenuMode, slashQuery } from ".
 import type { CrewMemberConfig, SlashCommand } from "./types";
 import "./SlashCommandMenu.css";
 import { useT } from "./i18n/I18nProvider";
+import { COMPACT_WIDTH, useNarrowWindow } from "./layout-mode";
 
 type ChatInputProps = {
   onSend: (text: string) => void;
@@ -40,6 +41,8 @@ type FileWithPath = File & { path?: string };
 
 export function ChatInput({ onSend, onReport, disabled, waitingForUi = false, missionId, crewConfig, baseTarget, onceTarget, onSelectTarget, onCancelOnce, commands, commandsLive }: ChatInputProps) {
   const t = useT();
+  const compact = useNarrowWindow(COMPACT_WIDTH);
+  const [editingQuickActions, setEditingQuickActions] = useState(false);
   const [text, setText] = useState("");
   const [dragOver, setDragOver] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -312,6 +315,73 @@ export function ChatInput({ onSend, onReport, disabled, waitingForUi = false, mi
   const sendTarget = onceTarget ?? baseTarget;
   const targetName = crewConfig?.[sendTarget]?.name ?? sendTarget;
 
+  const sendButton = (
+    <button
+      className="chat-input-send"
+      onClick={handleSend}
+      disabled={disabled || !text.trim()}
+      aria-label={t("chat.send.aria")}
+    >
+      {waitingForUi ? "🔒" : disabled ? "⏳" : "▶"}
+    </button>
+  );
+  // `underMenu`: the buttons in the compact row, some of which are covered by the menu and send buttons. They are for the pointer only: the same buttons are in the menu,
+  // which is where the keyboard and screen readers go (a button nobody can see must not take the focus).
+  const actionButtons = (underMenu: boolean) => {
+    const keyboard = underMenu ? ({ tabIndex: -1, "aria-hidden": true } as const) : {};
+    return (
+      <>
+        <button
+          className="chat-input-btn chat-input-btn--makeitso"
+          onClick={handleMakeItSo}
+          disabled={disabled}
+          aria-label={t("chat.makeItSo.aria")}
+          title={t("chat.makeItSo")}
+          {...keyboard}
+        >
+          {t("chat.makeItSo")}
+        </button>
+        <button
+          className="chat-input-btn chat-input-btn--engage"
+          onClick={handleEngage}
+          disabled={disabled}
+          aria-label={t("chat.engage.aria")}
+          title={t("chat.engage")}
+          {...keyboard}
+        >
+          {t("chat.engage")}
+        </button>
+        <button
+          className="chat-input-btn chat-input-btn--report"
+          onClick={onReport}
+          disabled={disabled}
+          aria-label={t("chat.report.aria")}
+          title={t("chat.report")}
+          {...keyboard}
+        >
+          {t("chat.report")}
+        </button>
+      </>
+    );
+  };
+  const quickMenu = (
+    <QuickActionsMenu
+      onSend={onSend}
+      onFill={(value) => {
+        setText(value);
+        setCursor(value.length);
+        requestAnimationFrame(() => {
+          textareaRef.current?.focus();
+          textareaRef.current?.setSelectionRange(value.length, value.length);
+        });
+      }}
+      disabled={disabled}
+      leading={compact ? actionButtons(false) : undefined}
+      hamburger={compact}
+      onOpenSettings={() => setEditingQuickActions(true)}
+    />
+  );
+
   return (
     <div className={`chat-input${waitingForUi ? " chat-input--locked" : ""}`}>
       {waitingForUi && <div className="chat-input-lock-note" role="status">🔒 {t("chat.input.lockedNote")}</div>}
@@ -327,8 +397,8 @@ export function ChatInput({ onSend, onReport, disabled, waitingForUi = false, mi
         disabled={disabled}
         onPickDone={() => textareaRef.current?.focus()}
       />
-      {/* Lower row: the textarea, the send button, and the column of buttons (Make it so, Engage!, Report, Menu). */}
-      <div className="chat-input-row">
+      {/* Lower row: the textarea, the send button, and the column of buttons (Make it so, Engage!, Report, Menu). In a phone's width the buttons are under the textarea instead. */}
+      <div className={`chat-input-row${compact ? " chat-input-row--compact" : ""}`}>
       <div className="chat-input-field-wrapper">
         <textarea
           ref={textareaRef}
@@ -377,56 +447,28 @@ export function ChatInput({ onSend, onReport, disabled, waitingForUi = false, mi
           </div>
         )}
       </div>
-      <button
-        className="chat-input-send"
-        onClick={handleSend}
-        disabled={disabled || !text.trim()}
-        aria-label={t("chat.send.aria")}
-      >
-        {waitingForUi ? "🔒" : disabled ? "⏳" : "▶"}
-      </button>
-      <div className="chat-input-buttons">
-        <button
-          className="chat-input-btn chat-input-btn--makeitso"
-          onClick={handleMakeItSo}
-          disabled={disabled}
-          aria-label={t("chat.makeItSo.aria")}
-          title={t("chat.makeItSo")}
-        >
-          {t("chat.makeItSo")}
-        </button>
-        <button
-          className="chat-input-btn chat-input-btn--engage"
-          onClick={handleEngage}
-          disabled={disabled}
-          aria-label={t("chat.engage.aria")}
-          title={t("chat.engage")}
-        >
-          {t("chat.engage")}
-        </button>
-        <button
-          className="chat-input-btn chat-input-btn--report"
-          onClick={onReport}
-          disabled={disabled}
-          aria-label={t("chat.report.aria")}
-          title={t("chat.report")}
-        >
-          {t("chat.report")}
-        </button>
-        <QuickActionsMenu
-          onSend={onSend}
-          onFill={(value) => {
-            setText(value);
-            setCursor(value.length);
-            requestAnimationFrame(() => {
-              textareaRef.current?.focus();
-              textareaRef.current?.setSelectionRange(value.length, value.length);
-            });
-          }}
-          disabled={disabled}
-        />
+      {compact ? (
+        // A phone: the message box takes the whole width, and under it are the buttons: the actions from the left (those that do not fit are hidden, and are
+        // in the menu), the menu, and the send button at the right end.
+        <div className="chat-input-compact-bar">
+          <div className="chat-input-compact-actions">{actionButtons(true)}</div>
+          <div className="chat-input-compact-end">
+            {quickMenu}
+            {sendButton}
+          </div>
+        </div>
+      ) : (
+        <>
+          {sendButton}
+          <div className="chat-input-buttons">
+            {actionButtons(false)}
+            {quickMenu}
+          </div>
+        </>
+      )}
       </div>
-      </div>
+      {/* Here and not in the menu: the menu is drawn again when the layout changes, and what is typed in the editor must stay. */}
+      {editingQuickActions && <QuickActionsDialog onClose={() => setEditingQuickActions(false)} />}
     </div>
   );
 }

@@ -13,6 +13,8 @@ import {
   persistNumber,
   loadStoredSplitEnabled,
   persistSplitEnabled,
+  loadStoredLeftPaneOpen,
+  persistLeftPaneOpen,
 } from "./preferences";
 
 // A fake localStorage (to run outside a browser).
@@ -132,5 +134,20 @@ describe("whether the conversation is split", () => {
   it("is off when localStorage is unavailable", () => {
     stubStorage({ getItem: () => { throw new Error("blocked"); } });
     expect(loadStoredSplitEnabled()).toBe(false);
+  });
+});
+
+describe("whether the left pane is shown", () => {
+  it("is shown until it is hidden, and remembers the choice", () => {
+    expect(loadStoredLeftPaneOpen()).toBe(true);
+    persistLeftPaneOpen(false);
+    expect(loadStoredLeftPaneOpen()).toBe(false);
+    persistLeftPaneOpen(true);
+    expect(loadStoredLeftPaneOpen()).toBe(true);
+  });
+
+  it("is shown when localStorage is unavailable", () => {
+    stubStorage({ getItem: () => { throw new Error("blocked"); } });
+    expect(loadStoredLeftPaneOpen()).toBe(true);
   });
 });

@@ -121,7 +121,7 @@ Main operations on the screen:
 | Search conversations | The magnifier in the header, or `Ctrl+Shift+F` |
 | Reuse an earlier message | `↑` on the first row of the input box (pick from your last 20 messages in the mission; Enter or click to use, Esc to cancel) |
 | Custom menu (your favorite messages and slash commands) | The "Menu" button beside the input box ("Settings…" at the bottom of the list edits it for this ship) |
-| Switch the language | The language label in the header, such as `EN / 日本語` (the UI language, then the crew language; click to change) |
+| Switch the theme or the language | The "Settings" section at the bottom of the left pane (radio buttons for the theme, the UI language and the crew language), or the View menu in the desktop app |
 | Slash commands | `/` at the start of the input box (the commands the current conversation target can run appear as candidates) |
 | A crew member's personnel record | Click a crew member's icon in the left pane (change the icon image or model, restart, view the persona) |
 | Pin a message | 📌 on the message |

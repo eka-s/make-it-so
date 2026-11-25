@@ -9,11 +9,13 @@ body {
   background: var(--bg);
   color: var(--text);
   height: 100vh;
+  height: 100dvh;
   overflow: hidden;
 }
 
 #root {
   height: 100vh;
+  height: 100dvh;
   display: flex;
   flex-direction: column;
 }
@@ -25,6 +27,7 @@ body {
   display: flex;
   flex-direction: column;
   height: 100vh;
+  height: 100dvh;
   padding-left: calc(var(--frame-spine) + var(--frame-gap));
   background: var(--bg);
 }
@@ -47,7 +50,8 @@ body {
   );
 }
 
-.app-search-btn {
+/* The quiet buttons of the header (search, split, show or hide the left pane). */
+.app-header-btn {
   padding: 4px 12px;
   border: 1px solid var(--border);
   border-radius: var(--radius-pill);
@@ -59,13 +63,19 @@ body {
   z-index: 1;
 }
 
-.app-search-btn:hover {
+.app-header-btn:hover {
   border-color: var(--lc-periwinkle);
   background: var(--hover);
 }
 
+.app-header-btn--on {
+  border-color: var(--lc-periwinkle);
+}
+
 .app-header {
   position: relative;
+  /* Over the left pane's drawer (z-index 20): the concave corner of the frame, which hangs below the header, is part of the header. */
+  z-index: 25;
   display: flex;
   align-items: center;
   /* Nothing in the header wraps: in a narrow window the title would turn into two lines inside a bar that is one line high. The ship name below gives way first. */
@@ -111,25 +121,19 @@ body {
   z-index: 1;
 }
 
-/* In a narrow browser window the title's second part gives way, so the controls stay on the screen (the desktop app's window is never this narrow in
-   CSS pixels: its minimum width keeps the whole header). */
-@media (max-width: 700px) {
-  .app-title-sub {
-    display: none;
-  }
-}
-
 .app-header h1 {
-  flex-shrink: 0;
+  /* In a narrow window the ship name gives way first (it shrinks ten times as fast), and then the title is cut short with an ellipsis. */
+  flex-shrink: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-family: var(--font-display);
   font-size: 1.7rem;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.1em;
   color: var(--lc-amber);
-  display: flex;
-  align-items: center;
-  gap: 12px;
   padding-bottom: var(--frame-strip);
 }
 
@@ -140,16 +144,10 @@ body {
   }
 }
 
-/* A badge to tell which ship you are looking at when several ships are open in different tabs */
-.app-title-sub {
-  font-size: 1.2rem;
-  font-weight: 400;
-  color: var(--lc-peach);
-}
-
 /* The ship name at the right end of the header: same size as the title, in a different color, so you can tell
    which ship a tab belongs to when several ships are open */
 .app-ship-name {
+  flex-shrink: 10;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -176,6 +174,7 @@ body {
  *    so that more can be added to the left pane — .app-main fills the rest with flex:1.
  */
 .app-body {
+  position: relative; /* the left pane is a drawer over it in a narrow window */
   flex: 1;
   display: flex;
   overflow: hidden;
@@ -1583,27 +1582,6 @@ body {
 }
 
 /* The top/bottom split of the conversation */
-.app-split-btn {
-  padding: 4px 12px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-pill);
-  background: var(--surface-3);
-  color: var(--text);
-  font-size: 0.95rem;
-  line-height: 1;
-  cursor: pointer;
-  z-index: 1;
-}
-
-.app-split-btn:hover {
-  border-color: var(--lc-periwinkle);
-  background: var(--hover);
-}
-
-.app-split-btn--on {
-  border-color: var(--lc-periwinkle);
-}
-
 /* The top pane has a fixed share of the height (set inline); the bottom pane takes the rest.
    The wrapper holds the scroll buttons, which float at the bottom right of the pane. */
 .split-top {
@@ -1806,4 +1784,101 @@ body {
   font-size: 0.75rem;
   white-space: pre-wrap;
   color: var(--state-error);
+}
+
+/* Shows or hides the left pane: a bar of three lines, narrower than the other buttons (it has no wide icon to hold). */
+.app-pane-toggle {
+  padding: 4px 8px;
+}
+
+/* While the pane is shown the outline has the accent color, as the split button has while it is on (the classic theme draws its own below). */
+.app-pane-toggle[aria-expanded="true"] {
+  border-color: var(--lc-periwinkle);
+}
+
+/* Classic: a capsule of the frame's peach with the three bars cut out of it in black, like the frame's own blocks; when the pane is hidden it is only the
+   outline, as if the block had been pulled out of the frame. */
+:root:not([data-theme="light"]):not([data-theme="dark"]) .app-pane-toggle {
+  margin-bottom: var(--frame-strip);
+  padding: 5px 14px;
+  border: 2px solid var(--lc-peach);
+  background: var(--lc-peach);
+  color: var(--text-on-accent);
+}
+
+:root:not([data-theme="light"]):not([data-theme="dark"]) .app-pane-toggle .app-icon {
+  stroke-width: 2.5;
+}
+
+:root:not([data-theme="light"]):not([data-theme="dark"]) .app-pane-toggle[aria-expanded="false"] {
+  background: transparent;
+  color: var(--lc-peach);
+}
+
+:root:not([data-theme="light"]):not([data-theme="dark"]) .app-pane-toggle:hover {
+  border-color: var(--lc-amber);
+  background: var(--lc-amber);
+  color: var(--text-on-accent);
+}
+
+/* A phone: the message box takes the whole width, with a row of buttons under it. */
+.chat-input-row--compact {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.chat-input-compact-bar {
+  position: relative;
+  display: grid;
+  height: 40px;
+}
+
+/* The actions and the group of the menu and send buttons share the row, on top of each other (in the order they are drawn, the later covers the earlier): the actions run
+   from the left under the group, and one that does not fit goes under it (it is in the menu too) instead of dropping out of the row. No z-index is needed, so the
+   menu's list is not held down in a layer of its own and stays over the conversation's buttons. */
+.chat-input-compact-actions,
+.chat-input-compact-end {
+  grid-area: 1 / 1;
+}
+
+.chat-input-compact-actions {
+  display: flex;
+  gap: 4px;
+  overflow: hidden;
+}
+
+.chat-input-compact-actions .chat-input-btn {
+  flex-shrink: 0;
+  height: 40px;
+  padding: 0 14px;
+}
+
+/* Of the pane's own color, so that it also covers the gaps between the buttons and nothing shows through. */
+.chat-input-compact-end {
+  justify-self: end;
+  display: flex;
+  gap: 4px;
+  padding-left: 4px;
+  background: var(--canvas);
+}
+
+/* The menu's own box does not take a position: its list is anchored to the row. */
+.chat-input-compact-bar .quick-actions-menu {
+  position: static;
+  display: flex;
+}
+
+.chat-input-compact-bar .chat-input-btn--menu {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  padding: 0;
+}
+
+.chat-input-compact-bar .chat-input-send {
+  align-self: auto;
+  width: 56px;
+  height: 40px;
+  padding: 0;
 }

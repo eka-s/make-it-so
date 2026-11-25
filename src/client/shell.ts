@@ -18,3 +18,8 @@ export function markShell(root: HTMLElement = document.documentElement, userAgen
   const shell = shellOf(userAgent);
   if (shell) root.dataset.shell = shell;
 }
+
+/** Whether the page is in the desktop app (on any platform), whose menu can choose the theme and the language. */
+export function inDesktop(userAgent: string = navigator.userAgent): boolean {
+  return /\bElectron\//.test(userAgent);
+}

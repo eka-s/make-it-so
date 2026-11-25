@@ -10,10 +10,10 @@
   overflow: hidden;
 }
 
-/* Each section gets its own color, in the order they appear */
-.left-column-body > .left-section:nth-child(1) { --section-color: var(--lc-peach); }
-.left-column-body > .left-section:nth-child(2) { --section-color: var(--lc-lilac); }
-.left-column-body > .left-section:nth-child(3) { --section-color: var(--lc-periwinkle); }
+/* Each section has its own color (the `tone` it is given, not its place in the pane, so the sections can be moved). */
+.left-section--peach { --section-color: var(--lc-peach); }
+.left-section--lilac { --section-color: var(--lc-lilac); }
+.left-section--periwinkle { --section-color: var(--lc-periwinkle); }
 
 .left-section-header {
   flex-shrink: 0;

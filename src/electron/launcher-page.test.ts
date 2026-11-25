@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { launcherLanguage, renderLauncherPage, settingsLabel } from "./launcher-page.js";
+import { launcherLanguage, menuText, renderLauncherPage, settingsLabel } from "./launcher-page.js";
 
 describe("the ship list", () => {
   it("offers each ship as a form button that posts its id, labelled with its name", () => {
@@ -44,5 +44,17 @@ describe("the ship list", () => {
     expect(renderLauncherPage({ ships: [], language: "ja" })).toContain("まだ艦がありません");
     expect(settingsLabel("ja")).toBe("設定");
     expect(settingsLabel("en")).toBe("Settings");
+  });
+});
+
+describe("the words of the app menu", () => {
+  it("has every word in English and in Japanese, and names each language in its own language in both", () => {
+    for (const language of ["en", "ja"] as const) {
+      const text = menuText(language);
+      for (const word of [text.view, text.theme, text.language, text.crewLanguage, ...Object.values(text.themes), ...Object.values(text.languages)]) expect(word).not.toBe("");
+      expect(text.languages).toEqual({ en: "English", ja: "日本語" });
+    }
+    expect(menuText("en").view).toBe("View");
+    expect(menuText("ja").view).toBe("表示");
   });
 });
