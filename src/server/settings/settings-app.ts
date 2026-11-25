@@ -34,6 +34,11 @@ export type SettingsAppDeps = {
    * starts do too. In development (tsx) the screen is served by Vite, so a started ship has the API only.
    */
   shipUi?: boolean;
+  /**
+   * Whether this is the desktop app's settings: a ship has no port or screen address of its own there, it is opened in a window,
+   * and it stops when that window is closed. The screen then offers "open" instead of start and stop.
+   */
+  desktop?: boolean;
 };
 
 /** The UI language, from config.yml (the settings screen has no ship database to take it from). */
@@ -255,8 +260,9 @@ export function createSettingsApp(deps: SettingsAppDeps): express.Express {
       const ships = await Promise.all(readOverview(deps.dir).ships.map((s) => deps.runtime.status(s.id)));
       // The address of a ship's screen and the command that serves it in development are made here, so the screen only shows them.
       res.json({
-        ships: ships.map((s) => ({ ...s, url: s.port === null ? null : `http://127.0.0.1:${s.port}`, devCommand: `npm run dev -- --ship ${s.id}` })),
+        ships: ships.map((s) => ({ ...s, url: s.port === null || deps.desktop === true ? null : `http://127.0.0.1:${s.port}`, devCommand: `npm run dev -- --ship ${s.id}` })),
         shipUi: deps.shipUi === true,
+        desktop: deps.desktop === true,
       });
     })().catch((err) => sendUnexpected(err, res, next));
   });

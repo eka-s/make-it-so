@@ -41,8 +41,8 @@ export type AcpCommand = { command: string; args: string[] };
  * Settings the agent client needs. The caller (index.ts) passes them in so that this does not depend on the ship config (config.ts).
  */
 export type AgentClientSettings = {
-  /** HTTP port of make-it-so. Used for the URL of the bulletin-board MCP (`http://127.0.0.1:{port}/mcp`). */
-  port: number;
+  /** Port of the listener that only serves the bulletin-board MCP (`http://127.0.0.1:{mcpPort}/mcp`). */
+  mcpPort: number;
   acp: { kiro: AcpCommand; claude: AcpCommand };
 };
 

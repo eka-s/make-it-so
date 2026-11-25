@@ -18,6 +18,11 @@ import { logger } from "./logger.js";
  */
 export const MCP_AGENT_HEADER = "x-makeitso-agent";
 export const MCP_MISSION_HEADER = "x-makeitso-mission";
+/**
+ * The header that carries the ship's secret for `/mcp`. The endpoint listens on a TCP port that a browser page or another local
+ * process could reach, so a call is accepted only when it carries the value that make-it-so itself put into the session's config.
+ */
+export const MCP_TOKEN_HEADER = "x-makeitso-token";
 
 // If persona injection shows no activity for this long, it is considered hung, rather than
 // blocking the session's startup forever with no signal at all
@@ -109,6 +114,8 @@ export type CrewManagerSettings = {
   skillsDir: string;
   /** The language the crew speaks. Read each time a session starts. */
   crewLanguage: () => Language;
+  /** The secret that `/mcp` requires (see MCP_TOKEN_HEADER). */
+  mcpToken: string;
 };
 
 /** External dependencies of CrewManager. index.ts wires them in production; tests pass fakes. */
@@ -510,7 +517,7 @@ export class CrewManager extends EventEmitter<CrewManagerEvents> {
     const sessionId = await client.newSession(
       crewConfig.cwd,
       crewConfig.additionalDirectories,
-      { [MCP_AGENT_HEADER]: agentName, [MCP_MISSION_HEADER]: missionId },
+      { [MCP_AGENT_HEADER]: agentName, [MCP_MISSION_HEADER]: missionId, [MCP_TOKEN_HEADER]: this.deps.settings.mcpToken },
     );
 
     // A crew member that uses a provider-side agent definition as its persona selects it here (kiro already got it

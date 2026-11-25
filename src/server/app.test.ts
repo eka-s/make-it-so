@@ -10,7 +10,6 @@ import { serveApp, type TestServer } from "./testing/http.js";
 // Checks the assembly of the whole app (common middleware, mount positions, MCP, SSE, error handling)
 // with stub routers whose contents are fixed. The contents of each router are checked in its own tests.
 let server: TestServer;
-let handleMcpRequest: ReturnType<typeof vi.fn>;
 const controllers: AbortController[] = [];
 
 function stubRouter(path: string, body: unknown): express.Router {
@@ -28,10 +27,6 @@ async function start(overrides: Partial<AppDeps> = {}): Promise<void> {
   const deps: AppDeps = {
     routers: [stubRouter("/api/stub", { from: "root" })],
     pinsRouter: stubRouter("/", { from: "pins" }),
-    handleMcpRequest: async (_req, res) => {
-      handleMcpRequest();
-      res.json({ ok: true });
-    },
     ...overrides,
   };
   server = await serveApp(createApp(deps));
@@ -66,7 +61,6 @@ async function openSse(path: string): Promise<{ text: () => string; waitFor: (ne
 beforeEach(() => {
   vi.spyOn(console, "log").mockImplementation(() => {});
   vi.spyOn(console, "error").mockImplementation(() => {});
-  handleMcpRequest = vi.fn();
 });
 afterEach(async () => {
   for (const c of controllers.splice(0)) c.abort();
@@ -125,27 +119,6 @@ describe("common middleware", () => {
     await start();
     const response = await fetch(`${server.baseUrl}/api/stub`, { headers: { Origin: "https://evil.example" } });
     expect(response.headers.get("access-control-allow-origin")).toBeNull();
-  });
-});
-
-describe("POST /mcp", () => {
-  it("hands the processing to the handler", async () => {
-    await start();
-    const { status, body } = await server.send("POST", "/mcp", {});
-    expect(status).toBe(200);
-    expect(body).toEqual({ ok: true });
-    expect(handleMcpRequest).toHaveBeenCalledTimes(1);
-  });
-
-  it("500 if the handler fails (if it has not responded yet)", async () => {
-    await start({
-      handleMcpRequest: async () => {
-        throw new Error("boom");
-      },
-    });
-    const { status, body } = await server.send("POST", "/mcp", {});
-    expect(status).toBe(500);
-    expect(body).toEqual({ error: "Internal server error" });
   });
 });
 

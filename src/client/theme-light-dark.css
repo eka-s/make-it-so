@@ -120,6 +120,11 @@
   border-bottom: 1px solid var(--border);
 }
 
+/* A lower bar than the classic frame's: with no frame under it, the controls need no more than their own height. */
+:is([data-theme="light"], [data-theme="dark"]) :is(.app-header, .settings-header) {
+  height: 40px;
+}
+
 :is([data-theme="light"], [data-theme="dark"]) .left-column {
   border-right: 1px solid var(--border);
 }

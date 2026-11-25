@@ -26,29 +26,33 @@ The Node.js version follows `.tool-versions`. SQLite uses Node's built-in `node:
 | `npm run init -- [...]` | Creates a minimal configuration ([guide](guides/create-fleet-and-ship.md)) |
 | `npm run dev -- --ship <ship ID>` | Starts the server (tsx watch) and the client (Vite) together. With `--settings`, starts the settings server (the UI is at `http://localhost:13938`) |
 | `npm run dev:server` / `npm run dev:client` (both with `-- --ship <ship ID>`) | Only one of the two |
-| `npm run build` | Builds the server with `tsc` (`tsconfig.build.json`) into `dist/server`, and the client with Vite into `dist/client` |
+| `npm run build` | Empties `dist/` (`npm run clean`), then builds the server with `tsc` (`tsconfig.build.json`) into `dist/server` and `dist/electron`, and the client with Vite into `dist/client` |
 | `npm start -- --ship <ship ID>` / `npm start -- --settings` | Starts the built output (`node dist/server/cli.js`). The API and the UI are served on the same port |
+| `npm run start:electron` (`-- --ship <ship ID>` or `-- --settings`) | Starts the desktop app from the built output ([guide](guides/desktop-app.md)). The UI is served without a port |
+| `npm run pack` / `npm run dist` | Makes the desktop app (`release/mac-arm64/Make-It-So.app`, and a dmg) |
 | `npm run typecheck` | Type-checks the server and the client |
 | `npm run lint` | eslint |
 | `npm test` | vitest (no ship needs to be specified) |
 
 - The build does not depend on a ship (`vite.config.ts` reads the configuration only for the dev server). Even with multiple ships, you can build without `--ship`.
-- Serving the UI (`npm start`): only when `clientDir` is passed to `createApp`, it adds static file serving and a handler that routes GETs other than `/api` and `/mcp` to `index.html`. `builtClientDir()` in `index.ts` returns the neighboring `dist/client` only when running as `dist/server/index.js` (during development, Vite serves the UI even if an old build is left over).
+- Serving the UI (`npm start`): only when `clientDir` is passed to `createApp`, it adds static file serving and a handler that routes GETs other than `/api` to `index.html`. `builtClientDir()` in `index.ts` returns the neighboring `dist/client` only when running as `dist/server/index.js` (during development, Vite serves the UI even if an old build is left over).
 - CI (`.github/workflows/ci.yml`) runs lint, type-check, tests and build on pushes to `main` and on pull requests.
 
 ## Process structure
 
 ```
 index.ts (wiring layer)
-  ├─ createApp: Express (JSON, /mcp, SSE, each router, error handling)
+  ├─ createApp: Express (JSON, SSE, each router, error handling)
   ├─ bridge        manages turns (conversations between the captain and the crew) and automatic recovery
   ├─ CrewManager   manages conversation sessions and injects the briefing
   ├─ CrewRunner    runs tasks issued by dispatch_task
   ├─ connectCrewEvents  reflects CrewRunner/CrewManager events into the DB, timeline, SSE and permissions
+  ├─ mcp-listener  Loopback-only listener (OS-picked port) that serves /mcp
   ├─ mcp-board     MCP board (/mcp)
   └─ database      SQLite
 ```
 
+- The desktop app (`src/electron/`) runs a ship the same way (`buildShip()`), but serves its page at `app://` through an in-memory HTTP connection into the ship's Express app, so no port is opened for the UI; the `/mcp` listener is still there for the agents. The ship list and the settings each run in a process of their own, and a ship lives as long as its window.
 - 1 process = 1 ship. A crew member is a provider's agent, started as a child process by `BaseAgentClient` (JSON-RPC over stdin/stdout, i.e. ACP). Crew members on remote hosts are started the same way over SSH and reach the MCP board through a reverse tunnel.
 - Tool calls of each turn and task (what was run and what it output) are appended, one line each, to `activity/<id>.jsonl` (`src/server/activity-log.ts`). They are not written to the DB. Only the latest 50 files are kept (older files are deleted at startup and on creation of a new one), and the output of one operation is limited to its first 2000 characters. They arrive as the `activity` of a timeline item, in the same shape in both the snapshot and the upsert. While running, whenever it changes (batched to at most once every 0.4 seconds), `timeline:activity` replaces only the `activity` of that item. The client just renders `activity` as is, so the display is the same after a reload or in another browser. Each turn or task records at most 100 operations, and titles are limited to 300 characters.
 - The body of a running turn or task is not accumulated in memory. It is written to a file (`turns/`, `agents/`) and read when a snapshot is taken. Once finalized, it is written to the DB and the file is deleted. If the server stops midway (Ctrl-C, crash), at the next startup, turns and tasks with no recorded result are recorded as "interrupted" errors (the contents of the remaining files are kept as the partial body). However, a turn that stopped before its file was created (while the session was starting) leaves no record, so it cannot be found. Each turn and task holds one write stream, and waiting for `end` to complete prevents losing the tail.
@@ -62,7 +66,7 @@ index.ts (wiring layer)
 |---|---|
 | `cli.ts` | Entry point. Based on the arguments (`cli-args.ts`), loads and runs exactly one of: the settings server, a ship (`index.ts`), or all ships (`--all`) |
 | `settings/` | Settings server (`--settings`). The API for reading and writing `~/.make-it-so`, and serving the UI (`settings.html`). It does not load any ship's configuration |
-| `index.ts` | Wiring layer. **The only module allowed to import `config.ts` directly.** Creates the parts, connects them, and listens |
+| `index.ts` | Wiring layer. **The only module allowed to import `config.ts` directly.** Creates the parts and connects them (`buildShip()` returns the `app` without serving it), and listens on the ship's port (`runShip()`) |
 | `app.ts` | `createApp(deps)`: assembles the Express app |
 | `routes/` | One router per feature (`createXxxRouter(deps)`). `mission-id.ts` shares mission ID resolution |
 | `config.ts` | Calls `load-config.ts` with the `--ship` argument and the home directory, and builds `config` |
@@ -74,6 +78,8 @@ index.ts (wiring layer)
 | `crew-briefing.ts`, `skills.ts`, `crew-paths.ts` | Building the briefing, reading skills, paths |
 | `crew-model.ts` | Model resolution (`resolveCrewModel`). A pure function |
 | `mcp-board.ts` | The MCP board's MCP server |
+| `mcp-listener.ts` | The listener that serves `/mcp` alone: loopback only, on a port the OS picks, 503 until the board is wired in |
+| `ship-lock.ts`, `ship-id.ts` | The `desktop.pid` mark of a ship open in the desktop app (process ID and start time), read by the browser version and the settings; the one pattern a ship ID must match before it builds a path or a command line |
 | `a2ui-action.ts`, `a2ui-validate.ts` | A2UI: the answer's action message, and the strict validation of a crew member's messages |
 | `database.ts`, `migrations.ts` | SQLite, and schema versioning |
 | `timeline.ts` | Running items, and composing the snapshot |
@@ -85,6 +91,19 @@ index.ts (wiring layer)
 | `logger.ts` | Configured with `configureLogger(...)` |
 | `testing/` | Test helpers |
 
+### Desktop app (`src/electron/`) and its client side
+
+| File | Role |
+|---|---|
+| `main.ts` | The app's entry point: how to start (`start-mode.ts`), one instance per ship, the window, quitting after the ship has stopped. It loads `index.ts` only after deciding, so the ship's configuration is read for the ship being run |
+| `start-mode.ts`, `argv.ts` | One ship / the ship list / the settings; the arguments of a packaged app |
+| `in-memory-fetch.ts` | Serves a request through an in-memory HTTP connection into the Express app (no port); strips the browser-origin headers the local-request guard would refuse |
+| `shell-requests.ts`, `window-fit.ts` | What the page tells the window over the path `/__shell/window` (its header's height and the room it keeps at both ends; the app answers with the page's zoom), and the position of the window buttons and the narrowest window worked out from it |
+| `launcher-page.ts`, `launcher-handler.ts`, `launcher-text.ja.ts` | The ship list (a page with no script) and what it answers |
+| `desktop-runtime.ts`, `running-in-browser.ts` | The settings' view of ships open in the desktop app and running in the browser version |
+| `application-menu.ts` | The menu (with the way to the settings) |
+| `src/client/shell.ts`, `desktop-shell.css`, `use-shell-window.ts` | The page's side: marking the desktop app on macOS, the header as the title bar (room for the window buttons, which a page zoom does not scale), reporting its size to the app |
+
 ### Direction of dependencies
 
 - Routes and parts receive what they need as arguments and do not import `config.ts` or other parts directly.
@@ -94,7 +113,7 @@ index.ts (wiring layer)
 
 - **Only `index.ts` may import `config.ts` directly.** Other modules receive the values they need (part of the configuration, external commands, the current time, other parts) as arguments of a factory `createXxx(deps)` or of a constructor. `deps` is narrowed to only what the module uses, with `Pick<…>` and the like.
 - Do not create modules that run side effects (loading configuration, creating files, networking) merely by being imported. Module-level state (Maps, caches) is confined to the factory's instance.
-- Avoid variables that may be null before startup and are filled in later by a setter. Create things once their dependencies are ready.
+- Avoid variables that may be null before startup and are filled in later by a setter. Create things once their dependencies are ready. (One accepted exception: `mcp-listener.ts` binds its port first, because the sessions' MCP URL and the reverse tunnels need the port before the board's dependencies exist, and answers 503 until `serve()` gives it the handler.)
 - State that is inherently single, such as `logger` and `timeline`, is configured exactly once at startup with `configureLogger(...)` and `configureTimeline(...)`.
 
 ## Client structure
@@ -149,7 +168,7 @@ Confine differences to each provider's client. Do not write branches like `if (p
 1. Create a subclass of `BaseAcpClient` (or `BaseAgentClient`). Implement the spawn arguments (`buildSpawnArgs`), session creation and resumption, provider-specific notifications (`handleProviderNotification`), and so on.
 2. Register it in `agent-client-factory.ts`.
 3. Add a branch to `usage-fetcher.ts` for the command that fetches usage.
-4. Check the registration of the MCP board (MCP). Inject it dynamically with `session/new` and attach a per-session identification header. Without this, `dispatch_task` and the like cannot be used.
+4. Check the registration of the MCP board (MCP). Inject it dynamically with `session/new` and attach a per-session identification header and the ship's `/mcp` secret. Without this, `dispatch_task` and the like cannot be used.
 5. Check provider-specific mechanisms such as the permission allowlist. Unless `Write`, `Read`, `Edit` and the MCP board's tools are allowed, ordinary work will be full of pending permissions.
 6. Check for provider-specific pitfalls such as workspace trust (Claude Code shows no trust prompt when headless, and permission rules are ignored in untrusted directories).
 7. `targets` / `access` (the area of responsibility) are an agreement in the prompt and do not depend on the provider, so they need not be added.

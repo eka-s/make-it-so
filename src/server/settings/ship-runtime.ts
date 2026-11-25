@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { mkdirPrivate } from "../private-dirs.js";
+import { isShipId } from "../ship-id.js";
 
 // Starting and stopping ships from the settings server. A ship stays an ordinary process of its own: it is started detached
 // (so it keeps running when the settings server is closed) and is found again later through its port. Which ship is on a port
@@ -29,6 +30,11 @@ export type ShipRuntimeDeps = {
   /** Starts a detached process whose output goes to the given file. */
   spawn: (command: string, args: string[], logFile: string) => void;
   kill: (pid: number, signal: NodeJS.Signals) => void;
+  /**
+   * The process ID of a window of the desktop app the ship is open in, or null. A ship open there has no port to find it by, so a ship that does not
+   * answer on its port is looked for here too: the settings must not start it, nor remove it.
+   */
+  openElsewhere?: (id: string) => number | null;
 };
 
 export type ShipRuntime = ReturnType<typeof createShipRuntime>;
@@ -38,8 +44,6 @@ const LOG_TAIL_LINES = 60;
 const LOG_TAIL_BYTES = 64 * 1024;
 const STARTING_GRACE_MS = 3000;
 
-// A ship ID is a directory name. Anything else (a path) is not a ship, so it never reaches the file system.
-const SHIP_ID = /^[A-Za-z0-9][A-Za-z0-9_-]*$/;
 
 export function createShipRuntime(deps: ShipRuntimeDeps) {
   const logFile = (id: string) => path.join(deps.dir, "ships", id, "logs", "stdout.log");
@@ -47,8 +51,8 @@ export function createShipRuntime(deps: ShipRuntimeDeps) {
   // start a second process (which would also overwrite the first one's log).
   const starting = new Set<string>();
 
-  async function status(id: string): Promise<ShipRuntimeStatus> {
-    if (!SHIP_ID.test(id)) return { id, port: null, state: "stopped" };
+  async function portStatus(id: string): Promise<ShipRuntimeStatus> {
+    if (!isShipId(id)) return { id, port: null, state: "stopped" };
     const port = deps.portOf(id);
     if (port === null) return { id, port, state: "stopped" };
     try {
@@ -63,6 +67,13 @@ export function createShipRuntime(deps: ShipRuntimeDeps) {
     }
   }
 
+  async function status(id: string): Promise<ShipRuntimeStatus> {
+    const found = await portStatus(id);
+    if (found.state !== "stopped" || !isShipId(id)) return found;
+    const pid = deps.openElsewhere?.(id) ?? null;
+    return pid === null ? found : { ...found, state: "running", pid };
+  }
+
   return {
     status,
 
@@ -71,7 +82,7 @@ export function createShipRuntime(deps: ShipRuntimeDeps) {
 
     /** Starts a ship that is stopped. Returns the reason when it cannot be started. */
     async start(id: string): Promise<{ ok: true } | { ok: false; reason: "running" | "conflict" | "no_port" }> {
-      if (!SHIP_ID.test(id)) return { ok: false, reason: "no_port" };
+      if (!isShipId(id)) return { ok: false, reason: "no_port" };
       if (starting.has(id)) return { ok: false, reason: "running" };
       starting.add(id);
       let spawned = false;
@@ -104,7 +115,7 @@ export function createShipRuntime(deps: ShipRuntimeDeps) {
 
     /** The last lines of what the ship printed when it was started from here (for finding out why it did not start). */
     log(id: string): string {
-      if (!SHIP_ID.test(id)) return "";
+      if (!isShipId(id)) return "";
       // Only the end of the file is read: the file can be large (a noisy agent), and 60 lines are all that is shown.
       try {
         const file = logFile(id);

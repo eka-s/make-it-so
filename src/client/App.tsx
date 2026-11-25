@@ -20,6 +20,7 @@ import { useCrewStatus } from "./useCrewStatus";
 import type { SearchHit } from "./types";
 import { consumeOnce, effectiveTarget, pruneTargets, selectTarget, type TargetState } from "./target-state";
 import { useTheme } from "./use-theme";
+import { useShellWindow } from "./use-shell-window";
 import { ThemeMenu } from "./ThemeMenu";
 import { usePendingAttention } from "./usePendingAttention";
 import { countByMission, countByRole, permissionsOfMission } from "./permission-summary";
@@ -46,6 +47,8 @@ import { useI18n } from "./i18n/I18nProvider";
 export function App() {
   const { t, tError } = useI18n();
   const { theme, setTheme } = useTheme();
+  const headerRef = useRef<HTMLElement>(null);
+  useShellWindow(headerRef);
   // Open/closed state of the collapsible sections of the left pane (crew status/pins). Unlike missions,
   // they are not mutually exclusive (both can be kept open at the same time).
   const [isCrewOpen, setIsCrewOpen] = useState(true);
@@ -856,7 +859,7 @@ export function App() {
 
   return (
     <div className="app">
-      <header className="app-header">
+      <header className="app-header" ref={headerRef}>
         <h1>
           Make-It-So
           <span className="app-title-sub">Bridge Console</span>

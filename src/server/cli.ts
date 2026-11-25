@@ -33,7 +33,8 @@ if (mode.kind === "all") {
   }
 } else {
   try {
-    await import("./index.js");
+    const { runShip } = await import("./index.js");
+    await runShip();
   } catch (err) {
     // A configuration problem (no ships, several ships and none chosen, ...) is a message for the person, not a stack trace.
     // Anything else is a bug and keeps its stack.

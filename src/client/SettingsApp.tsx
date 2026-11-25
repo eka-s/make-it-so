@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { api } from "./server-api";
 import type { SettingsOverview, SettingsShipRuntime } from "./types";
 import { BottomBar } from "./BottomBar";
-import { LanguageSwitch } from "./LanguageSwitch";
+import { LanguageMenu } from "./LanguageSwitch";
 import { useT } from "./i18n/I18nProvider";
 import { SettingsConfigForm } from "./SettingsConfigForm";
 import { SettingsHostsForm } from "./SettingsHostsForm";
@@ -12,6 +12,7 @@ import { SettingsShipsForm } from "./SettingsShipsForm";
 import { SettingsImportForm } from "./SettingsImportForm";
 import { ThemeMenu } from "./ThemeMenu";
 import { useTheme } from "./use-theme";
+import { useShellWindow } from "./use-shell-window";
 import { confirmDiscard, type DirtyRegistry } from "./use-unsaved";
 import "./SettingsApp.css";
 
@@ -22,12 +23,16 @@ type Tab = (typeof TABS)[number];
 export function SettingsApp() {
   const t = useT();
   const { theme, setTheme } = useTheme();
+  const headerRef = useRef<HTMLElement>(null);
+  useShellWindow(headerRef);
   const [overview, setOverview] = useState<SettingsOverview | null>(null);
   const [failed, setFailed] = useState(false);
   const [tab, setTab] = useState<Tab>("overview");
   // The ship the ships tab opens on (the one just made from a project).
   const [openShip, setOpenShip] = useState<string | undefined>(undefined);
   const [runtime, setRuntime] = useState<SettingsShipRuntime[]>([]);
+  // The desktop app opens a ship in a window: there is no count of running ships to show.
+  const [desktop, setDesktop] = useState(false);
   // What the form on screen says about unsaved input (it registers itself here).
   const dirty = useRef<() => boolean>(() => false) as DirtyRegistry;
   const goTo = (next: Tab, shipId?: string) => {
@@ -44,7 +49,7 @@ export function SettingsApp() {
   // How many ships are running, for the header (asked again every few seconds: ships can be started and stopped elsewhere).
   useEffect(() => {
     let alive = true;
-    const load = () => api.getSettingsRuntime().then(async (res) => { if (alive && res.ok) setRuntime((await res.json()).ships); }).catch(() => {});
+    const load = () => api.getSettingsRuntime().then(async (res) => { if (alive && res.ok) { const data = await res.json(); setRuntime(data.ships); setDesktop(data.desktop); } }).catch(() => {});
     void load();
     const timer = setInterval(load, 5000);
     return () => { alive = false; clearInterval(timer); };
@@ -63,14 +68,16 @@ export function SettingsApp() {
 
   return (
     <div className="settings-app">
-      <header className="settings-header">
+      <header className="settings-header" ref={headerRef}>
         <h1>Make-It-So</h1>
         <span className="settings-title">{t("settings.title")}</span>
-        <div className="settings-header-switch"><ThemeMenu theme={theme} onSelect={setTheme} /><LanguageSwitch target="ui" /></div>
-        <span className="settings-status">
-          <span className={runtime.some((s) => s.state === "running") ? "settings-dot settings-dot--running" : "settings-dot"} aria-hidden="true" />
-          {t("settings.status.running", { running: runtime.filter((s) => s.state === "running").length, total: runtime.length })}
-        </span>
+        <div className="settings-header-switch"><ThemeMenu theme={theme} onSelect={setTheme} /><LanguageMenu crew={false} /></div>
+        {!desktop && (
+          <span className="settings-status">
+            <span className={runtime.some((s) => s.state === "running") ? "settings-dot settings-dot--running" : "settings-dot"} aria-hidden="true" />
+            {t("settings.status.running", { running: runtime.filter((s) => s.state === "running").length, total: runtime.length })}
+          </span>
+        )}
       </header>
       <div className="settings-body">
         <nav className="settings-nav" aria-label={t("settings.title")}>

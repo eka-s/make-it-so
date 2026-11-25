@@ -4,7 +4,7 @@ import { KiroAgentClient } from "./kiro-agent-client.js";
 import { FakeAcpProcess } from "./testing/fake-acp-process.js";
 
 const settings = {
-  port: 4000,
+  mcpPort: 4000,
   acp: { kiro: { command: "kiro-cli", args: ["acp"] }, claude: { command: "claude-acp", args: ["--flag"] } },
 };
 

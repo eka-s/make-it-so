@@ -1,5 +1,7 @@
 /* The frame, as on the ship's screen: a spine on the left, a strip under the header, a column of colored bars for the menu. */
 body {
+  /* The ship's screen gets this from the reset in App.css, which the settings do not load: without it the browser's own margin shows as a frame around the window. */
+  margin: 0;
   height: 100vh;
   overflow: hidden;
   background: var(--bg);
@@ -41,6 +43,7 @@ body {
   position: relative;
   display: flex;
   align-items: center;
+  white-space: nowrap; /* as in the ship's header: a one-line bar does not wrap its title */
   gap: 16px;
   height: 56px;
   flex-shrink: 0;
@@ -81,6 +84,7 @@ body {
 }
 
 .settings-header h1 {
+  flex-shrink: 0;
   margin: 0;
   padding-bottom: var(--frame-strip);
   font-family: var(--font-display);
@@ -89,6 +93,12 @@ body {
   letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--lc-amber);
+}
+
+@media (max-width: 700px) {
+  .settings-title {
+    display: none;
+  }
 }
 
 .settings-title {

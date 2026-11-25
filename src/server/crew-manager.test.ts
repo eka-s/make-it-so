@@ -2,7 +2,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { SessionStartAbortedError, CrewManager, MCP_AGENT_HEADER, MCP_MISSION_HEADER, type CrewManagerDeps, type CrewManagerSettings } from "./crew-manager.js";
+import { SessionStartAbortedError, CrewManager, MCP_AGENT_HEADER, MCP_MISSION_HEADER, MCP_TOKEN_HEADER, type CrewManagerDeps, type CrewManagerSettings } from "./crew-manager.js";
 import type { CrewMemberConfig } from "./fleet-config.js";
 import { setActivityHandler } from "./bridge-activity.js";
 import { taskSessionScope } from "./crew-runner.js";
@@ -40,6 +40,7 @@ function makeManager(crew: Record<string, CrewMemberConfig>, extra: Partial<Crew
     projectRoot: root,
     skillsDir: path.join(root, "skills"),
     crewLanguage: () => "en",
+    mcpToken: "test-token",
   };
   createClient = vi.fn((_provider: string) => {
     const client = new FakeAgentClient();
@@ -84,7 +85,7 @@ describe("session creation", () => {
       {
         cwd: root,
         additionalDirectories: [],
-        mcpIdentity: { [MCP_AGENT_HEADER]: "chief_engineer", [MCP_MISSION_HEADER]: "m1" },
+        mcpIdentity: { [MCP_AGENT_HEADER]: "chief_engineer", [MCP_MISSION_HEADER]: "m1", [MCP_TOKEN_HEADER]: "test-token" },
       },
     ]);
     expect(session).toMatchObject({ sessionId: "fake-session", agentName: "chief_engineer", missionId: "m1", lastSeenSeq: 0 });

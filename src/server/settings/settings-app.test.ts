@@ -215,7 +215,7 @@ describe("settings app: starting and stopping ships", () => {
   it("GET /api/settings/runtime reports every ship's state", async () => {
     seedShip();
     const s = await start();
-    expect((await s.get("/api/settings/runtime")).body).toEqual({ ships: [{ id: "alpha", port: null, state: "stopped", url: null, devCommand: "npm run dev -- --ship alpha" }], shipUi: false });
+    expect((await s.get("/api/settings/runtime")).body).toEqual({ ships: [{ id: "alpha", port: null, state: "stopped", url: null, devCommand: "npm run dev -- --ship alpha" }], shipUi: false, desktop: false });
   });
 
   it("gives the address of a ship's screen when its port is known (the screen only shows it)", async () => {
@@ -227,6 +227,18 @@ describe("settings app: starting and stopping ships", () => {
       expect(ship.url).toBe("http://127.0.0.1:4321");
     } finally {
       await s.close();
+    }
+  });
+
+  it("for the desktop app, says so and gives no address (a ship opened in a window has no port to open in a browser)", async () => {
+    seedShip();
+    const desktop = await serveApp(createSettingsApp({ dir, runtime: { ...fakeRuntime(), status: async (id) => ({ id, port: 4321, state: "running", pid: 1234 }) }, desktop: true }));
+    try {
+      const body = (await desktop.get("/api/settings/runtime")).body as { desktop: boolean; ships: { url: string | null }[] };
+      expect(body.desktop).toBe(true);
+      expect(body.ships[0].url).toBeNull();
+    } finally {
+      await desktop.close();
     }
   });
 

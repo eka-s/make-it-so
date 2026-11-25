@@ -53,6 +53,8 @@ export function SettingsShipsForm({ initialShip, dirty }: { initialShip?: string
   const [runtime, setRuntime] = useState<Record<string, SettingsShipRuntime>>({});
   // Whether a ship started from here serves its screen (not in development, where Vite serves it).
   const [shipUi, setShipUi] = useState(false);
+  // The desktop app: a ship is opened in a window and stops with it, so there is no start, stop or state to show.
+  const [desktop, setDesktop] = useState(false);
   // What the last start/stop asked for: while it has not come true yet, the screen asks again every moment.
   const [wanted, setWanted] = useState<{ id: string; state: "running" | "stopped" } | null>(null);
   const [startFailed, setStartFailed] = useState(false);
@@ -90,6 +92,7 @@ export function SettingsShipsForm({ initialShip, dirty }: { initialShip?: string
       const data = await res.json();
       setRuntime(Object.fromEntries(data.ships.map((s) => [s.id, s])));
       setShipUi(data.shipUi);
+      setDesktop(data.desktop);
     }
   }, []);
 
@@ -119,6 +122,17 @@ export function SettingsShipsForm({ initialShip, dirty }: { initialShip?: string
     setLog(null);
     try {
       const res = await api.startSettingsShip(id);
+      if (res.ok) setWanted({ id, state: "running" });
+      else setStatus({ kind: "failed", message: tKey((await res.json()).message ?? "", t("settings.saveFailed")) });
+    } catch {
+      setStatus({ kind: "failed", message: t("settings.saveFailed") });
+    }
+  };
+
+  const openShip = async (id: string) => {
+    try {
+      const res = await api.startSettingsShip(id);
+      // The state is asked for again until the window shows (and the ship is marked open): it decides the dot in the list and whether the ship can be removed.
       if (res.ok) setWanted({ id, state: "running" });
       else setStatus({ kind: "failed", message: tKey((await res.json()).message ?? "", t("settings.saveFailed")) });
     } catch {
@@ -316,7 +330,15 @@ export function SettingsShipsForm({ initialShip, dirty }: { initialShip?: string
               <code>{state.id}</code>
             </div>
             <div className="settings-field">
-              {(() => {
+              {desktop && (
+                <>
+                  <div className="settings-actions">
+                    <button type="button" onClick={() => void openShip(state.id)}>{t("settings.ships.open")}</button>
+                  </div>
+                  <p className="settings-help">{t("settings.ships.desktopHelp")}</p>
+                </>
+              )}
+              {!desktop && (() => {
                 const rt = runtime[state.id];
                 const busy = wanted?.id === state.id;
                 return (

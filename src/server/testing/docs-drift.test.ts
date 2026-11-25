@@ -25,6 +25,7 @@ describe.each(["", ".ja"])("docs/reference/http-api%s.md", (lang) => {
     const sources: [string, string][] = [
       ...files.map((f): [string, string] => [f, read(`src/server/routes/${f}`)]),
       ["app.ts", read("src/server/app.ts")],
+      ["mcp-listener.ts", read("src/server/mcp-listener.ts")],
       ["settings-app.ts", read("src/server/settings/settings-app.ts")],
     ];
     for (const [file, source] of sources) {

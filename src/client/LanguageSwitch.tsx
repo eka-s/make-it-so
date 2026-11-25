@@ -47,8 +47,9 @@ export function LanguageNotice() {
 /**
  * Header control for the two languages: a quiet "UI / crew" label (like the search and split buttons)
  * that opens a small popup holding the two switches. The hover text spells out what the label means.
+ * `crew={false}` is for a screen that has only the UI language (the settings): the label is that language alone and the popup holds one switch.
  */
-export function LanguageMenu() {
+export function LanguageMenu({ crew = true }: { crew?: boolean } = {}) {
   const { t, language, crewLanguage } = useI18n();
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -69,7 +70,7 @@ export function LanguageMenu() {
     };
   }, [open]);
 
-  const detail = t("language.menu.detail", { ui: LANGUAGE_LABELS[language], crew: LANGUAGE_LABELS[crewLanguage] });
+  const detail = crew ? t("language.menu.detail", { ui: LANGUAGE_LABELS[language], crew: LANGUAGE_LABELS[crewLanguage] }) : t("language.menu.detailUi", { ui: LANGUAGE_LABELS[language] });
   return (
     <div className="language-menu" ref={rootRef}>
       <button
@@ -80,12 +81,12 @@ export function LanguageMenu() {
         title={detail}
         aria-label={detail}
       >
-        {LANGUAGE_LABELS[language]} / {LANGUAGE_LABELS[crewLanguage]}
+        {crew ? `${LANGUAGE_LABELS[language]} / ${LANGUAGE_LABELS[crewLanguage]}` : LANGUAGE_LABELS[language]}
       </button>
       {open && (
-        <div className="language-menu-popup" role="dialog" aria-label={t("language.menu.title")}>
+        <div className="language-menu-popup" role="dialog" aria-label={crew ? t("language.menu.title") : t("language.switch.label")}>
           <LanguageSwitch target="ui" />
-          <LanguageSwitch target="crew" />
+          {crew && <LanguageSwitch target="crew" />}
         </div>
       )}
     </div>

@@ -1,4 +1,5 @@
 import express from "express";
+import { randomBytes } from "node:crypto";
 import http from "node:http";
 import { config, agentToRole, crewDisplayName } from "./config.js";
 import { createBridge, type Bridge } from "./bridge.js";
@@ -11,6 +12,8 @@ import { broadcast } from "./sse-emitter.js";
 import { CrewManager } from "./crew-manager.js";
 import { createAgentClient } from "./agent-client-factory.js";
 import { createHostTunnels } from "./host-tunnel.js";
+import { openMcpListener } from "./mcp-listener.js";
+import { readShipLock } from "./ship-lock.js";
 import { resolveHostAddresses, type HostConfig } from "./ssh.js";
 import os from "node:os";
 import { restrictToOwner } from "./private-dirs.js";
@@ -55,15 +58,23 @@ configureLogger({
   logsDir: config.logsDir,
 });
 
-let server: http.Server | null = null;
-// Crew management, directly inside the main process (no separate process).
-let crewManager: CrewManager | null = null;
-let crewRunner: CrewRunner | null = null;
-// Created in start() (routes are only called after startup, so it is always set by the time it is used).
-let bridge!: Bridge;
+/** The ID of the ship this process runs (the desktop shell scopes its single-instance lock to it before assembling anything). */
+export const shipId = config.shipId;
 
-// --- Server startup ---
-async function start(): Promise<void> {
+/** A ship that is assembled but not reachable yet: the caller decides how its `app` is served (a port, or an in-process channel). */
+export type Ship = {
+  app: express.Express;
+  /**
+   * Records what the last run left unfinished as interrupted. Call it only once this process is known to be the only one running the
+   * ship (for a port: after it is bound): a second start of a ship that is already running must not touch its live turns.
+   */
+  recordInterrupted: () => Promise<void>;
+  /** Stops the crew sessions and the MCP listener, and closes the database. */
+  stop: () => Promise<void>;
+};
+
+// --- Assembling the ship ---
+export async function buildShip(): Promise<Ship> {
   logger.info("[make-it-so] Starting...");
   logger.info(`[make-it-so] Workspace root: ${config.projectRoot}`);
   // The local-request guard only accepts IP addresses and "localhost" as the Host (see local-guard.ts): a host NAME here would be bound but
@@ -135,15 +146,21 @@ async function start(): Promise<void> {
   });
 
   // Starts crew management directly inside the main process. Everything here arrives as an event in the same process.
-  const hostTunnels = createHostTunnels(config.port);
+  // Opened first: the sessions' MCP URL and the reverse tunnels need its port before the board's own dependencies (the crew runner) exist.
+  const mcp = await openMcpListener();
+  const hostTunnels = createHostTunnels(mcp.port);
   // Resolve the connection targets (host name/IP) shown on screen once with `ssh -G` (for display).
   const remoteHosts = new Map<string, HostConfig>();
   for (const member of Object.values(config.crew)) {
     if (member.host) remoteHosts.set(member.host.name, member.host);
   }
   const hostAddresses = await resolveHostAddresses([...remoteHosts.values()]);
-  crewManager = new CrewManager({
+  // Regenerated at every start: it only has to match what the sessions of this process were given.
+  const mcpToken = randomBytes(32).toString("hex");
+  // Crew management, directly inside the main process (no separate process).
+  const crewManager = new CrewManager({
     settings: {
+      mcpToken,
       crew: config.crew,
       defaultProvider: config.acp.provider,
       fleetRoot: config.fleetRoot,
@@ -151,20 +168,19 @@ async function start(): Promise<void> {
       skillsDir: config.skillsDir,
       crewLanguage: currentCrewLanguage,
     },
-    createClient: (provider) => createAgentClient(provider, { port: config.port, acp: config.acp }),
+    createClient: (provider) => createAgentClient(provider, { mcpPort: mcp.port, acp: config.acp }),
     ensureTunnel: hostTunnels.ensureTunnel,
     // The scope for running tasks ("__tasks__:missionId") looks up the override of the original mission
     getModelOverride: (role, scope) => getCrewModelOverride(missionFromTaskScope(scope) ?? scope, role),
     modelOptionsStore: { load: getProviderModelOptions, save: saveProviderModelOptions },
     commandsStore: { load: getProviderCommands, save: saveProviderCommands },
   });
-  const liveCrewManager = crewManager; // tells the type it is not null inside the closure
-  crewRunner = new CrewRunner(crewManager, config.agentsDir);
+  const crewRunner = new CrewRunner(crewManager, config.agentsDir);
   // Lets the `dispatch_task`/`get_task` tools of the MCP bulletin board (mcp-board.ts) dispatch directly to this
   // same crewRunner — this is the only path that issues tasks.
   // Management of the captain's conversation with the crew (turns). Direct chat with a crew member uses the
   // resident session of crewManager as it is.
-  bridge = createBridge({
+  const bridge: Bridge = createBridge({
     crewManager,
     turnStreams,
     activityLog,
@@ -185,14 +201,14 @@ async function start(): Promise<void> {
     theme: config.theme,
     bridge,
     crewRunner,
-    contextPercent: (role, missionId) => liveCrewManager.getContextPercent(role, missionId),
-    commands: (role, missionId) => liveCrewManager.getCommands(role, missionId),
-    commandsLive: (role, missionId) => liveCrewManager.hasLiveCommands(role, missionId),
+    contextPercent: (role, missionId) => crewManager.getContextPercent(role, missionId),
+    commands: (role, missionId) => crewManager.getCommands(role, missionId),
+    commandsLive: (role, missionId) => crewManager.hasLiveCommands(role, missionId),
     iconUrl: (role) => {
       const memberId = config.crew[role]?.acp_agent;
       return memberId ? crewIconUrl(role, findCrewIcon(config.fleetRoot, memberId)) : undefined;
     },
-    sessionPhase: (role, missionId) => liveCrewManager.sessionPhase(role, missionId),
+    sessionPhase: (role, missionId) => crewManager.sessionPhase(role, missionId),
     hosts: {
       localHostname: os.hostname(),
       hostAddress: (name) => hostAddresses.get(name),
@@ -262,6 +278,7 @@ async function start(): Promise<void> {
   }));
   routers.push(createA2uiRouter({ bridge, getUi: getUiOfTurn, dismissUi: recordUiDismissed }));
   const handleMcpRequest = createMcpHandler({
+    token: mcpToken,
     crewRunner,
     recordUnreportedFetch: bridge.recordUnreportedFetch,
     displayName: crewDisplayName,
@@ -275,6 +292,8 @@ async function start(): Promise<void> {
     uiStateOf: (turnId) => getUiOfTurn(turnId)?.state,
     recordUi: ({ turnId, role, missionId, messages }) => { recordUiShown(turnId, missionId, role, messages); },
   });
+
+  mcp.serve(handleMcpRequest);
 
   connectCrewEvents({
     crewRunner,
@@ -290,13 +309,67 @@ async function start(): Promise<void> {
   const app = createApp({
     routers,
     pinsRouter: createPinsRouter({ crewRoles: Object.keys(config.crew) }),
-    handleMcpRequest,
     clientDir: builtClientDir(),
   });
-  server = await listenWithRetry(app, config.port, config.host);
-  await recordInterruptedWork(interrupted, interruptedRecoveryDeps);
+  return {
+    app,
+    recordInterrupted: async () => { await recordInterruptedWork(interrupted, interruptedRecoveryDeps); },
+    stop: async () => {
+      // The sessions of all agents (including the commander) are managed by crewManager,
+      // so closeAll() alone kills every process.
+      crewManager.closeAll();
+      await mcp.close();
+      // The agents' last words (their exit events) are written first; then the database is folded into one file and closed, so that
+      // a copy of bridge.db alone is a complete backup (see docs/guides/backup-and-restore.md).
+      await new Promise((resolve) => setTimeout(resolve, 300));
+      try {
+        closeDatabase();
+      } catch (err) {
+        logger.warn("[make-it-so] Could not close the database cleanly:", err);
+      }
+    },
+  };
+}
+
+/** Starts the ship on its port (`npm start`, `npm run dev`) and stops it on SIGINT / SIGTERM. */
+export async function runShip(): Promise<void> {
+  let ship: Ship;
+  let server: http.Server;
+  try {
+    // The port keeps two browser-version processes apart; a ship open in the desktop app has no port, so its mark is looked at.
+    const openIn = readShipLock(config.fleetRoot, config.shipId);
+    if (openIn !== null) throw new Error(`[make-it-so] Ship "${config.shipId}" is open in the desktop app (process ${openIn}). Close its window first.`);
+    ship = await buildShip();
+    server = await listenWithRetry(ship.app, config.port, config.host);
+    // The port is now this process's mark. The desktop app's mark is looked at once more: one left after the first look, while the ship was being built,
+    // means the same ship is open there too (the desktop app leaves its mark before it looks at the port, so one of the two always sees the other).
+    const openAfter = readShipLock(config.fleetRoot, config.shipId);
+    if (openAfter !== null) {
+      server.close();
+      throw new Error(`[make-it-so] Ship "${config.shipId}" was opened in the desktop app (process ${openAfter}) while it started. Close its window first.`);
+    }
+    await ship.recordInterrupted();
+  } catch (error) {
+    logger.error("[make-it-so] Fatal error:", error);
+    process.exit(1);
+  }
   logger.info(`[make-it-so] Server running on http://${config.host}:${config.port}`);
   if (builtClientDir()) logger.info(`[make-it-so] Open http://${config.host}:${config.port} in your browser`);
+
+  const shutdown = async (): Promise<void> => {
+    server.close();
+    await ship.stop();
+  };
+  process.on("SIGINT", async () => {
+    logger.info("\n[make-it-so] Shutting down...");
+    await shutdown();
+    process.exit(0);
+  });
+  process.on("SIGTERM", async () => {
+    logger.info("[make-it-so] SIGTERM received, shutting down...");
+    await shutdown();
+    process.exit(0);
+  });
 }
 
 /**
@@ -337,35 +410,3 @@ function listenWithRetry(expressApp: express.Express, port: number, host: string
     tryListen();
   });
 }
-
-async function shutdown(): Promise<void> {
-  // The sessions of all agents (including the commander) are managed by crewManager,
-  // so closeAll() alone kills every process.
-  crewManager?.closeAll();
-  server?.close();
-  // The agents' last words (their exit events) are written first; then the database is folded into one file and closed, so that
-  // a copy of bridge.db alone is a complete backup (see docs/guides/backup-and-restore.md).
-  await new Promise((resolve) => setTimeout(resolve, 300));
-  try {
-    closeDatabase();
-  } catch (err) {
-    logger.warn("[make-it-so] Could not close the database cleanly:", err);
-  }
-}
-
-process.on("SIGINT", async () => {
-  logger.info("\n[make-it-so] Shutting down...");
-  await shutdown();
-  process.exit(0);
-});
-
-process.on("SIGTERM", async () => {
-  logger.info("[make-it-so] SIGTERM received, shutting down...");
-  await shutdown();
-  process.exit(0);
-});
-
-start().catch((error) => {
-  logger.error("[make-it-so] Fatal error:", error);
-  process.exit(1);
-});

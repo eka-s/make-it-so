@@ -27,7 +27,7 @@ Reference for the HTTP API, SSE (Server-Sent Events), and MCP board provided by 
 
 - **Format:** Requests and responses are both JSON (the one exception is icon upload, which is raw image bytes). JSON bodies are limited to 1MB.
 - **Listening:** Defaults to `127.0.0.1`. **There is no authentication** ([Security notes](../security.md)). No CORS headers are sent. The following are rejected on every route: requests whose `Host` is not an IP address or `localhost` (`403`, `{ error: "forbidden_host" }`); requests whose `Origin` differs from the server's own origin (`403`, `{ error: "forbidden_origin" }`); and requests whose `Sec-Fetch-Site` is anything other than `same-origin` or `none` (`403`, `{ error: "forbidden_site" }`; GETs that open a page by following a link, i.e. top-level navigations, are let through). `Host` is accepted only in the form `name[:port]`, and `Origin` only with `http:`. Requests without an `Origin` (such as `curl`) are let through.
-- **Serving the UI:** With `npm start`, any GET outside `/api` and `/mcp` returns the built UI (`index.html`). A nonexistent `/api/...` returns 404.
+- **Serving the UI:** With `npm start`, any GET outside `/api` returns the built UI (`index.html`). A nonexistent `/api/...` returns 404.
 - **Error shape:** `{ "error": "<message or code>", "message"?: "<English description>" }`. When `error` is a code (such as `agent_busy`), the UI translates it with a dictionary ([Error Codes](#error-codes)).
 - **Missions:** APIs that take a mission accept `missionId` in the body or the query.
   - Body (`POST`-style): if omitted, empty, or not a string, the default mission (`bridge`) is used. An ID that does not exist returns `404`.
@@ -268,7 +268,7 @@ The type definitions also include `task:progress`, `task:complete`, `notificatio
 
 ## MCP Board
 
-`POST /mcp`. A built-in MCP server that crew sessions use to delegate tasks and fetch reports (stateless mode; a server is created and discarded for each request).
+`POST /mcp`. It is served on its own listener, not on the ship's port: `127.0.0.1` only (whatever `server.host` is) and a port the OS picks at each start. The sessions are given its URL. A built-in MCP server that crew sessions use to delegate tasks and fetch reports (stateless mode; a server is created and discarded for each request).
 
 | Tool | Description |
 |---|---|
@@ -277,8 +277,13 @@ The type definitions also include `task:progress`, `task:complete`, `notificatio
 | `render_ui(messages)` | Shows an interactive form to the captain under the crew member's reply: `messages` are A2UI v1.0 messages (the basic catalog), self-contained and making exactly one surface, starting with `createSurface`. They are checked with the strict rules the A2UI library offers (an unknown component type, a missing root, a reference to a component that does not exist, an orphan, a wrong version or several operations in one message are refused); on a mistake nothing is shown and the error is returned. The description of the tool carries a complete example. It can be used only in a reply to the captain (not while working on a delegated task), once per reply. It returns at once, and the form appears when the reply ends. While the form is open, the captain can send nothing else in that mission; when they press a button, the crew member receives the A2UI action message (`{ "version": "1.0", "action": { name, surfaceId, sourceComponentId, timestamp, context } }`) in a fenced block marked `a2ui-action`, then the captain's comment from the form's comment field if they wrote one (once per form). A form is recorded (`ui_shown`) and stays after a restart |
 | `list_unreported_tasks()` | Returns the unreported tasks as formatted text. The commander gets all of them; anyone else gets only the ones they issued. The IDs at the time of the call are recorded as "this report's targets", and they become reported once the turn completes normally |
 
+- **Secret:** A call must carry the header `x-makeitso-token`, whose value is generated at each start and put into each session's MCP configuration. Without it (or with a wrong one), `/mcp` returns `401` `{ "error": "unauthorized" }` before any tool runs.
 - **Identifying the caller:** The caller's (crew member, mission) is determined from the HTTP headers `x-makeitso-agent` and `x-makeitso-mission`, which are put into that session's own MCP server configuration when the session is created. The model's self-report is not relied on. A call without the headers returns an error without any guessing.
 - Task IDs are per-role sequence numbers (for example, `chief_engineer_0001`).
+
+## The desktop app's own path
+
+In the desktop app the page's requests are answered by the ship's Express app through an in-memory connection, with one exception: the path `/__shell/window` is answered by the app around the page and never reaches the ship. The page sends a `POST` there with `{ height, room }` (the header's height, and the room it keeps at both ends, in CSS pixels) and gets `{ zoom }` back (the page's zoom, which the app knows exactly). The app uses them to put the window buttons in the middle of the header and to keep the window wide enough. A body that is not two such integers gets `400`, and anything but a `POST` gets `405`. Outside the desktop app nothing answers it and the page does not ask.
 
 ## Settings Server API (`--settings`)
 
@@ -298,7 +303,7 @@ The API of the settings server (default `http://127.0.0.1:3938`). It is an **int
 | `POST /api/settings/ships` | Creates a minimal ship. Body `{ id, port, name?, member }` |
 | `PUT /api/settings/ships/:id` | Saves the ship's settings. Body `{ fields }`. Goes through the same validation as at startup |
 | `DELETE /api/settings/ships/:id` | Deletes the ship along with its directory. The body `{ confirm: "<ship ID>" }` is required (`400`). A running ship returns `409`, and so does a ship whose `ship.yml` cannot be read |
-| `GET /api/settings/runtime` | `{ ships: [{ id, port, state, pid?, url, devCommand }], shipUi }`. `state` is `running`, `stopped`, or `conflict` |
+| `GET /api/settings/runtime` | `{ ships: [{ id, port, state, pid?, url, devCommand }], shipUi, desktop }`. `state` is `running`, `stopped`, or `conflict`. `desktop` is `true` in the desktop app's settings: a ship has no screen address there (`url` is `null`) and opens in a window; a ship open in a window, or running in the browser version, counts as `running` (the settings of the browser version count a ship open in the desktop app the same way) |
 | `POST /api/settings/ships/:id/start`, `POST /api/settings/ships/:id/stop` | Start and stop a ship (as an independent process). Start returns `404` for a ship that does not exist, and `409` for a running ship, a simultaneous start, a port conflict, or a ship without a port |
 | `GET /api/settings/ships/:id/log` | The tail of the ship's standard output (`{ text }`) |
 | `POST /api/settings/import/scan` | Reads an existing project and returns drafts (writes nothing). Body `{ path }`. Response `{ dir, isDirectory, found, drafts }` |

@@ -27,7 +27,7 @@ function offenders(dir: string, allowed: string[] = []): string[] {
 
 // Japanese is allowed only in the Japanese dictionary and the language names (non-test source and CSS).
 // Test files may contain Japanese as test data (e.g. to check Japanese search).
-const JAPANESE_ALLOWED = [path.join("i18n", "ja.ts"), path.join("i18n", "languages.ts"), "LanguageSwitch.tsx", path.join("testing", "japanese-literals.ts"), path.join("testing", "no-hardcoded-japanese.test.ts")];
+const JAPANESE_ALLOWED = [path.join("i18n", "ja.ts"), path.join("i18n", "languages.ts"), "LanguageSwitch.tsx", path.join("electron", "launcher-text.ja.ts"), path.join("testing", "japanese-literals.ts"), path.join("testing", "no-hardcoded-japanese.test.ts")];
 
 function allSourceFiles(dir: string): string[] {
   return fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
