@@ -19,8 +19,9 @@ import { logger } from "./logger.js";
 export const MCP_AGENT_HEADER = "x-makeitso-agent";
 export const MCP_MISSION_HEADER = "x-makeitso-mission";
 /**
- * The header that carries the ship's secret for `/mcp`. The endpoint listens on a TCP port that a browser page or another local
- * process could reach, so a call is accepted only when it carries the value that make-it-so itself put into the session's config.
+ * The header that carries the session's secret for `/mcp`. The endpoint listens on a TCP port that a browser page or another local
+ * process could reach, so a call is accepted only when it carries the value that make-it-so itself put into that session's config,
+ * and only for the identity that value was made for.
  */
 export const MCP_TOKEN_HEADER = "x-makeitso-token";
 
@@ -114,8 +115,8 @@ export type CrewManagerSettings = {
   skillsDir: string;
   /** The language the crew speaks. Read each time a session starts. */
   crewLanguage: () => Language;
-  /** The secret that `/mcp` requires (see MCP_TOKEN_HEADER). */
-  mcpToken: string;
+  /** The secret that `/mcp` requires from the session of this agent and mission (see MCP_TOKEN_HEADER). */
+  mcpToken: (agent: string, missionId: string) => string;
 };
 
 /** External dependencies of CrewManager. index.ts wires them in production; tests pass fakes. */
@@ -517,7 +518,7 @@ export class CrewManager extends EventEmitter<CrewManagerEvents> {
     const sessionId = await client.newSession(
       crewConfig.cwd,
       crewConfig.additionalDirectories,
-      { [MCP_AGENT_HEADER]: agentName, [MCP_MISSION_HEADER]: missionId, [MCP_TOKEN_HEADER]: this.deps.settings.mcpToken },
+      { [MCP_AGENT_HEADER]: agentName, [MCP_MISSION_HEADER]: missionId, [MCP_TOKEN_HEADER]: this.deps.settings.mcpToken(agentName, missionId) },
     );
 
     // A crew member that uses a provider-side agent definition as its persona selects it here (kiro already got it

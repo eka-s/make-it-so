@@ -21,6 +21,17 @@ describe("the MCP listener", () => {
     expect(res.status).toBe(503);
   });
 
+  it("takes a call whose body is over 1 MB (a large memo is written with a warning, not refused)", async () => {
+    listener = await openMcpListener();
+    listener.serve(async (req, res) => { res.json({ length: (req.body as { text: string }).text.length }); });
+    const res = await fetch(`http://127.0.0.1:${listener.port}/mcp`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text: "x".repeat(2 * 1024 * 1024) }),
+    });
+    expect(await res.json()).toEqual({ length: 2 * 1024 * 1024 });
+  });
+
   it("hands /mcp calls to the handler once it serves", async () => {
     listener = await openMcpListener();
     listener.serve(async (_req, res) => { res.json({ ok: true }); });

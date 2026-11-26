@@ -218,3 +218,15 @@ describe("resolving fetch", () => {
     expect((await res.json()).error).toBe("nope");
   });
 });
+
+describe("the Memory (read-only)", () => {
+  it("asks for a directory, a memo and a search with the switches and the encoded text", async () => {
+    const { api, last } = setup();
+    await api.getMemoryTree({ dir: "手順/a b", draft: true, deprecated: false });
+    expect(last().url).toBe(`/api/memory/tree?dir=${encodeURIComponent("手順/a b")}&draft=1&deprecated=0`);
+    await api.getMemoryDoc("a/メモ.md");
+    expect(last().url).toBe(`/api/memory/doc?path=${encodeURIComponent("a/メモ.md")}`);
+    await api.searchMemory({ q: "日本 語", draft: false, deprecated: true });
+    expect(last().url).toBe(`/api/memory/search?q=${encodeURIComponent("日本 語")}&draft=0&deprecated=1&limit=100`);
+  });
+});

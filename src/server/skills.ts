@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { parse } from "yaml";
 import { LANGUAGE_NAMES, type Language } from "./language.js";
+import { MEMORY_SKILL } from "./memory-skill.js";
 
 // This module does not depend on the ship config (config.ts). The ship root and the Skill directory are received
 // from the caller as `SkillsContext` — if merely importing it loaded the ship config,
@@ -75,13 +76,20 @@ export type SkillsContext = {
   skillsDir: string;
 };
 
+/** A skill that is part of the app itself: every crew member has it, and it cannot be removed or overridden by a ship's skill of the same name. */
+export type BuiltinSkill = { name: string; description: string; body: string };
+
+/** The skills built into the app. */
+const BUILTIN_SKILLS: BuiltinSkill[] = [MEMORY_SKILL];
+
 type SkillSummary = {
   name: string;
   description: string;
   // Absolute path of the skill.md itself. By embedding it in the guidance text as is, the model is spared the wasted
   // effort of exploring directories (Glob/ls, etc.) after it decides "this looks relevant" (the same policy as workspaceNote/reportFormatNote:
-  // state absolute paths explicitly).
-  path: string;
+  // state absolute paths explicitly). A built-in skill has no file: its text is `body`, which every crew member reads with `get_skill`.
+  path?: string;
+  body?: string;
 };
 
 // The block at the top of a skill file: the YAML between the first two `---` lines.
@@ -151,7 +159,8 @@ function listExplicitSkills(files: string[]): SkillSummary[] {
 /** The skills announced to a crew member: the ship's `skills/` directory first, then the explicitly given files. On a name clash, the first one wins. */
 function collectSkills(ctx: SkillsContext, extraSkillFiles: string[]): SkillSummary[] {
   const seen = new Set<string>();
-  return [...listSkills(ctx.skillsDir), ...listExplicitSkills(extraSkillFiles)].filter((s) => {
+  // The built-in skills come first, so a skill of a ship cannot take their names.
+  return [...BUILTIN_SKILLS, ...listSkills(ctx.skillsDir), ...listExplicitSkills(extraSkillFiles)].filter((s) => {
     if (seen.has(s.name)) return false;
     seen.add(s.name);
     return true;
@@ -176,6 +185,8 @@ export function loadAnnouncedSkills(ctx: SkillsContext, extraSkillFiles: string[
     read: (name) => {
       const skill = skills.find((s) => s.name === name);
       if (!skill) return undefined;
+      if (skill.body !== undefined) return skill.body;
+      if (skill.path === undefined) return undefined;
       try {
         return fs.readFileSync(skill.path, "utf-8").replace(FRONTMATTER, "").trim();
       } catch (err) {
@@ -210,15 +221,16 @@ export function buildCommonAnnouncement(
       "## Common operating rules",
       "",
       `- ${TASK_NOTIFICATION_NOTE}`,
-      ...(skills.length > 0
-        ? ["", "## Available skills", "", "When you are asked to do related work, read the corresponding skill with the `get_skill` tool (pass its name) and follow it. It gives the text of the skill only: files it mentions beside it are not available to you.", "", ...skills.map((s) => `- ${s.name}: ${s.description}`)]
-        : []),
+      "",
+      "## Available skills",
+      "",
+      "When you are asked to do related work, read the corresponding skill with the `get_skill` tool (pass its name) and follow it. It gives the text of the skill only: files it mentions beside it are not available to you.",
+      "",
+      ...skills.map((s) => `- ${s.name}: ${s.description}`),
       ...languageSection,
     ].join("\n");
   }
-  const skillList = skills.length > 0
-    ? skills.map((s) => `- ${s.name} (${s.path}): ${s.description}`).join("\n")
-    : "(No skills are registered at the moment.)";
+  const skillList = skills.map((s) => `- ${s.name} (${s.path ?? "read it with the `get_skill` tool"}): ${s.description}`).join("\n");
 
   return [
     "## Common operating rules",
@@ -229,7 +241,7 @@ export function buildCommonAnnouncement(
     "",
     "## Available skills",
     "",
-    "When you are asked to do related work, read the corresponding `skill.md` file yourself and follow it.",
+    "When you are asked to do related work, read the corresponding `skill.md` file yourself (or, for a skill that names no file, with the `get_skill` tool) and follow it.",
     "",
     skillList,
     ...languageSection,

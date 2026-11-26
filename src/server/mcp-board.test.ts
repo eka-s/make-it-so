@@ -44,13 +44,14 @@ beforeEach(() => {
   currentTurn = vi.fn(() => ({ turnId: "turn-1", agentName: "first_officer" })); // the turn of `caller`
   ranks = { first_officer: "commander", chief_engineer: "chief", ensign: "crew" };
   deps = {
-    token: "test-token",
+    verifyToken: (agent, mission, presented) => presented === `test-token:${agent}:${mission}`,
     crewRunner: { dispatch },
     recordUnreportedFetch,
     displayName: (agentDir) => names[agentDir] ?? agentDir,
     roleOf: (agent) => roles[agent],
     rankOf: (role) => ranks[role],
     skillsOf: (role) => ({ names: Object.keys(skillBodies[role] ?? {}), read: (name) => skillBodies[role]?.[name] }),
+    memory: { write: vi.fn(), deprecate: vi.fn(), remove: vi.fn(), read: vi.fn(), search: vi.fn(), history: vi.fn() },
     currentTurn,
     uiStateOf,
     recordUi,
@@ -84,7 +85,7 @@ describe("list of tools", () => {
   it("exposes the tools of the bulletin board", async () => {
     const client = await connect(caller);
     const { tools } = await client.listTools();
-    expect(tools.map((t) => t.name).sort()).toEqual(["dispatch_task", "get_skill", "get_task", "list_unreported_tasks", "render_ui"]);
+    expect(tools.map((t) => t.name).sort()).toEqual(["delete_memory", "deprecate_memory", "dispatch_task", "get_memory_history", "get_skill", "get_task", "list_unreported_tasks", "read_memory", "render_ui", "search_memory", "write_memory"]);
   });
 });
 
@@ -441,24 +442,38 @@ describe("HTTP endpoint (identification header)", () => {
   }
 
   it("determines the caller (crew member, mission) from the identification header", async () => {
-    const client = await connectOverHttp({ [MCP_AGENT_HEADER]: "first_officer", [MCP_MISSION_HEADER]: "m1", [MCP_TOKEN_HEADER]: "test-token" });
+    const client = await connectOverHttp({ [MCP_AGENT_HEADER]: "first_officer", [MCP_MISSION_HEADER]: "m1", [MCP_TOKEN_HEADER]: "test-token:first_officer:m1" });
     await call(client, "dispatch_task", { agent: "sam", task_name: "a", instruction: "i" });
     expect(dispatch.mock.calls[0][0]).toMatchObject({ taskId: "chief_engineer_0001", missionId: "m1" });
-  });
-
-  it("if there is no header, the caller is not guessed and an error is returned", async () => {
-    const client = await connectOverHttp({ [MCP_TOKEN_HEADER]: "test-token" });
-    const result = await call(client, "dispatch_task", { agent: "sam", task_name: "a", instruction: "i" });
-    expect(result.isError).toBe(true);
-    expect(dispatch).not.toHaveBeenCalled();
   });
 
   it.each([
     ["no secret", {}],
     ["a wrong secret", { [MCP_TOKEN_HEADER]: "wrong-token" }],
     ["a secret of another length", { [MCP_TOKEN_HEADER]: "x" }],
+    ["another crew member's secret", { [MCP_TOKEN_HEADER]: "test-token:chief_engineer:m1" }],
+    ["another mission's secret", { [MCP_TOKEN_HEADER]: "test-token:first_officer:m2" }],
   ])("refuses a call that carries %s, before any tool runs", async (_label, headers) => {
     await expect(connectOverHttp({ [MCP_AGENT_HEADER]: "first_officer", [MCP_MISSION_HEADER]: "m1", ...headers })).rejects.toThrow();
     expect(dispatch).not.toHaveBeenCalled();
+  });
+
+  it("refuses a call without the identification headers, even with a secret", async () => {
+    await expect(connectOverHttp({ [MCP_TOKEN_HEADER]: "test-token:first_officer:m1" })).rejects.toThrow();
+    expect(dispatch).not.toHaveBeenCalled();
+  });
+});
+
+describe("memory tools and who is writing", () => {
+  it("does not name a caller that is not a crew member of the ship as the writer", async () => {
+    const write = deps.memory.write as unknown as ReturnType<typeof vi.fn>;
+    write.mockResolvedValue({ path: "a.md", version: "v", created: true, warnings: [] });
+    const args = { path: "a.md", type: "note", description: "d", body: "b", message: "m" };
+    const stranger = await call(await connect({ agent: "someone_else", missionId: "m1" }), "write_memory", args);
+    expect(stranger.isError).toBe(true);
+    expect(stranger.text).toContain("could not be identified");
+    expect(write).not.toHaveBeenCalled();
+    await call(await connect(caller), "write_memory", args);
+    expect(write).toHaveBeenCalledWith(expect.objectContaining({ crew: expect.any(String) }));
   });
 });

@@ -40,7 +40,7 @@ function makeManager(crew: Record<string, CrewMemberConfig>, extra: Partial<Crew
     projectRoot: root,
     skillsDir: path.join(root, "skills"),
     crewLanguage: () => "en",
-    mcpToken: "test-token",
+    mcpToken: (agent, mission) => `test-token:${agent}:${mission}`,
   };
   createClient = vi.fn((_provider: string) => {
     const client = new FakeAgentClient();
@@ -85,7 +85,7 @@ describe("session creation", () => {
       {
         cwd: root,
         additionalDirectories: [],
-        mcpIdentity: { [MCP_AGENT_HEADER]: "chief_engineer", [MCP_MISSION_HEADER]: "m1", [MCP_TOKEN_HEADER]: "test-token" },
+        mcpIdentity: { [MCP_AGENT_HEADER]: "chief_engineer", [MCP_MISSION_HEADER]: "m1", [MCP_TOKEN_HEADER]: "test-token:chief_engineer:m1" },
       },
     ]);
     expect(session).toMatchObject({ sessionId: "fake-session", agentName: "chief_engineer", missionId: "m1", lastSeenSeq: 0 });

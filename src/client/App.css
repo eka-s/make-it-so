@@ -169,9 +169,8 @@ body {
 }
 
 /*
- * Two blocks: the activity bar + panel (left) and the main area (right). There is no right pane;
- *    all views, including pins, are gathered in the left pane. flex is used instead of a fixed two-column grid
- *    so that more can be added to the left pane — .app-main fills the rest with flex:1.
+ * The left pane (missions, crew, pins, settings), the main area, and the Memory pane at the right (shown only when it is opened).
+ *    flex is used instead of a fixed grid so that panes can be added — .app-main fills what is left with flex:1.
  */
 .app-body {
   position: relative; /* the left pane is a drawer over it in a narrow window */
@@ -182,7 +181,8 @@ body {
 
 .app-main {
   flex: 1;
-  min-width: 0;
+  /* The Memory pane (beside it) gives way before the conversation gets narrower than this. */
+  min-width: min(320px, 100%);
   display: flex;
   flex-direction: column;
   overflow: hidden;

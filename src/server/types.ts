@@ -154,6 +154,8 @@ export type SSEEvent =
   // A signal that a crew member's state (starting, restarting, etc.) changed. It carries no data; a client that
   // receives it just re-fetches the crew status (GET /api/crew/status).
   | { type: "crew:status_changed"; data: { role: string; missionId: string } }
+  // A signal that the ship's Memory changed. Like crew:status_changed it carries no data: a client that receives it fetches again what it shows.
+  | { type: "memory:changed"; data: Record<string, never> }
   | { type: "permission:requested"; data: PendingPermission }
   | { type: "permission:resolved"; data: { key: string } }
   | { type: "log"; data: { message: string; timestamp: string } };

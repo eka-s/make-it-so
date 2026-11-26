@@ -191,3 +191,42 @@ export const loadThemeChoice = () => loadStoredTheme(THEME_CHOICE_KEY);
 export const persistThemeChoice = (theme: Theme) => persistTheme(THEME_CHOICE_KEY, theme);
 export const loadThemeDefault = () => loadStoredTheme(THEME_DEFAULT_KEY);
 export const persistThemeDefault = (theme: Theme) => persistTheme(THEME_DEFAULT_KEY, theme);
+
+// The Memory pane (the right pane): whether it is open, how much of the window it takes (a ratio, so it follows the window), and whether the
+// list and the memo are stacked or side by side.
+const MEMORY_OPEN_STORAGE_KEY = "memory-pane-open";
+const MEMORY_LAYOUT_STORAGE_KEY = "memory-pane-layout";
+
+export type MemoryLayout = "stack" | "side";
+
+export function loadStoredMemoryOpen(): boolean {
+  try {
+    return localStorage.getItem(MEMORY_OPEN_STORAGE_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+export function persistMemoryOpen(open: boolean): void {
+  try {
+    localStorage.setItem(MEMORY_OPEN_STORAGE_KEY, open ? "1" : "0");
+  } catch {
+    // Ignore (when localStorage is unavailable, e.g. in private browsing)
+  }
+}
+
+export function loadStoredMemoryLayout(): MemoryLayout {
+  try {
+    return localStorage.getItem(MEMORY_LAYOUT_STORAGE_KEY) === "side" ? "side" : "stack";
+  } catch {
+    return "stack";
+  }
+}
+
+export function persistMemoryLayout(layout: MemoryLayout): void {
+  try {
+    localStorage.setItem(MEMORY_LAYOUT_STORAGE_KEY, layout);
+  } catch {
+    // Ignore (when localStorage is unavailable, e.g. in private browsing)
+  }
+}

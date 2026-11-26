@@ -78,6 +78,9 @@ index.ts (wiring layer)
 | `crew-briefing.ts`, `skills.ts`, `crew-paths.ts` | Building the briefing, reading skills, paths |
 | `crew-model.ts` | Model resolution (`resolveCrewModel`). A pure function |
 | `mcp-board.ts` | The MCP board's MCP server |
+| `mcp-memory-tools.ts` | The Memory tools of the MCP board (thin wrappers around the store) |
+| `memory-store.ts`, `memory-document.ts`, `memory-path.ts`, `memory-index-md.ts`, `memory-diff.ts` | The ship's Memory: `createMemoryStore(deps)` writes the Markdown files (an OKF bundle), keeps the search index in the DB and the history in git (isomorphic-git), one queue for every change; the rest are pure helpers (file format, path rules, the `index.md` text, the line diff). `routes/memory.ts` is the viewer's read-only side |
+| `memory-skill.ts` | The built-in skill that teaches the crew to use the Memory (text in the code, so remote crew read it with `get_skill` too) |
 | `mcp-listener.ts` | The listener that serves `/mcp` alone: loopback only, on a port the OS picks, 503 until the board is wired in |
 | `ship-lock.ts`, `ship-id.ts` | The `desktop.pid` mark of a ship open in the desktop app (process ID and start time), read by the browser version and the settings; the one pattern a ship ID must match before it builds a path or a command line |
 | `a2ui-action.ts`, `a2ui-validate.ts` | A2UI: the answer's action message, and the strict validation of a crew member's messages |

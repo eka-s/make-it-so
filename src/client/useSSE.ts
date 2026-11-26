@@ -15,6 +15,8 @@ type UseSSEOptions = {
   onCreditsUsage?: (data: AccountsSnapshot) => void;
   // A signal that a crew member's state (starting, restarting, etc.) changed. On receiving it, fetch the crew status again.
   onCrewStatusChanged?: (data: { role: string; missionId: string }) => void;
+  // A signal that the ship's Memory changed. On receiving it, a Memory pane that is open fetches again what it shows.
+  onMemoryChanged?: () => void;
   onReconnect?: () => void;
   /** Called with false when the connection is lost and with true when it is up. */
   onConnectionChange?: (connected: boolean) => void;
@@ -134,13 +136,14 @@ function unregisterListener(eventType: string, handler: (event: MessageEvent) =>
   );
 }
 
-export function useSSE({ onTimelineUpsert, onTimelineAppend, onTimelineRemove, onTimelineActivity, onCreditsUsage, onCrewStatusChanged, onReconnect, onConnectionChange, onPermissionRequested, onPermissionResolved }: UseSSEOptions) {
+export function useSSE({ onTimelineUpsert, onTimelineAppend, onTimelineRemove, onTimelineActivity, onCreditsUsage, onCrewStatusChanged, onMemoryChanged, onReconnect, onConnectionChange, onPermissionRequested, onPermissionResolved }: UseSSEOptions) {
   const onTimelineUpsertRef = useRef(onTimelineUpsert);
   const onTimelineAppendRef = useRef(onTimelineAppend);
   const onTimelineRemoveRef = useRef(onTimelineRemove);
   const onTimelineActivityRef = useRef(onTimelineActivity);
   const onCreditsUsageRef = useRef(onCreditsUsage);
   const onCrewStatusChangedRef = useRef(onCrewStatusChanged);
+  const onMemoryChangedRef = useRef(onMemoryChanged);
   const onReconnectRef = useRef(onReconnect);
   const onConnectionChangeRef = useRef(onConnectionChange);
   const onPermissionRequestedRef = useRef(onPermissionRequested);
@@ -159,6 +162,7 @@ export function useSSE({ onTimelineUpsert, onTimelineAppend, onTimelineRemove, o
   onTimelineActivityRef.current = onTimelineActivity;
   onCreditsUsageRef.current = onCreditsUsage;
   onCrewStatusChangedRef.current = onCrewStatusChanged;
+  onMemoryChangedRef.current = onMemoryChanged;
   onReconnectRef.current = onReconnect;
   onConnectionChangeRef.current = onConnectionChange;
   onPermissionRequestedRef.current = onPermissionRequested;
@@ -265,6 +269,10 @@ export function useSSE({ onTimelineUpsert, onTimelineAppend, onTimelineRemove, o
       }
     }
 
+    function onMemoryChangedEvent() {
+      onMemoryChangedRef.current?.();
+    }
+
     function onCreditsUsageEvent(event: MessageEvent) {
       try {
         const data: AccountsSnapshot = JSON.parse(event.data);
@@ -295,6 +303,7 @@ export function useSSE({ onTimelineUpsert, onTimelineAppend, onTimelineRemove, o
     eventSource.addEventListener("timeline:activity", onTimelineActivityEvent);
     eventSource.addEventListener("credits:usage", onCreditsUsageEvent);
     eventSource.addEventListener("crew:status_changed", onCrewStatusChangedEvent);
+    eventSource.addEventListener("memory:changed", onMemoryChangedEvent);
     eventSource.addEventListener("permission:requested", onPermissionRequestedEvent);
     eventSource.addEventListener("permission:resolved", onPermissionResolvedEvent);
 
@@ -305,6 +314,7 @@ export function useSSE({ onTimelineUpsert, onTimelineAppend, onTimelineRemove, o
     registerListener("timeline:activity", onTimelineActivityEvent);
     registerListener("credits:usage", onCreditsUsageEvent);
     registerListener("crew:status_changed", onCrewStatusChangedEvent);
+    registerListener("memory:changed", onMemoryChangedEvent);
     registerListener("permission:requested", onPermissionRequestedEvent);
     registerListener("permission:resolved", onPermissionResolvedEvent);
 
@@ -330,6 +340,7 @@ export function useSSE({ onTimelineUpsert, onTimelineAppend, onTimelineRemove, o
       eventSource.removeEventListener("timeline:activity", onTimelineActivityEvent);
       eventSource.removeEventListener("credits:usage", onCreditsUsageEvent);
       eventSource.removeEventListener("crew:status_changed", onCrewStatusChangedEvent);
+      eventSource.removeEventListener("memory:changed", onMemoryChangedEvent);
       eventSource.removeEventListener("permission:requested", onPermissionRequestedEvent);
       eventSource.removeEventListener("permission:resolved", onPermissionResolvedEvent);
 
@@ -340,6 +351,7 @@ export function useSSE({ onTimelineUpsert, onTimelineAppend, onTimelineRemove, o
       unregisterListener("timeline:activity", onTimelineActivityEvent);
       unregisterListener("credits:usage", onCreditsUsageEvent);
       unregisterListener("crew:status_changed", onCrewStatusChangedEvent);
+      unregisterListener("memory:changed", onMemoryChangedEvent);
       unregisterListener("permission:requested", onPermissionRequestedEvent);
       unregisterListener("permission:resolved", onPermissionResolvedEvent);
 

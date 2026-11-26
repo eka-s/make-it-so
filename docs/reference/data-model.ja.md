@@ -13,6 +13,7 @@
 - [タイムラインのイベント](#タイムラインのイベント)
 - [ミッションとPIN](#ミッションとpin)
 - [クルーのタスク](#クルーのタスク)
+- [Memory の索引](#memory-の索引)
 - [設定とキャッシュ](#設定とキャッシュ)
 - [共通の約束](#共通の約束)
 - [マイグレーション](#マイグレーション)
@@ -32,6 +33,7 @@
 | ミッション | `missions`、`pinned_messages`、`mission_crew_model` |
 | タスク | `task_started_events`、`task_completed_events`、`task_error_events`、`task_reported_events`、`task_id_counters` |
 | A2UI のフォーム | `ui_shown_events`、`ui_answered_events`、`ui_dismissed_events` |
+| Memory の索引 | `memory_docs`、`memory_fts`（ファイルから作り直せる。下を参照） |
 | 設定・キャッシュ | `app_settings`、`provider_model_options`、`provider_commands` |
 
 ## タイムラインのイベント
@@ -150,6 +152,15 @@
 - ミッションに未回答のフォームがある間は、そのミッションでメッセージを送れません（入力欄がロックされ、サーバーも `409` で断ります）。どの返信にあるかは、`GET /api/timeline` が `openUiItemId` で返すので、クライアントが、読み込み済みの項目から探す必要はありません。
 - 回答のときにクルーが受け取るメッセージは、保存しません。読むときに、`action_json` と `comment` から作ります。`a2ui-action` と印を付けたコードブロックに、A2UI v1.0 の action メッセージを入れ、コメントがあれば、`Captain's comment:` とコメントが続きます（ほかのクルーに渡す会話の経緯にも、これが入ります）。文面ではなく、事実を保存するので、文面を作る箇所を変えても、古い行は、そのまま使えます。
 
+## Memory の索引
+
+艦の Memory は、Markdown ファイルのディレクトリ `knowledge/` です（[ガイド](../guides/memory.ja.md)）。**真実はファイル**で、この2つのテーブルは、ファイルから読んだものを持つだけです（一覧と検索を速くするため）。起動のたびに、ファイルから作り直し（手で直したファイルも拾います）、いつでも捨てられます。
+
+| テーブル | 列 | 意味 |
+|---|---|---|
+| `memory_docs` | `path`（主キー）、`dir`、`type`、`title`、`description`、`tags_json`、`status`、`superseded_by`、`crew`、`updated_at`、`version`、`size`、`body` | メモ1件が1行。`version` は、ファイルの git の blob ID（書き込みが `base` として渡すもの）。`body` を持つのは、トライグラム索引には短すぎる語を、`LIKE` で探すため |
+| `memory_fts` | `title`、`description`、`tags`、`body` | 全文検索の索引（FTS5、`trigram`: 3文字以上の語。日本語も）。rowid は `memory_docs` の rowid |
+
 ## 設定とキャッシュ
 
 | テーブル | 列 | 意味 |
@@ -179,6 +190,7 @@
 | 4 | `provider-commands` | `provider_commands` を追加 |
 | 5 | `task-cancelled` | `task_completed_events.cancelled` を追加。既存行は 0（中止ではない） |
 | 6 | `ui-events` | `ui_shown_events`、`ui_answered_events`、`ui_dismissed_events` を追加 |
+| 7 | `memory-index` | `memory_docs` と `memory_fts`（Memory の検索用の索引）を足す |
 
 ### 規則
 

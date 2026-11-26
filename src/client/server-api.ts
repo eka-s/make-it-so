@@ -6,6 +6,9 @@ import type {
   CrewModelEntry,
   CrewTasks,
   Language,
+  MemoryBrowse,
+  MemoryDocument,
+  MemorySearchResponse,
   Message,
   Mission,
   PendingPermission,
@@ -194,6 +197,13 @@ export function createApi(options: ApiOptions = {}) {
       if (p.to) query.set("to", p.to);
       return request<SearchResponse>(`/api/search?${query.toString()}`, { signal });
     },
+    // --- The ship's Memory (read-only: the crew writes it through MCP tools) ---
+    /** One directory of the Memory (`dir` "" is the root). `statuses` are the ones to show; stable memos always are. */
+    getMemoryTree: (p: { dir: string; draft: boolean; deprecated: boolean }, signal?: AbortSignal) =>
+      request<MemoryBrowse>(`/api/memory/tree?dir=${enc(p.dir)}&draft=${p.draft ? 1 : 0}&deprecated=${p.deprecated ? 1 : 0}`, { signal }),
+    getMemoryDoc: (path: string, signal?: AbortSignal) => request<MemoryDocument>(`/api/memory/doc?path=${enc(path)}`, { signal }),
+    searchMemory: (p: { q: string; draft: boolean; deprecated: boolean }, signal?: AbortSignal) =>
+      request<MemorySearchResponse>(`/api/memory/search?q=${enc(p.q)}&draft=${p.draft ? 1 : 0}&deprecated=${p.deprecated ? 1 : 0}&limit=100`, { signal }),
     getCrewModels: (missionId: string, signal?: AbortSignal) =>
       request<CrewModelEntry[]>(`/api/missions/${enc(missionId)}/crew-models`, { signal }),
     /** If `model` is null, removes this mission's override and goes back to the default. */
