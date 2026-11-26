@@ -490,9 +490,6 @@ export function loadCrew(
       // A remote crew member is not given the main side's targets or access guidance.
       ...(host ? { additionalDirectories: [] } : resolveAccess(role, assignment.access, targets, cwd, projectRoot)),
     };
-    if (host && crew[role].skills.length > 0) {
-      console.warn(`[Config] Crew ${role}: skills are not announced to remote crew yet (local file paths do not exist on host "${host.name}") — ignored`);
-    }
     console.log(`[Config] Crew ${role} (${assignment.member}): ${host ? `remote(host=${host.name}), ` : ""}cwd=${cwd}, persona=${assignment.agent ? `provider agent "${assignment.agent}"` : "make-it-so (personnel)"}`);
   }
 

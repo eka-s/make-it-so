@@ -428,7 +428,7 @@ crew:
 
 ### 3.8 リモートのクルーに出さない案内
 
-メインの案内文には、メイン側のローカルファイルのパス(`workspace`、`report-format.md`、`skills/…`)が含まれる。リモートにはそのファイルが存在しないので、**案内すると逆に混乱させる**。そこで `buildCommonAnnouncement(…, { remote: true })` は、タスク通知のルール(`get_task` を使う)だけを返す。
+メインの案内文には、メイン側のローカルファイルのパス(`workspace`、`report-format.md`、`skills/…`)が含まれる。リモートにはそのファイルが存在しないので、**案内すると逆に混乱させる**。そこで `buildCommonAnnouncement(…, { remote: true })` は、タスク通知のルール(`get_task` を使う)と、スキルの名前と説明(本文は `get_skill` ツールで読む)だけを返す。
 
 ---
 

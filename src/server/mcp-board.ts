@@ -46,6 +46,11 @@ export type McpBoardDeps = {
   rankOf: (role: string) => CrewRank | undefined;
   /** The turn in progress in a mission and the crew member it is with (undefined if none). */
   currentTurn: (missionId: string) => { turnId: string; agentName: string } | undefined;
+  /**
+   * The skills announced to the crew member `role`: what `get_skill` serves to crew who cannot read the skill files themselves
+   * (a remote host crew member). Only these can be read, so the tool cannot be used to read other files.
+   */
+  skillsOf: (role: string) => { names: string[]; read: (name: string) => string | undefined };
   /** What became of the A2UI form in the reply of the turn `turnId` ("pending" while the reply is in progress; undefined if the turn has none). */
   uiStateOf: (turnId: string) => UiState | undefined;
   /** Records the A2UI form of the reply of the turn `turnId` (the form appears when the turn ends). */
@@ -185,6 +190,31 @@ export function createBoardServer(deps: McpBoardDeps, caller?: CallerIdentity): 
         ...(outcome ? ["", "### Result", outcome] : ["", "(not completed yet)"]),
       ].join("\n");
       return { content: [{ type: "text" as const, text }] };
+    }
+  );
+
+  server.registerTool(
+    "get_skill",
+    {
+      description: "Gets the instructions of a skill by its name (the skills announced to you in your briefing). Use it when you are asked to do work a skill covers: read it before you start, then follow it. It gives the text of the skill only; files it mentions beside it are not available to you.",
+      inputSchema: {
+        name: z.string(),
+      },
+    },
+    async ({ name }) => {
+      const role = caller ? deps.roleOf(caller.agent) : undefined;
+      if (role === undefined) {
+        logger.error("[MCP] get_skill: the caller could not be identified (headers are missing or it is not in the ship)");
+        return { content: [{ type: "text" as const, text: "Error: the caller could not be identified." }], isError: true };
+      }
+      const skills = deps.skillsOf(role);
+      const body = skills.read(name);
+      if (body === undefined) {
+        const names = skills.names;
+        const hint = names.length > 0 ? `The skills available to you: ${names.join(", ")}.` : "No skills are announced to you.";
+        return { content: [{ type: "text" as const, text: `Skill "${name}" was not found. ${hint}` }], isError: true };
+      }
+      return { content: [{ type: "text" as const, text: body }] };
     }
   );
 

@@ -50,6 +50,7 @@ import { createActivityLog } from "./activity-log.js";
 import { connectCrewEvents } from "./crew-events.js";
 import { logger, configureLogger } from "./logger.js";
 import { systemPathLookup, missingCliMessage } from "./agent-cli-check.js";
+import { loadAnnouncedSkills } from "./skills.js";
 
 // Logger configuration (from the ship config). Done before any other log output.
 configureLogger({
@@ -277,6 +278,7 @@ export async function buildShip(): Promise<Ship> {
     openUiItemId: getOpenUiTurnId,
   }));
   routers.push(createA2uiRouter({ bridge, getUi: getUiOfTurn, dismissUi: recordUiDismissed }));
+  const skillsContext = { projectRoot: config.projectRoot, skillsDir: config.skillsDir };
   const handleMcpRequest = createMcpHandler({
     token: mcpToken,
     crewRunner,
@@ -288,6 +290,7 @@ export async function buildShip(): Promise<Ship> {
       return config.crew[role] ? role : undefined;
     },
     rankOf: (role) => config.crew[role]?.rank,
+    skillsOf: (role) => loadAnnouncedSkills(skillsContext, config.crew[role]?.skills ?? []),
     currentTurn: (missionId) => bridge.getCurrentTurn(missionId) ?? undefined,
     uiStateOf: (turnId) => getUiOfTurn(turnId)?.state,
     recordUi: ({ turnId, role, missionId, messages }) => { recordUiShown(turnId, missionId, role, messages); },

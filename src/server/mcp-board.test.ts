@@ -26,6 +26,7 @@ let dispatch: ReturnType<typeof vi.fn>;
 let recordUnreportedFetch: ReturnType<typeof vi.fn>;
 let uiStateOf: ReturnType<typeof vi.fn>;
 let recordUi: ReturnType<typeof vi.fn>;
+let skillBodies: Record<string, Record<string, string>>;
 let currentTurn: ReturnType<typeof vi.fn>;
 let deps: McpBoardDeps;
 const cleanups: Array<() => Promise<void> | void> = [];
@@ -39,6 +40,7 @@ beforeEach(() => {
   recordUnreportedFetch = vi.fn();
   uiStateOf = vi.fn(() => undefined); // the reply has no form yet
   recordUi = vi.fn();
+  skillBodies = { chief_engineer: { deploy: "# Deploy\nRun it." } };
   currentTurn = vi.fn(() => ({ turnId: "turn-1", agentName: "first_officer" })); // the turn of `caller`
   ranks = { first_officer: "commander", chief_engineer: "chief", ensign: "crew" };
   deps = {
@@ -48,6 +50,7 @@ beforeEach(() => {
     displayName: (agentDir) => names[agentDir] ?? agentDir,
     roleOf: (agent) => roles[agent],
     rankOf: (role) => ranks[role],
+    skillsOf: (role) => ({ names: Object.keys(skillBodies[role] ?? {}), read: (name) => skillBodies[role]?.[name] }),
     currentTurn,
     uiStateOf,
     recordUi,
@@ -81,7 +84,7 @@ describe("list of tools", () => {
   it("exposes the tools of the bulletin board", async () => {
     const client = await connect(caller);
     const { tools } = await client.listTools();
-    expect(tools.map((t) => t.name).sort()).toEqual(["dispatch_task", "get_task", "list_unreported_tasks", "render_ui"]);
+    expect(tools.map((t) => t.name).sort()).toEqual(["dispatch_task", "get_skill", "get_task", "list_unreported_tasks", "render_ui"]);
   });
 });
 
@@ -361,6 +364,39 @@ describe("render_ui", () => {
     const result = await call(client, "render_ui", { messages: [surface] });
     expect(result.isError).toBe(true);
     expect(recordUi).not.toHaveBeenCalled();
+  });
+});
+
+describe("get_skill", () => {
+  const engineer = { agent: "chief_engineer", missionId: "m1" };
+
+  it("returns the body of a skill announced to the caller", async () => {
+    const client = await connect(engineer);
+    const result = await call(client, "get_skill", { name: "deploy" });
+    expect(result.isError).toBe(false);
+    expect(result.text).toBe("# Deploy\nRun it.");
+  });
+
+  it("reads by the caller's role, even when it is identified by another name (sam is chief_engineer)", async () => {
+    const client = await connect({ agent: "sam", missionId: "m1" });
+    expect((await call(client, "get_skill", { name: "deploy" })).text).toContain("Deploy");
+  });
+
+  it("does not give a skill that is announced to someone else, and lists the names the caller has", async () => {
+    const client = await connect(caller);
+    const result = await call(client, "get_skill", { name: "deploy" });
+    expect(result.isError).toBe(true);
+    expect(result.text).toContain("No skills are announced to you");
+
+    const other = await call(await connect(engineer), "get_skill", { name: "nope" });
+    expect(other.isError).toBe(true);
+    expect(other.text).toContain("deploy");
+  });
+
+  it("if the caller cannot be identified, returns an error", async () => {
+    const result = await call(await connect(undefined), "get_skill", { name: "deploy" });
+    expect(result.isError).toBe(true);
+    expect(result.text).toContain("the caller could not be identified");
   });
 });
 

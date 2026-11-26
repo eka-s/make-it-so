@@ -2,7 +2,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { buildCommonAnnouncement, buildDispatchNote, parseFrontmatter, type SkillsContext } from "./skills.js";
+import { buildCommonAnnouncement, buildDispatchNote, loadAnnouncedSkills, parseFrontmatter, type SkillsContext } from "./skills.js";
 
 // skills.ts does not depend on the ship config and receives the ship's information as arguments, so it can be
 // called against a temporary directory without a mock.
@@ -118,14 +118,79 @@ describe("buildCommonAnnouncement", () => {
     expect(console.warn).toHaveBeenCalledWith(expect.stringContaining("no valid frontmatter"));
   });
 
-  it("for a remote, the content that points to local paths (workspace, report format, Skill list) is not included", () => {
-    skill(path.join(ctx.skillsDir, "weather"), fm("weather", "Check the weather"));
+  it("for a remote, the workspace and the report format are left out, and the Skills are listed by name only, to be read with get_skill", () => {
+    const file = skill(path.join(ctx.skillsDir, "weather"), fm("weather", "Check the weather"));
     const text = buildCommonAnnouncement(ctx, [], { remote: true });
     expect(text).toContain("get_task");
     expect(text).not.toContain("workspace");
     expect(text).not.toContain("report-format");
-    expect(text).not.toContain("weather");
+    expect(text).toContain("- weather: Check the weather");
+    expect(text).toContain("get_skill");
+    expect(text).toContain("files it mentions beside it are not available");
+    expect(text).not.toContain(file);
+  });
+
+  it("for a remote with no skills, there is no skill section", () => {
+    const text = buildCommonAnnouncement(ctx, [], { remote: true });
     expect(text).not.toContain("Available skills");
+    expect(text).not.toContain("get_skill");
+  });
+});
+
+describe("loadAnnouncedSkills", () => {
+  it("returns the body without the frontmatter", () => {
+    skill(path.join(ctx.skillsDir, "weather"), "---\nname: weather\ndescription: Check the weather\n---\n# Weather\n\nLook outside.\n");
+    expect(loadAnnouncedSkills(ctx, []).read("weather")).toBe("# Weather\n\nLook outside.");
+  });
+
+  it("strips the frontmatter of a file with CRLF line endings, and keeps a --- line inside the body", () => {
+    skill(path.join(ctx.skillsDir, "crlf"), "---\r\nname: crlf\r\ndescription: d\r\n---\r\nfirst\r\n---\r\nsecond\r\n");
+    expect(loadAnnouncedSkills(ctx, []).read("crlf")).toBe("first\r\n---\r\nsecond");
+  });
+
+  it("reads the explicitly given skills too, and the ship's skills/ wins on a name clash", () => {
+    skill(path.join(ctx.skillsDir, "shared"), "---\nname: shared\ndescription: d\n---\nthe ship's\n");
+    const mine = skill(path.join(root, "extra", "mine"), fm("mine", "personal"));
+    const dup = skill(path.join(root, "extra", "shared"), "---\nname: shared\ndescription: d\n---\nthe duplicate\n");
+    const skills = loadAnnouncedSkills(ctx, [mine, dup]);
+    expect(skills.read("shared")).toBe("the ship's");
+    expect(skills.read("mine")).toBe("body");
+  });
+
+  it("returns undefined for a skill that is not announced (it cannot be used to read other files)", () => {
+    skill(path.join(ctx.skillsDir, "weather"), fm("weather", "d"));
+    const skills = loadAnnouncedSkills(ctx, []);
+    expect(skills.read("other")).toBeUndefined();
+    expect(skills.read("../../etc/passwd")).toBeUndefined();
+  });
+
+  it("lists the names that are announced", () => {
+    skill(path.join(ctx.skillsDir, "a"), fm("a", "d"));
+    skill(path.join(ctx.skillsDir, "b"), fm("b", "d"));
+    expect(loadAnnouncedSkills(ctx, []).names.sort()).toEqual(["a", "b"]);
+  });
+
+  it("a skill whose name YAML reads as a number is announced and can be read by that name", () => {
+    skill(path.join(ctx.skillsDir, "n"), "---\nname: 123\ndescription: d\n---\nnumbered\n");
+    const skills = loadAnnouncedSkills(ctx, []);
+    expect(skills.names).toEqual(["123"]);
+    expect(skills.read("123")).toBe("numbered");
+  });
+
+  it("a file that is gone after it was announced reads as not found, and its path is not thrown to the caller", () => {
+    const file = skill(path.join(ctx.skillsDir, "gone"), fm("gone", "d"));
+    const skills = loadAnnouncedSkills(ctx, []);
+    fs.rmSync(file);
+    expect(skills.read("gone")).toBeUndefined();
+  });
+
+  it("an explicitly given file that is gone is left out with a warning instead of failing for the others", () => {
+    const keep = skill(path.join(root, "extra", "keep"), fm("keep", "d"));
+    const gone = skill(path.join(root, "extra", "gone"), fm("gone", "d"));
+    fs.rmSync(gone);
+    expect(loadAnnouncedSkills(ctx, [gone, keep]).names).toEqual(["keep"]);
+    expect(buildCommonAnnouncement(ctx, [gone, keep], { remote: true })).toContain("- keep: d");
+    expect(console.warn).toHaveBeenCalled();
   });
 });
 
