@@ -6,7 +6,7 @@ The Memory is the ship's shared notebook: short Markdown memos the crew writes w
 
 ## Read it
 
-Click "Memory" in the header. The pane opens at the right and takes half of the window (drag its left edge to change that; the choice is remembered).
+Click "Memory" in the header. The pane opens at the right and takes half of the window (drag its left edge to change that; the choice is remembered). Drag the border between the list and the memo to change how much each takes (remembered for each of the two layouts).
 
 - The upper part is the list: directories (click to open) and memos, each with its type and, for a draft or a deprecated memo, a mark. Type in the search box to search titles, descriptions, tags and bodies instead (every word must match, up to the first 32 words, and the first four of one or two characters; Japanese works).
 - The lower part shows the memo you pick: its type, tags, who wrote it and when, its description, then its text. "Frontmatter" opens the header of the file as it is. A link to another memo moves inside the pane; a web link opens in a new tab.

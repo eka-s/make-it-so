@@ -18,6 +18,17 @@ const DEFAULT_RATIO = 0.5;
 const MIN_RATIO = 0.25;
 const MAX_RATIO = 0.75;
 
+// How much of the pane the list takes (the rest is the memo); one share for each layout, as the two cut different lengths.
+const INDEX_DEFAULT_RATIO = 0.4;
+const INDEX_MIN_RATIO = 0.15;
+const INDEX_MAX_RATIO = 0.85;
+const indexKey = (layout: MemoryLayout) => `memory-index-ratio-${layout}`;
+
+function storedIndexRatio(layout: MemoryLayout): number {
+  const saved = loadStoredNumber(indexKey(layout));
+  return saved === null ? INDEX_DEFAULT_RATIO : Math.min(INDEX_MAX_RATIO, Math.max(INDEX_MIN_RATIO, saved));
+}
+
 function storedRatio(): number {
   const saved = loadStoredNumber(WIDTH_STORAGE_KEY);
   return saved === null ? DEFAULT_RATIO : Math.min(MAX_RATIO, Math.max(MIN_RATIO, saved));
@@ -45,6 +56,9 @@ export function MemoryPane({ open, covers, inert = false, onClose, returnFocusRe
   const [ratio, setRatio] = useState(storedRatio);
   const [dragging, setDragging] = useState(false);
   const [layout, setLayout] = useState<MemoryLayout>(loadStoredMemoryLayout);
+  const [indexRatios, setIndexRatios] = useState<Record<MemoryLayout, number>>(() => ({ stack: storedIndexRatio("stack"), side: storedIndexRatio("side") }));
+  const [splitDragging, setSplitDragging] = useState(false);
+  const splitRef = useRef<HTMLDivElement>(null);
   const [showDraft, setShowDraft] = useState(true);
   const [showDeprecated, setShowDeprecated] = useState(true);
   const [query, setQuery] = useState("");
@@ -80,6 +94,26 @@ export function MemoryPane({ open, covers, inert = false, onClose, returnFocusRe
       document.removeEventListener("mouseup", onUp);
     };
   }, [dragging]);
+
+  useEffect(() => {
+    if (!splitDragging) return;
+    const onMove = (e: MouseEvent) => {
+      const rect = splitRef.current?.getBoundingClientRect();
+      if (!rect) return;
+      const share = layout === "stack" ? (e.clientY - rect.top) / rect.height : (e.clientX - rect.left) / rect.width;
+      setIndexRatios((r) => ({ ...r, [layout]: Math.min(INDEX_MAX_RATIO, Math.max(INDEX_MIN_RATIO, share)) }));
+    };
+    const onUp = () => {
+      setSplitDragging(false);
+      setIndexRatios((r) => { persistNumber(indexKey(layout), r[layout]); return r; });
+    };
+    document.addEventListener("mousemove", onMove);
+    document.addEventListener("mouseup", onUp);
+    return () => {
+      document.removeEventListener("mousemove", onMove);
+      document.removeEventListener("mouseup", onUp);
+    };
+  }, [splitDragging, layout]);
 
   const toggleLayout = () => {
     const next: MemoryLayout = layout === "stack" ? "side" : "stack";
@@ -146,7 +180,7 @@ export function MemoryPane({ open, covers, inert = false, onClose, returnFocusRe
     <aside
       id="memory-pane"
       ref={paneRef}
-      className={`memory-pane ${open ? "" : "memory-pane--hidden"} ${covers ? "memory-pane--covers" : ""} ${dragging ? "memory-pane--dragging" : ""}`}
+      className={`memory-pane ${open ? "" : "memory-pane--hidden"} ${covers ? "memory-pane--covers" : ""} ${dragging || splitDragging ? "memory-pane--dragging" : ""}`}
       style={covers ? undefined : { width: `${ratio * 100}%` }}
       aria-label={t("memory.title")}
       {...(inert ? { inert: "" } : {})}
@@ -167,8 +201,8 @@ export function MemoryPane({ open, covers, inert = false, onClose, returnFocusRe
         <button type="button" className="memory-btn" onClick={onClose} title={t("memory.close")} aria-label={t("memory.close")}>×</button>
       </div>
 
-      <div className={`memory-split memory-split--${layout}`}>
-        <section className="memory-index" aria-label={t("memory.list.label")}>
+      <div ref={splitRef} className={`memory-split memory-split--${layout}`}>
+        <section className="memory-index" aria-label={t("memory.list.label")} style={{ flexBasis: `${indexRatios[layout] * 100}%` }}>
           <input
             className="memory-search"
             type="search"
@@ -193,6 +227,15 @@ export function MemoryPane({ open, covers, inert = false, onClose, returnFocusRe
             )}
           </div>
         </section>
+
+        <div
+          className="memory-split-handle"
+          onMouseDown={(e) => { e.preventDefault(); setSplitDragging(true); }}
+          title={t("memory.splitResize")}
+          aria-label={t("memory.splitResize")}
+          role="separator"
+          aria-orientation={layout === "stack" ? "horizontal" : "vertical"}
+        />
 
         <section className="memory-content" aria-label={t("memory.doc.label")}>
           {memory.docState.status === "none" && <p className="memory-note">{t("memory.select")}</p>}

@@ -107,14 +107,34 @@
   flex-direction: column;
 }
 
+/* The share of the list is set inline (flex-basis) while it is dragged. */
 .memory-split--stack .memory-index {
   flex: 0 0 40%;
-  border-bottom: 1px solid var(--border);
 }
 
 .memory-split--side .memory-index {
   flex: 0 0 40%;
-  border-right: 1px solid var(--border);
+}
+
+.memory-split-handle {
+  flex: none;
+  background: var(--border);
+  transition: background 0.15s;
+}
+
+.memory-split--stack .memory-split-handle {
+  height: 5px;
+  cursor: ns-resize;
+}
+
+.memory-split--side .memory-split-handle {
+  width: 5px;
+  cursor: ew-resize;
+}
+
+.memory-split-handle:hover,
+.memory-pane--dragging .memory-split-handle {
+  background: var(--lc-amber);
 }
 
 .memory-content {

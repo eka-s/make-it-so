@@ -21,6 +21,7 @@ export const ja: Record<MessageKey, string> = {
   "memory.open": "Memoryを表示/非表示",
   "memory.title": "Memory",
   "memory.close": "Memoryを閉じる",
+  "memory.splitResize": "ドラッグで、一覧とメモの広さを変える",
   "memory.resize": "ドラッグでMemoryの幅を変える",
   "memory.layout.toggle": "目次とメモを、上下に並べる/左右に並べる",
   "memory.showDraft": "下書き",

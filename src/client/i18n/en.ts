@@ -21,6 +21,7 @@ export const en = {
   "memory.open": "Show or hide the Memory",
   "memory.title": "Memory",
   "memory.close": "Close the Memory",
+  "memory.splitResize": "Drag to change how much the list and the memo take",
   "memory.resize": "Drag to change the width of the Memory",
   "memory.layout.toggle": "Switch the list and the memo between top and bottom, and side by side",
   "memory.showDraft": "Drafts",
