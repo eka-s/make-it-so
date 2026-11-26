@@ -24,6 +24,8 @@ import type { SearchHit } from "./types";
 import { consumeOnce, effectiveTarget, pruneTargets, selectTarget, type TargetState } from "./target-state";
 import { THEME_ORDER, useTheme } from "./use-theme";
 import { useLeftPane } from "./use-left-pane";
+import { useMemoryPane } from "./use-memory-pane";
+import { MemoryPane } from "./MemoryPane";
 import { useShellAppearance } from "./use-shell-appearance";
 import { useShellWindow } from "./use-shell-window";
 import { usePendingAttention } from "./usePendingAttention";
@@ -168,6 +170,10 @@ export function App() {
   const chatAreaRef = useRef<HTMLElement>(null);
   const [splitEnabled, setSplitEnabled] = useState(loadStoredSplitEnabled);
   const leftPane = useLeftPane();
+  const memoryPane = useMemoryPane(leftPane.drawerShown);
+  const memoryToggleRef = useRef<HTMLButtonElement>(null);
+  // Counts the times the server said the Memory changed; the Memory pane fetches again what it shows when it changes.
+  const [memoryChanges, setMemoryChanges] = useState(0);
   const [splitRatio, setSplitRatio] = useState(() => clampSplitRatio(loadStoredNumber("chat-split-ratio") ?? DEFAULT_SPLIT_RATIO));
   const [isSplitDragging, setIsSplitDragging] = useState(false);
   // The top pane starts at its bottom (the latest history) when the split is turned on or the mission changes.
@@ -585,11 +591,13 @@ export function App() {
   const handleReconnect = useCallback(() => {
     void hydratePermissions();
     void loadSnapshot();
+    // The Memory may have changed while the connection was down.
+    setMemoryChanges((n) => n + 1);
   }, [hydratePermissions, loadSnapshot]);
 
   // False while the live connection to the ship is down (the page keeps trying to reconnect, and reloads what it missed when it does).
   const [sseConnected, setSseConnected] = useState(true);
-  useSSE({ onTimelineUpsert: handleTimelineUpsert, onTimelineAppend: handleTimelineAppend, onTimelineRemove: handleTimelineRemove, onTimelineActivity: handleTimelineActivity, onCreditsUsage: handleCreditsUsage, onCrewStatusChanged: handleCrewStatusChanged, onReconnect: handleReconnect, onConnectionChange: setSseConnected, onPermissionRequested: permissions.onRequested, onPermissionResolved: permissions.onResolved });
+  useSSE({ onTimelineUpsert: handleTimelineUpsert, onTimelineAppend: handleTimelineAppend, onTimelineRemove: handleTimelineRemove, onTimelineActivity: handleTimelineActivity, onCreditsUsage: handleCreditsUsage, onCrewStatusChanged: handleCrewStatusChanged, onMemoryChanged: () => setMemoryChanges((n) => n + 1), onReconnect: handleReconnect, onConnectionChange: setSseConnected, onPermissionRequested: permissions.onRequested, onPermissionResolved: permissions.onResolved });
 
   // Refresh handler
   const handleRefreshCredits = useCallback(async () => {
@@ -895,6 +903,16 @@ export function App() {
             <line x1="2" y1="8" x2="14" y2="8" />
           </svg>
         </button>
+        <button
+          ref={memoryToggleRef}
+          className={`app-header-btn ${memoryPane.open ? "app-header-btn--on" : ""}`}
+          onClick={memoryPane.toggle}
+          aria-pressed={memoryPane.open}
+          aria-controls="memory-pane"
+          title={t("memory.open")}
+        >
+          {t("memory.title")}
+        </button>
         {shipName && <span className="app-ship-name">{shipName}</span>}
       </header>
       <LanguageNotice />
@@ -934,7 +952,7 @@ export function App() {
         </LeftColumn>
 
         {/* While the drawer is over it, the conversation is inert: it takes no keys or clicks (the Tab key would otherwise go to buttons nobody can see). `inert` is not in React 18's attributes. */}
-        <div className="app-main" {...(leftPane.drawerShown ? { inert: "" } : {})}>
+        <div className="app-main" {...(leftPane.drawerShown || (memoryPane.open && memoryPane.covers) ? { inert: "" } : {})}>
           <main className="chat-container" ref={chatAreaRef}>
             {splitEnabled && (
               <>
@@ -1001,6 +1019,8 @@ export function App() {
             commandsLive={targetCommandsLive}
           />
         </div>
+
+        <MemoryPane open={memoryPane.open} covers={memoryPane.covers} inert={leftPane.drawerShown} onClose={memoryPane.close} changeSignal={memoryChanges} returnFocusRef={memoryToggleRef} />
       </div>
 
       <BottomBar />

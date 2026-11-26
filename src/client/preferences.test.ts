@@ -15,6 +15,10 @@ import {
   persistSplitEnabled,
   loadStoredLeftPaneOpen,
   persistLeftPaneOpen,
+  loadStoredMemoryOpen,
+  persistMemoryOpen,
+  loadStoredMemoryLayout,
+  persistMemoryLayout,
 } from "./preferences";
 
 // A fake localStorage (to run outside a browser).
@@ -149,5 +153,23 @@ describe("whether the left pane is shown", () => {
   it("is shown when localStorage is unavailable", () => {
     stubStorage({ getItem: () => { throw new Error("blocked"); } });
     expect(loadStoredLeftPaneOpen()).toBe(true);
+  });
+});
+
+describe("the Memory pane", () => {
+  it("is closed and stacked until chosen otherwise, and remembers both", () => {
+    expect(loadStoredMemoryOpen()).toBe(false);
+    expect(loadStoredMemoryLayout()).toBe("stack");
+    persistMemoryOpen(true);
+    persistMemoryLayout("side");
+    expect(loadStoredMemoryOpen()).toBe(true);
+    expect(loadStoredMemoryLayout()).toBe("side");
+  });
+
+  it("falls back to the defaults when the storage cannot be read, and ignores an unknown layout", () => {
+    store.set("memory-pane-layout", "diagonal");
+    expect(loadStoredMemoryLayout()).toBe("stack");
+    stubStorage({ getItem: () => { throw new Error("blocked"); } });
+    expect(loadStoredMemoryOpen()).toBe(false);
   });
 });

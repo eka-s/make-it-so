@@ -440,3 +440,36 @@ export type SearchResponse = {
   truncated: boolean;
   hits: SearchHit[];
 };
+
+// --- The ship's Memory (what GET /api/memory/* returns) ---
+
+export type MemoryStatus = "draft" | "stable" | "deprecated";
+
+export type MemorySummary = {
+  path: string;
+  type: string;
+  title: string;
+  description: string;
+  tags: string[];
+  status: MemoryStatus;
+  supersededBy?: string;
+  crew?: string;
+  updatedAt?: string;
+};
+
+/** What is directly in one directory of the Memory. */
+export type MemoryBrowse = {
+  dir: string;
+  dirs: { name: string; path: string; count: number }[];
+  docs: MemorySummary[];
+};
+
+export type MemoryDocument = MemorySummary & {
+  /** The YAML frontmatter as it is in the file. */
+  frontmatter: string;
+  /** The Markdown, with the links inside the Memory written as paths from its root (`/a/b.md`). */
+  body: string;
+  version: string;
+};
+
+export type MemorySearchResponse = { total: number; items: MemorySummary[] };

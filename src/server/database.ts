@@ -107,7 +107,7 @@ export function closeDatabase(): void {
 }
 
 /** Gets the database instance. Throws if it is called before initialization. */
-function getDb(): DatabaseSync {
+export function getDb(): DatabaseSync {
   if (!db) {
     throw new Error("Database not initialized. Call initDatabase() first.");
   }

@@ -78,6 +78,9 @@ index.ts（配線層）
 | `crew-briefing.ts`, `skills.ts`, `crew-paths.ts` | ブリーフィングの組み立て、スキルの読み取り、パス |
 | `crew-model.ts` | モデルの決定（`resolveCrewModel`）。純粋関数 |
 | `mcp-board.ts` | 掲示板の MCP サーバー |
+| `mcp-memory-tools.ts` | 掲示板の MCP の、Memory のツール（ストアの薄い包み） |
+| `memory-store.ts`、`memory-document.ts`、`memory-path.ts`、`memory-index-md.ts`、`memory-diff.ts` | 艦の Memory。`createMemoryStore(deps)` が、Markdown のファイル（OKF のバンドル）を書き、検索の索引を DB に、履歴を git（isomorphic-git）に持つ。変更は、すべて1本の待ち行列で処理する。残りは純粋な補助（ファイル形式、パスの規則、`index.md` の文、行の差分）。`routes/memory.ts` は、ビューア用の読み取り専用の側 |
+| `memory-skill.ts` | Memory の使い方をクルーに教える、アプリ組み込みのスキル（コードの中の文字列なので、リモートのクルーも `get_skill` で読める） |
 | `mcp-listener.ts` | `/mcp` だけを配信するリスナー。ループバックのみで、ポートは OS が選び、掲示板がつながるまでは 503 |
 | `ship-lock.ts`, `ship-id.ts` | デスクトップアプリで開いている艦の `desktop.pid` の印（プロセス ID と開始時刻。ブラウザ版と設定が読む）と、艦の ID が、パスやコマンドラインを作る前に、満たすべき唯一のパターン |
 | `a2ui-action.ts`, `a2ui-validate.ts` | A2UI: 回答の action メッセージと、クルーが作ったメッセージの厳格な検証 |

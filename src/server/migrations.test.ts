@@ -181,8 +181,8 @@ describe("migrations that fix the special-casing of role names once, on the data
     ]);
   });
 
-  it("the latest version is 6. Even a blank DB ends up in the same latest shape", () => {
-    expect(latestSchemaVersion()).toBe(6);
+  it("the latest version is 7. Even a blank DB ends up in the same latest shape", () => {
+    expect(latestSchemaVersion()).toBe(7);
     const db = new DatabaseSync(":memory:");
     migrate(db);
     expect(columnNames(db, "task_started_events")).toContain("dispatched_by");

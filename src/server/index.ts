@@ -1,5 +1,6 @@
 import express from "express";
 import { randomBytes } from "node:crypto";
+import fs from "node:fs";
 import http from "node:http";
 import { config, agentToRole, crewDisplayName } from "./config.js";
 import { createBridge, type Bridge } from "./bridge.js";
@@ -21,13 +22,14 @@ import { isAcceptedHost } from "./local-guard.js";
 import { CrewRunner, missionFromTaskScope, taskSessionScope } from "./crew-runner.js";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { closeDatabase, getCrewModelOverride, getOpenUiTurnId, getUiOfTurn, recordUiDismissed, recordUiShown, getProviderCommands, getProviderModelOptions, getSetting, initDatabase, saveProviderCommands, saveProviderModelOptions, searchTimeline, setSetting, missionExists, setCrewModelOverride } from "./database.js";
+import { closeDatabase, getDb, getCrewModelOverride, getOpenUiTurnId, getUiOfTurn, recordUiDismissed, recordUiShown, getProviderCommands, getProviderModelOptions, getSetting, initDatabase, saveProviderCommands, saveProviderModelOptions, searchTimeline, setSetting, missionExists, setCrewModelOverride } from "./database.js";
 import { resolveLanguage } from "./language.js";
 import { clearFileStream, readFileStream } from "./file-stream.js";
 import { findInterruptedWork, recordInterruptedWork } from "./recover-interrupted.js";
 import { crewResultPath } from "./crew-paths.js";
 import { createTurnStreams } from "./turn-stream.js";
 import { createMcpHandler } from "./mcp-board.js";
+import { createMcpTokens } from "./mcp-token.js";
 import { createStatusRouter } from "./routes/status.js";
 import { createSearchRouter } from "./routes/search.js";
 import { createCrewProfileRouter, crewIconUrl } from "./routes/crew-profile.js";
@@ -51,6 +53,8 @@ import { connectCrewEvents } from "./crew-events.js";
 import { logger, configureLogger } from "./logger.js";
 import { systemPathLookup, missingCliMessage } from "./agent-cli-check.js";
 import { loadAnnouncedSkills } from "./skills.js";
+import { createMemoryStore } from "./memory-store.js";
+import { createMemoryRouter } from "./routes/memory.js";
 
 // Logger configuration (from the ship config). Done before any other log output.
 configureLogger({
@@ -157,11 +161,11 @@ export async function buildShip(): Promise<Ship> {
   }
   const hostAddresses = await resolveHostAddresses([...remoteHosts.values()]);
   // Regenerated at every start: it only has to match what the sessions of this process were given.
-  const mcpToken = randomBytes(32).toString("hex");
+  const mcpTokens = createMcpTokens(randomBytes(32).toString("hex"));
   // Crew management, directly inside the main process (no separate process).
   const crewManager = new CrewManager({
     settings: {
-      mcpToken,
+      mcpToken: mcpTokens.issue,
       crew: config.crew,
       defaultProvider: config.acp.provider,
       fleetRoot: config.fleetRoot,
@@ -278,9 +282,21 @@ export async function buildShip(): Promise<Ship> {
     openUiItemId: getOpenUiTurnId,
   }));
   routers.push(createA2uiRouter({ bridge, getUi: getUiOfTurn, dismissUi: recordUiDismissed }));
+  // The ship's Memory: files under the ship's knowledge/, searched through the index in bridge.db. The index is filled from the files again at
+  // every start (in the background, so a large Memory does not hold the start back), which also picks up what was edited by hand.
+  const memory = createMemoryStore({
+    dir: path.join(config.projectRoot, "knowledge"),
+    db: getDb(),
+    shipName: config.shipName,
+    producer: `make-it-so/${appVersion()}`,
+    onChange: () => broadcast({ type: "memory:changed", data: {} }),
+    log: (message) => logger.warn(message),
+  });
+  memory.rebuild().catch((err: unknown) => logger.error("[Memory] The index could not be filled from the files:", err));
+  routers.push(createMemoryRouter({ memory }));
   const skillsContext = { projectRoot: config.projectRoot, skillsDir: config.skillsDir };
   const handleMcpRequest = createMcpHandler({
-    token: mcpToken,
+    verifyToken: mcpTokens.verify,
     crewRunner,
     recordUnreportedFetch: bridge.recordUnreportedFetch,
     displayName: crewDisplayName,
@@ -291,6 +307,7 @@ export async function buildShip(): Promise<Ship> {
     },
     rankOf: (role) => config.crew[role]?.rank,
     skillsOf: (role) => loadAnnouncedSkills(skillsContext, config.crew[role]?.skills ?? []),
+    memory,
     currentTurn: (missionId) => bridge.getCurrentTurn(missionId) ?? undefined,
     uiStateOf: (turnId) => getUiOfTurn(turnId)?.state,
     recordUi: ({ turnId, role, missionId, messages }) => { recordUiShown(turnId, missionId, role, messages); },
@@ -379,6 +396,12 @@ export async function runShip(): Promise<void> {
  * Returns the neighboring `dist/client` only when running as the built `dist/server/index.js` (the UI is then served on the same port).
  * It does not return it with `npm run dev` (tsx): the UI is served by Vite, so an old build that happens to be left over is not used.
  */
+/** The version of the app, from the package.json beside dist/ (and src/), which the desktop app packs too; it is recorded in the memos the crew writes. */
+function appVersion(): string {
+  const here = path.dirname(fileURLToPath(import.meta.url));
+  return (JSON.parse(fs.readFileSync(path.join(here, "..", "..", "package.json"), "utf-8")) as { version: string }).version;
+}
+
 function builtClientDir(): string | undefined {
   const here = path.dirname(fileURLToPath(import.meta.url));
   return path.basename(here) === "server" && path.basename(path.dirname(here)) === "dist" ? path.join(here, "..", "client") : undefined;

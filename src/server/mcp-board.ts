@@ -5,7 +5,6 @@
 //
 // The tools are thin wrappers that only call the existing APIs (getUnreportedTasks/getTaskOutcome/getTaskStarted, etc.)
 // — logic is not duplicated (CLAUDE.md policy).
-import { timingSafeEqual } from "node:crypto";
 import { z } from "zod";
 import type { Request, Response } from "express";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
@@ -17,11 +16,13 @@ import { missionFromTaskScope } from "./crew-runner.js";
 import type { CrewRunner } from "./crew-runner.js";
 import { logger } from "./logger.js";
 import { a2uiProblems } from "./a2ui-validate.js";
+import type { McpTokens } from "./mcp-token.js";
+import { registerMemoryTools, type MemoryTools } from "./mcp-memory-tools.js";
 
 /** External dependencies of the bulletin-board MCP. index.ts wires them in production; tests pass fakes. */
 export type McpBoardDeps = {
-  /** The secret a call must carry in MCP_TOKEN_HEADER (generated at startup and put into every session's MCP config). */
-  token: string;
+  /** Whether a call's MCP_TOKEN_HEADER is the secret that was put into the config of the session it claims to come from. */
+  verifyToken: McpTokens["verify"];
   /**
    * Puts a task into the run queue with dispatch_task (only the dispatch part of CrewRunner).
    * It sends a prompt into a real crew session, so the CrewRunner that the main process creates at startup is passed in.
@@ -51,6 +52,8 @@ export type McpBoardDeps = {
    * (a remote host crew member). Only these can be read, so the tool cannot be used to read other files.
    */
   skillsOf: (role: string) => { names: string[]; read: (name: string) => string | undefined };
+  /** The ship's Memory (the memo tools; every crew member can read and write it). */
+  memory: MemoryTools;
   /** What became of the A2UI form in the reply of the turn `turnId` ("pending" while the reply is in progress; undefined if the turn has none). */
   uiStateOf: (turnId: string) => UiState | undefined;
   /** Records the A2UI form of the reply of the turn `turnId` (the form appears when the turn ends). */
@@ -218,6 +221,9 @@ export function createBoardServer(deps: McpBoardDeps, caller?: CallerIdentity): 
     }
   );
 
+  // Only a crew member of the ship is named as a writer: an unknown name in the header would otherwise be put into the history as it is.
+  registerMemoryTools(server, deps.memory, () => (caller && deps.roleOf(caller.agent) !== undefined ? deps.displayName(caller.agent) : undefined));
+
   server.registerTool(
     "render_ui",
     {
@@ -282,14 +288,6 @@ function resolveCallerMission(caller?: CallerIdentity): string | undefined {
   return missionFromTaskScope(caller.missionId) ?? caller.missionId;
 }
 
-/** Whether the presented secret equals the expected one (compared in constant time, so the check does not leak how much matched). */
-function hasToken(presented: string | string[] | undefined, expected: string): boolean {
-  if (typeof presented !== "string") return false;
-  const a = Buffer.from(presented);
-  const b = Buffer.from(expected);
-  return a.length === b.length && timingSafeEqual(a, b);
-}
-
 /**
  * The Express handler for `POST /mcp`. It is stateless mode (no session ID is issued), so
  * a new McpServer + Transport is created and thrown away per request — there is no shared state even with concurrent calls
@@ -300,15 +298,14 @@ function hasToken(presented: string | string[] | undefined, expected: string): b
  */
 export function createMcpHandler(deps: McpBoardDeps): (req: Request, res: Response) => Promise<void> {
   return async function handleMcpRequest(req: Request, res: Response): Promise<void> {
-    if (!hasToken(req.headers[MCP_TOKEN_HEADER], deps.token)) {
+    // The secret belongs to one session, so the identity it vouches for is the one in the headers: a call cannot name another crew member.
+    const agent = req.headers[MCP_AGENT_HEADER];
+    const missionId = req.headers[MCP_MISSION_HEADER];
+    if (typeof agent !== "string" || typeof missionId !== "string" || !deps.verifyToken(agent, missionId, req.headers[MCP_TOKEN_HEADER])) {
       res.status(401).json({ error: "unauthorized" });
       return;
     }
-    const agent = req.headers[MCP_AGENT_HEADER];
-    const missionId = req.headers[MCP_MISSION_HEADER];
-    const caller = typeof agent === "string" && typeof missionId === "string"
-      ? { agent, missionId }
-      : undefined;
+    const caller = { agent, missionId };
     const server = createBoardServer(deps, caller);
     const transport = new StreamableHTTPServerTransport({
       sessionIdGenerator: undefined,

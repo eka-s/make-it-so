@@ -299,12 +299,13 @@ Personas and icons are placed in the fleet's `personnel/`, named by member ID.
       report-format.md       # optional. The report format. If absent, the default format is used
       workspace/             # a free working area for the crew (announced to the crew)
       data/bridge.db         # the ship's DB (SQLite)
+      knowledge/             # the ship's Memory (Markdown files and their git history; see the Memory guide)
       logs/app.log           # log
       turns/                 # working area for running turns (temporary files)
       agents/{agent}/results/ # working area for running crew tasks (temporary files)
 ```
 
-- `data/`, `logs/`, `turns/`, and `agents/` are created by make-it-so as needed.
+- `data/`, `logs/`, `turns/`, `agents/` and `knowledge/` are created by make-it-so as needed (`knowledge/` when the crew first writes to the Memory).
 - The contents of `turns/` and `agents/` are temporary files that hold the body text while streaming; once it is finalized, it is written to the DB and they are deleted.
 - Before the DB is updated, a copy is left at `data/bridge.db.bak-v<old version>` (see [Data model](data-model.md)).
 

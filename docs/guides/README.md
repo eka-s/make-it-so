@@ -12,5 +12,6 @@ Step-by-step instructions by goal. For how things work, see [Core Concepts](../c
 | [Switch the language](switch-language.md) | Change the UI language and the language the crew speaks |
 | [Use the desktop app](desktop-app.md) | Open a ship in its own window, with no port for the screen; make the app |
 | [Use the custom menu](use-custom-menu.md) | Keep favorite messages and slash commands one click away, per ship or shared |
+| [Use the Memory](memory.md) | Read what the crew keeps in the ship's notebook; what the crew does with it |
 | [Run multiple ships](run-multiple-ships.md) | Run one server per ship, side by side |
 | [Back up and restore the DB](backup-and-restore.md) | Save the conversation history and bring it back |

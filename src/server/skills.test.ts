@@ -83,8 +83,14 @@ describe("buildCommonAnnouncement", () => {
     expect(withFile).not.toContain("Do not leave out cautions or risks");
   });
 
-  it("if there are no Skills, it says so", () => {
-    expect(buildCommonAnnouncement(ctx)).toContain("(No skills are registered at the moment.)");
+  it("always lists the built-in skills, which are read with get_skill, since they have no file", () => {
+    expect(buildCommonAnnouncement(ctx)).toMatch(/- memory \(read it with the `get_skill` tool\): /);
+  });
+
+  it("a skill of the ship cannot take the name of a built-in one", () => {
+    skill(path.join(ctx.skillsDir, "memory"), fm("memory", "Mine"));
+    expect(buildCommonAnnouncement(ctx)).not.toContain("Mine");
+    expect(loadAnnouncedSkills(ctx, []).read("memory")).toContain("The ship's Memory");
   });
 
   it("lists the directories under skills/ that have a skill.md, with name, absolute path, and description", () => {
@@ -97,7 +103,6 @@ describe("buildCommonAnnouncement", () => {
     expect(text).toContain(`- weather (${file}): Check the weather`);
     expect(text).not.toContain("broken");
     expect(text).not.toContain("loose-file");
-    expect(text).not.toContain("(No skills are registered at the moment.)");
   });
 
   it("explicitly given skills are placed after the ship's skills/. On a name clash, the one that comes first is preferred", () => {
@@ -130,10 +135,11 @@ describe("buildCommonAnnouncement", () => {
     expect(text).not.toContain(file);
   });
 
-  it("for a remote with no skills, there is no skill section", () => {
+  it("for a remote without skills of its own, the built-in ones are still announced, to be read with get_skill", () => {
     const text = buildCommonAnnouncement(ctx, [], { remote: true });
-    expect(text).not.toContain("Available skills");
-    expect(text).not.toContain("get_skill");
+    expect(text).toContain("Available skills");
+    expect(text).toMatch(/- memory: /);
+    expect(text).toContain("get_skill");
   });
 });
 
@@ -167,13 +173,13 @@ describe("loadAnnouncedSkills", () => {
   it("lists the names that are announced", () => {
     skill(path.join(ctx.skillsDir, "a"), fm("a", "d"));
     skill(path.join(ctx.skillsDir, "b"), fm("b", "d"));
-    expect(loadAnnouncedSkills(ctx, []).names.sort()).toEqual(["a", "b"]);
+    expect(loadAnnouncedSkills(ctx, []).names.sort()).toEqual(["a", "b", "memory"]);
   });
 
   it("a skill whose name YAML reads as a number is announced and can be read by that name", () => {
     skill(path.join(ctx.skillsDir, "n"), "---\nname: 123\ndescription: d\n---\nnumbered\n");
     const skills = loadAnnouncedSkills(ctx, []);
-    expect(skills.names).toEqual(["123"]);
+    expect(skills.names).toEqual(["memory", "123"]);
     expect(skills.read("123")).toBe("numbered");
   });
 
@@ -188,7 +194,7 @@ describe("loadAnnouncedSkills", () => {
     const keep = skill(path.join(root, "extra", "keep"), fm("keep", "d"));
     const gone = skill(path.join(root, "extra", "gone"), fm("gone", "d"));
     fs.rmSync(gone);
-    expect(loadAnnouncedSkills(ctx, [gone, keep]).names).toEqual(["keep"]);
+    expect(loadAnnouncedSkills(ctx, [gone, keep]).names).toEqual(["memory", "keep"]);
     expect(buildCommonAnnouncement(ctx, [gone, keep], { remote: true })).toContain("- keep: d");
     expect(console.warn).toHaveBeenCalled();
   });

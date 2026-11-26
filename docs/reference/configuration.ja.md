@@ -299,12 +299,13 @@ actions:
       report-format.md       # 任意。report の書式。無ければ既定の書式を使う
       workspace/             # クルーの自由な作業場所（クルーに案内する）
       data/bridge.db         # 艦のDB（SQLite）
+      knowledge/             # 艦の Memory（Markdown ファイルと、その git の履歴。Memory のガイドを参照）
       logs/app.log           # ログ
       turns/                 # 実行中のターンの作業領域（一時ファイル）
       agents/{agent}/results/ # 実行中のクルータスクの作業領域（一時ファイル）
 ```
 
-- `data/`・`logs/`・`turns/`・`agents/` は、make-it-so が必要に応じて作ります。
+- `data/`・`logs/`・`turns/`・`agents/`・`knowledge/` は、make-it-so が必要に応じて作ります（`knowledge/` は、クルーが Memory に初めて書くときに作ります）。
 - `turns/` と `agents/` の中身は、ストリーミング中の本文を置く一時ファイルで、確定すると DB に書いて消します。
 - DB を更新する前に、`data/bridge.db.bak-v<旧版>` へコピーを残します（[データモデル](data-model.ja.md) を参照）。
 

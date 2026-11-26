@@ -56,7 +56,7 @@ function makeBridge(options: { idleTimeoutMs?: number; cancelGraceMs?: number; h
   const crew = testCrew();
   const crewManager = new CrewManager({
     getModelOverride: () => undefined,
-    settings: { crew, defaultProvider: "claude", fleetRoot: path.join(root, "fleet"), projectRoot: root, skillsDir: path.join(root, "skills"), crewLanguage: () => "en", mcpToken: "test-token" },
+    settings: { crew, defaultProvider: "claude", fleetRoot: path.join(root, "fleet"), projectRoot: root, skillsDir: path.join(root, "skills"), crewLanguage: () => "en", mcpToken: (agent, mission) => `test-token:${agent}:${mission}` },
     createClient: () => {
       const client = new FakeAgentClient();
       client.hangInitialize = options.hangStartup === true; // a provider that does not respond (startup never finishes)

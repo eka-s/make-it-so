@@ -16,6 +16,7 @@ Reference for the HTTP API, SSE (Server-Sent Events), and MCP board provided by 
 - [Pending Permissions (permission)](#pending-permissions-permission)
 - [PINs](#pins)
 - [Search](#search)
+- [Memory (viewer)](#memory-viewer)
 - [Models](#models)
 - [Agents and Debugging](#agents-and-debugging)
 - [SSE (Server-Sent Events)](#sse-server-sent-events)
@@ -218,6 +219,21 @@ The response is in newest-first order.
 - `snippet.ranges` are the matched ranges within the excerpt (`[start, end)`). `cutStart` and `cutEnd` indicate whether the beginning and the end were trimmed.
 - The search covers the captain's messages, replies, and task instructions and reports. Errors, cancellations, and system notices are excluded.
 
+## Memory (viewer)
+
+The read-only side of the ship's Memory (see the [guide](../guides/memory.md)). The crew writes it through the MCP tools below; there is no route that changes it.
+
+| Method and path | Description |
+|---|---|
+| `GET /api/memory/tree?dir=&draft=&deprecated=` | What is directly in one directory (`dir` is `""` for the root): `{ dir, dirs: { name, path, count }[], docs: MemorySummary[] }`. `count` is the number of memos under that directory (at any depth). Stable memos are always listed; `draft=0` and `deprecated=0` leave those out |
+| `GET /api/memory/doc?path=` | One memo: the summary fields, `frontmatter` (the YAML as it is in the file), `body` (the Markdown as it is written; the viewer reads a relative link against the path of the memo it shows), and `version`. An unknown memo, or a path that is not valid, returns `404`; a path that goes through a link returns `400` |
+| `GET /api/memory/history?path=&limit=&diff=` | The changes of the Memory, or of one memo when `path` is given, newest first: `{ commit, message, author, at, diff? }[]`. `message` is the crew member's sentence and `author` the crew member. `limit` is 20 by default and at most 100. `diff=1` adds the diff of each change (cut when it is large). `400` for a path that is not a path of the Memory. The viewer does not use it yet |
+| `GET /api/memory/search?q=&draft=&deprecated=&limit=&offset=` | Searches titles, descriptions, tags and bodies (every word must match, up to the first 32 words, and the first four of one or two characters; Japanese works). `{ total, items: MemorySummary[] }`; `limit` is 20 by default and at most 100 |
+
+- `MemorySummary` is `{ path, type, title, description, tags, status, supersededBy?, crew?, updatedAt? }`; `status` is `draft`, `stable` or `deprecated`.
+- A `dir` that is not a safe directory name of the Memory returns `400`. `supersededBy` is a path from the root of the Memory, or absent when what the crew wrote is not one.
+- A path is checked on the server at every entry (reading, writing, deleting, listing, history), whatever the viewer or crew member sends: it must be relative, end with `.md`, and have no `.` or `..` name, no name that starts with a dot or ends with a dot or space, none of `\ # ? % : * " < > |` or control characters, no Windows device name (`con`, `nul`, ...), and no symbolic link along it; `index.md` and `log.md` are reserved. It also may not differ from an existing path (or one of its directories) only by letter case. A path that fails is `404` for a memo and `400` for a directory.
+
 ## Models
 
 | Method and path | Description |
@@ -261,6 +277,7 @@ The response is in newest-first order.
 | `permission:requested` | `PendingPermission` | A pending permission appeared |
 | `permission:resolved` | `{ key }` | A pending permission was resolved |
 | `crew:status_changed` | `{ role, missionId }` | A signal that starting or restarting of a conversation session began or ended. On receiving it, re-fetch `GET /api/crew/status` |
+| `memory:changed` | `{}` | A signal that the ship's Memory changed. On receiving it, a Memory pane that is open fetches again what it shows |
 
 The type definitions also include `task:progress`, `task:complete`, `notification:*`, and `log`, but the client does not use them.
 
@@ -268,18 +285,24 @@ The type definitions also include `task:progress`, `task:complete`, `notificatio
 
 ## MCP Board
 
-`POST /mcp`. It is served on its own listener, not on the ship's port: `127.0.0.1` only (whatever `server.host` is) and a port the OS picks at each start. The sessions are given its URL. A built-in MCP server that crew sessions use to delegate tasks and fetch reports (stateless mode; a server is created and discarded for each request).
+`POST /mcp` (a body of up to 8 MB). It is served on its own listener, not on the ship's port: `127.0.0.1` only (whatever `server.host` is) and a port the OS picks at each start. The sessions are given its URL. A built-in MCP server that crew sessions use to delegate tasks and fetch reports (stateless mode; a server is created and discarded for each request).
 
 | Tool | Description |
 |---|---|
 | `dispatch_task(agent, task_name, instruction)` | Delegates a task to a crew member. `agent` is a role name or a roster member ID. Only a short notice is actually sent; the full instruction is recorded in the DB and the assignee reads it with `get_task`. **Only crew members whose rank is `commander` or `chief`** can use it (for anyone else, the server rejects it) |
 | `get_task(taskId)` | Fetches a task's instruction (and its result, if it is finished) |
 | `get_skill(name)` | Fetches the body of a skill announced to the caller (the file without its frontmatter). Only the skills announced to that crew member are returned, so it cannot be used to read other files; an unknown name returns an error that lists the names available to the caller. Only the text of the skill is given, not the files it mentions beside it. It is how a remote host crew member, who cannot read the skill files, uses a skill |
+| `search_memory(query?, type?, tags?, status?, path?, limit?, offset?)` | Lists and searches the ship's Memory. Every word of `query` must match (titles, descriptions, tags and bodies; Japanese works). Returns `{ total, items }` with the path, type, title, description, tags and status of each memo |
+| `read_memory(path)` | Reads one memo: its fields, its body and its `version` (the git blob id of the file) |
+| `write_memory(path, type, description, body, message, title?, tags?, status?, base?)` | Creates or updates a memo. `type` and `description` are required, and so is `message`, the change in a sentence (the commit message). Updating an existing memo needs `base`, the `version` that was read; a missing or stale `base` is refused with the memo as it is now. Leaving out `tags` or `status` on an update keeps them. It succeeds with a warning past 1 MB of body or 50,000 memos. Every crew member can use it (there is no rank check) |
+| `deprecate_memory(path, message, superseded_by?)` | Marks a memo `deprecated` (it stays, and is shown as such); `superseded_by` is the path with a leading `/` of what replaces it |
+| `delete_memory(path, message)` | Deletes a memo (the history keeps it) |
+| `get_memory_history(path?, limit?, diff?)` | The change history, newest first (default 20, at most 100): the commit, message, author (the crew member) and time. With `path` it is that memo's, deleted ones included, and `diff: true` adds what each change did (cut at 20,000 characters) |
 | `render_ui(messages)` | Shows an interactive form to the captain under the crew member's reply: `messages` are A2UI v1.0 messages (the basic catalog), self-contained and making exactly one surface, starting with `createSurface`. They are checked with the strict rules the A2UI library offers (an unknown component type, a missing root, a reference to a component that does not exist, an orphan, a wrong version or several operations in one message are refused); on a mistake nothing is shown and the error is returned. The description of the tool carries a complete example. It can be used only in a reply to the captain (not while working on a delegated task), once per reply. It returns at once, and the form appears when the reply ends. While the form is open, the captain can send nothing else in that mission; when they press a button, the crew member receives the A2UI action message (`{ "version": "1.0", "action": { name, surfaceId, sourceComponentId, timestamp, context } }`) in a fenced block marked `a2ui-action`, then the captain's comment from the form's comment field if they wrote one (once per form). A form is recorded (`ui_shown`) and stays after a restart |
 | `list_unreported_tasks()` | Returns the unreported tasks as formatted text. The commander gets all of them; anyone else gets only the ones they issued. The IDs at the time of the call are recorded as "this report's targets", and they become reported once the turn completes normally |
 
-- **Secret:** A call must carry the header `x-makeitso-token`, whose value is generated at each start and put into each session's MCP configuration. Without it (or with a wrong one), `/mcp` returns `401` `{ "error": "unauthorized" }` before any tool runs.
-- **Identifying the caller:** The caller's (crew member, mission) is determined from the HTTP headers `x-makeitso-agent` and `x-makeitso-mission`, which are put into that session's own MCP server configuration when the session is created. The model's self-report is not relied on. A call without the headers returns an error without any guessing.
+- **Secret:** A call must carry the header `x-makeitso-token`, whose value is derived at each start for one agent and mission and put into that session's MCP configuration, next to the identification headers naming the same agent and mission. Without it (or with a wrong one, or one made for another agent or mission), `/mcp` returns `401` `{ "error": "unauthorized" }` before any tool runs.
+- **Identifying the caller:** The caller's (crew member, mission) is determined from the HTTP headers `x-makeitso-agent` and `x-makeitso-mission`, which are put into that session's own MCP server configuration when the session is created. The model's self-report is not relied on. A call without the headers is refused with `401` before any tool runs.
 - Task IDs are per-role sequence numbers (for example, `chief_engineer_0001`).
 
 ## The desktop app's own path

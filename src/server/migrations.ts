@@ -378,6 +378,36 @@ function addUiEvents(db: DatabaseSync): void {
   `);
 }
 
+/**
+ * Migration 7: the search index of the Memory bundle (the Markdown files under the ship's `knowledge/`). The files are the truth; both
+ * tables only hold what is read from them, so they can be thrown away and filled again from the files (the server does so at every start).
+ *  - `memory_docs`: one row per concept file, with what the viewer and the tools list, and the body (for the words too short for the
+ *    trigram index, which are looked up with LIKE). `version` is the git blob id of the file, which a write must quote to update it.
+ *  - `memory_fts`: the trigram full-text index, which finds words of three characters or more, Japanese included. Its rowid is the
+ *    rowid of `memory_docs`.
+ */
+function addMemoryIndex(db: DatabaseSync): void {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS memory_docs (
+      path TEXT PRIMARY KEY,
+      dir TEXT NOT NULL,
+      type TEXT NOT NULL,
+      title TEXT NOT NULL,
+      description TEXT NOT NULL,
+      tags_json TEXT NOT NULL,
+      status TEXT NOT NULL,
+      superseded_by TEXT,
+      crew TEXT,
+      updated_at TEXT,
+      version TEXT NOT NULL,
+      size INTEGER NOT NULL,
+      body TEXT NOT NULL
+    )
+  `);
+  db.exec("CREATE INDEX IF NOT EXISTS idx_memory_docs_dir ON memory_docs(dir)");
+  db.exec("CREATE VIRTUAL TABLE IF NOT EXISTS memory_fts USING fts5(title, description, tags, body, tokenize = 'trigram')");
+}
+
 export const MIGRATIONS: Migration[] = [
   { version: 1, name: "baseline", up: baseline },
   { version: 2, name: "backfill-legacy-agents", up: backfillLegacyAgents },
@@ -385,6 +415,7 @@ export const MIGRATIONS: Migration[] = [
   { version: 4, name: "provider-commands", up: addProviderCommands },
   { version: 5, name: "task-cancelled", up: addTaskCancelled },
   { version: 6, name: "ui-events", up: addUiEvents },
+  { version: 7, name: "memory-index", up: addMemoryIndex },
 ];
 
 export function getSchemaVersion(db: DatabaseSync): number {

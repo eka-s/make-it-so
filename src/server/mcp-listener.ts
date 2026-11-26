@@ -26,7 +26,8 @@ export async function openMcpListener(): Promise<McpListener> {
   const app = express();
   app.disable("x-powered-by");
   app.use(createLocalRequestGuard());
-  app.use(express.json({ limit: "1mb" }));
+  // A memo of 1 MB or more is accepted with a warning (see memory-store.ts), and JSON escaping makes the request bigger than the memo.
+  app.use(express.json({ limit: "8mb" }));
   // It is stateless, so it can be treated like any other API route.
   app.post("/mcp", (req, res) => {
     if (!handler) {

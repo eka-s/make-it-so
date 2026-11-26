@@ -13,6 +13,7 @@ The structure of each ship's database (SQLite) and the rules for schema changes 
 - [Timeline Events](#timeline-events)
 - [Missions and PINs](#missions-and-pins)
 - [Crew Tasks](#crew-tasks)
+- [Memory Index](#memory-index)
 - [Settings and Caches](#settings-and-caches)
 - [Shared Conventions](#shared-conventions)
 - [Migrations](#migrations)
@@ -32,6 +33,7 @@ The structure of each ship's database (SQLite) and the rules for schema changes 
 | Missions | `missions`, `pinned_messages`, `mission_crew_model` |
 | Tasks | `task_started_events`, `task_completed_events`, `task_error_events`, `task_reported_events`, `task_id_counters` |
 | A2UI forms | `ui_shown_events`, `ui_answered_events`, `ui_dismissed_events` |
+| Memory index | `memory_docs`, `memory_fts` (rebuilt from the files; see below) |
 | Settings and caches | `app_settings`, `provider_model_options`, `provider_commands` |
 
 ## Timeline Events
@@ -150,6 +152,15 @@ A crew member can show an interactive form (A2UI) under its reply with `render_u
 - While a mission has an open form, no message can be sent in it: the input box is locked, and the server refuses with `409`. `GET /api/timeline` says which reply holds it (`openUiItemId`), so the client does not have to look for it among the loaded items.
 - The message the crew member receives for an answer is not stored: it is made from `action_json` and `comment` when it is read: a fenced block marked `a2ui-action` holding the A2UI v1.0 action message, then `Captain's comment:` and the comment if there is one (it is also what appears in the conversation context handed to the other crew members). Keeping the facts (not the text) means the one place that words the text can change without leaving old rows behind.
 
+## Memory Index
+
+The ship's Memory is a directory of Markdown files, `knowledge/` ([guide](../guides/memory.md)); **the files are the truth**, and these two tables only hold what is read from them, so listing and searching are fast. They are filled again from the files at every start (which also picks up files edited by hand), and can be thrown away at any time.
+
+| Table | Columns | Meaning |
+|---|---|---|
+| `memory_docs` | `path` (primary key), `dir`, `type`, `title`, `description`, `tags_json`, `status`, `superseded_by`, `crew`, `updated_at`, `version`, `size`, `body` | One row per memo. `version` is the git blob id of the file (what a write quotes as `base`). `body` is kept so that words too short for the trigram index are looked up with `LIKE` |
+| `memory_fts` | `title`, `description`, `tags`, `body` | The full-text index (FTS5, `trigram` tokenizer: words of three characters or more, Japanese included). Its rowid is the rowid of `memory_docs` |
+
 ## Settings and Caches
 
 | Table | Columns | Meaning |
@@ -179,6 +190,7 @@ The schema version is kept in SQLite's `PRAGMA user_version`.
 | 4 | `provider-commands` | Adds `provider_commands` |
 | 5 | `task-cancelled` | Adds `task_completed_events.cancelled`. Existing rows are 0 (not cancelled) |
 | 6 | `ui-events` | Adds `ui_shown_events`, `ui_answered_events` and `ui_dismissed_events` |
+| 7 | `memory-index` | Adds `memory_docs` and `memory_fts` (the search index of the Memory) |
 
 ### Rules
 
