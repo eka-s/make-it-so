@@ -280,6 +280,21 @@ describe("remote host crew member", () => {
     expect(persona).not.toContain(path.join(root, "workspace"));
   });
 
+  it("the briefing for a remote lists the skills by name, to be read with get_skill, without their local paths", async () => {
+    const file = path.join(root, "extra-skills", "deploy", "skill.md");
+    fs.mkdirSync(path.dirname(file), { recursive: true });
+    fs.writeFileSync(file, "---\nname: deploy\ndescription: How to deploy\n---\nbody\n");
+    makeManager({
+      first_officer: crewMember({ acp_agent: "alex" }),
+      science_officer: crewMember({ acp_agent: "scout", host, cwd: "/work", skills: [file] }),
+    });
+    await manager.getOrCreateSession("science_officer", "m1");
+    const persona = personaOf(clients[0]);
+    expect(persona).toContain("- deploy: How to deploy");
+    expect(persona).toContain("get_skill");
+    expect(persona).not.toContain(file);
+  });
+
   it("if the tunnel cannot be established, an exception, and the agent is not started", async () => {
     ensureTunnel = vi.fn(async () => {
       throw new Error("tunnel not ready");

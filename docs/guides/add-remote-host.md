@@ -37,7 +37,7 @@ make-it-so automatically sets up the route from the agent to the main board (MCP
 
 ## Limitations
 
-- `access` (the area of responsibility) cannot be specified (it is an error). `skills` are not announced (a warning is output and they are ignored).
+- `access` (the area of responsibility) cannot be specified (it is an error). `skills` are announced by name and description only; the crew member reads the body with the `get_skill` tool, since the skill files are on this side.
 - When the connection drops, the next time you call the crew member it starts in a new session (it does not resume where it left off).
 - Through the reverse tunnel the remote host reaches the board only (a listener of its own, which needs the secret each start generates), not the ship's screen or API. Other users who share that host and can read the secret can call the board. Use this only with trusted hosts ([Security](../security.md)).
 - It is not included in the per-account usage totals.

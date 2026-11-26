@@ -4,14 +4,15 @@ import { parse } from "yaml";
 import { LANGUAGE_NAMES, type Language } from "./language.js";
 
 // This module does not depend on the ship config (config.ts). The ship root and the Skill directory are received
-// from the caller (crew-manager.ts) as `SkillsContext` — if merely importing it loaded the ship config,
+// from the caller as `SkillsContext` — if merely importing it loaded the ship config,
 // the building of the guidance text could not be tested.
 //
 // make-it-so's own provider-neutral Skill mechanism. It does not depend on a special tool such as Claude Native Skills; it reproduces
-// "progressive disclosure" with only the generic "read a file" tool that crew members, including the commander,
-// already have: the guidance text this module builds at session start tells them only the names of the available Skills + their trigger conditions
-// (the equivalent of frontmatter). The body (the detailed instructions) is read by the model itself, by reading that Skill file
-// when it decides "this is relevant" — this side has no judgment logic whatsoever.
+// "progressive disclosure" with generic tools that crew members, including the commander, already have: the guidance text
+// this module builds at session start tells them only the names of the available Skills + their trigger conditions
+// (the equivalent of frontmatter). The body (the detailed instructions) is read by the model itself when it decides
+// "this is relevant" — this side has no judgment logic whatsoever. A local crew member reads the Skill file; a remote
+// host crew member, who does not have the main side's files, reads it with the `get_skill` tool (see `loadAnnouncedSkills`).
 
 // Static, universal operating rules common to all personas (the content is always the same for everyone,
 // so they do not go through the trigger-conditioned lazy loading that Skills use).
@@ -83,16 +84,29 @@ type SkillSummary = {
   path: string;
 };
 
+// The block at the top of a skill file: the YAML between the first two `---` lines.
+const FRONTMATTER = /^---\r?\n([\s\S]*?)\r?\n---\r?\n?/;
+
 /**
  * Extracts only the YAML frontmatter (`name` + `description`) at the top of `skill.md`. The body is not read.
+ * A value YAML reads as a number (`name: 123`) is taken as its text, so what is announced can be asked for by that name.
  */
 export function parseFrontmatter(content: string): { name: string; description: string } | null {
-  const match = content.match(/^---\r?\n([\s\S]*?)\r?\n---/);
+  const match = content.match(FRONTMATTER);
   if (!match) return null;
   try {
-    const data = parse(match[1]) as { name?: string; description?: string } | null;
+    const data = parse(match[1]) as { name?: unknown; description?: unknown } | null;
     if (!data?.name || !data?.description) return null;
-    return { name: data.name, description: data.description };
+    return { name: String(data.name), description: String(data.description) };
+  } catch {
+    return null;
+  }
+}
+
+/** The frontmatter of a skill file, or null when it is invalid or the file cannot be read (a file may vanish after the config was checked). */
+function readSummary(file: string): { name: string; description: string } | null {
+  try {
+    return parseFrontmatter(fs.readFileSync(file, "utf-8"));
   } catch {
     return null;
   }
@@ -113,8 +127,7 @@ function listSkills(skillsDir: string): SkillSummary[] {
     if (!entry.isDirectory()) continue;
     const skillMdPath = path.join(skillsDir, entry.name, "skill.md");
     if (!fs.existsSync(skillMdPath)) continue;
-    const content = fs.readFileSync(skillMdPath, "utf-8");
-    const summary = parseFrontmatter(content);
+    const summary = readSummary(skillMdPath);
     if (summary) skills.push({ ...summary, path: skillMdPath });
   }
   return skills;
@@ -123,16 +136,54 @@ function listSkills(skillsDir: string): SkillSummary[] {
 /**
  * Reads the frontmatter of the skill files explicitly given in `skills:` of the roster/ship (absolute paths,
  * verified to exist in config.ts). The format is the same as the ship's `skills/*\/skill.md`
- * (`name` + `description`). A file with no/invalid frontmatter is excluded with a warning.
+ * (`name` + `description`). A file with no/invalid frontmatter, or one that cannot be read any more, is excluded with a warning.
  */
 function listExplicitSkills(files: string[]): SkillSummary[] {
   const skills: SkillSummary[] = [];
   for (const file of files) {
-    const summary = parseFrontmatter(fs.readFileSync(file, "utf-8"));
+    const summary = readSummary(file);
     if (summary) skills.push({ ...summary, path: file });
-    else console.warn(`[Skills] ${file} has no valid frontmatter (name/description) — skipping`);
+    else console.warn(`[Skills] ${file} has no valid frontmatter (name/description), or cannot be read — skipping`);
   }
   return skills;
+}
+
+/** The skills announced to a crew member: the ship's `skills/` directory first, then the explicitly given files. On a name clash, the first one wins. */
+function collectSkills(ctx: SkillsContext, extraSkillFiles: string[]): SkillSummary[] {
+  const seen = new Set<string>();
+  return [...listSkills(ctx.skillsDir), ...listExplicitSkills(extraSkillFiles)].filter((s) => {
+    if (seen.has(s.name)) return false;
+    seen.add(s.name);
+    return true;
+  });
+}
+
+/** The skills announced to one crew member, as `get_skill` serves them. */
+export type AnnouncedSkills = {
+  names: string[];
+  /** The body (the file without its frontmatter) of the skill `name`, or undefined when it is not announced or cannot be read. */
+  read: (name: string) => string | undefined;
+};
+
+/**
+ * Scans once and returns what a crew member may read through `get_skill`. Only announced skills can be read, so a crew member
+ * cannot use it to read other files, and nothing that fails to read shows a path to the crew.
+ */
+export function loadAnnouncedSkills(ctx: SkillsContext, extraSkillFiles: string[]): AnnouncedSkills {
+  const skills = collectSkills(ctx, extraSkillFiles);
+  return {
+    names: skills.map((s) => s.name),
+    read: (name) => {
+      const skill = skills.find((s) => s.name === name);
+      if (!skill) return undefined;
+      try {
+        return fs.readFileSync(skill.path, "utf-8").replace(FRONTMATTER, "").trim();
+      } catch (err) {
+        console.warn(`[Skills] ${skill.path} cannot be read: ${err instanceof Error ? err.message : String(err)}`);
+        return undefined;
+      }
+    },
+  };
 }
 
 /**
@@ -143,9 +194,9 @@ function listExplicitSkills(files: string[]): SkillSummary[] {
  * `extraSkillFiles` are the skills explicitly given for that member in the roster (personal)/ship. They are placed after the automatically
  * scanned ones from the ship's `skills/` directory (on a name clash, the first one wins).
  *
- * `options.remote` is for a crew member running on a remote host. The workspace, the report format, and the
- * Skill list all point to local paths on the main side, and the remote does not have those files, so they are
- * left out (a current limitation).
+ * `options.remote` is for a crew member running on a remote host. The workspace and the report format point to
+ * local paths on the main side, and the remote does not have those files, so they are left out (a current limitation).
+ * The Skills are announced by name only, to be read with the `get_skill` tool instead of from a file.
  */
 export function buildCommonAnnouncement(
   ctx: SkillsContext,
@@ -153,15 +204,18 @@ export function buildCommonAnnouncement(
   options: { remote?: boolean; language?: Language } = {},
 ): string {
   const languageSection = options.language ? ["", languageNote(options.language)] : [];
+  const skills = collectSkills(ctx, extraSkillFiles);
   if (options.remote) {
-    return ["## Common operating rules", "", `- ${TASK_NOTIFICATION_NOTE}`, ...languageSection].join("\n");
+    return [
+      "## Common operating rules",
+      "",
+      `- ${TASK_NOTIFICATION_NOTE}`,
+      ...(skills.length > 0
+        ? ["", "## Available skills", "", "When you are asked to do related work, read the corresponding skill with the `get_skill` tool (pass its name) and follow it. It gives the text of the skill only: files it mentions beside it are not available to you.", "", ...skills.map((s) => `- ${s.name}: ${s.description}`)]
+        : []),
+      ...languageSection,
+    ].join("\n");
   }
-  const seen = new Set<string>();
-  const skills = [...listSkills(ctx.skillsDir), ...listExplicitSkills(extraSkillFiles)].filter((s) => {
-    if (seen.has(s.name)) return false;
-    seen.add(s.name);
-    return true;
-  });
   const skillList = skills.length > 0
     ? skills.map((s) => `- ${s.name} (${s.path}): ${s.description}`).join("\n")
     : "(No skills are registered at the moment.)";

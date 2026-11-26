@@ -215,7 +215,7 @@ Ranks:
 - The permission mode (`permission_mode`) is applied as a provider setting right after the session is created. The claude values are `default` (confirm every time), `acceptEdits`, `plan`, `auto`, and `bypassPermissions`. For a value that cannot be chosen, or for a provider that does not support it (kiro), a warning is output and it runs with the default.
 - If the old name `profile` is written, startup stops with an error that urges renaming it to `agent`.
 - `targets` with `access` is **an agreement made in the prompt** (not technical access control). For details, see the [security notes](../security.md).
-- Remote host crew members (with `host`) cannot specify `access` (it is an error). `skills` are not announced (a warning is output and they are ignored).
+- Remote host crew members (with `host`) cannot specify `access` (it is an error). `skills` are announced by name and description only, and the crew member reads the body with the `get_skill` tool.
 
 ## `hosts.yml`
 
@@ -280,7 +280,7 @@ Personas and icons are placed in the fleet's `personnel/`, named by member ID.
 ## Rule and skill files
 
 - **Rules:** Markdown files whose full text is injected at startup. They can be written for each roster member (relative to `~/.make-it-so`) and in `ship.yml` (relative to the ship's root), and are concatenated in the order personal, then ship. A nonexistent file is an error at startup.
-- **Skills:** Only the list (names and descriptions) is announced, and the model reads the body itself when needed (the file name must be lowercase `skill.md`; a `SKILL.md` copied as is from Claude Code is not picked up). A YAML frontmatter at the top with `name` and `description` is required, and files that lack it or are invalid are excluded with a warning. A ship's `skills/*/skill.md` are scanned automatically, and those named explicitly in the roster and in `skills:` of `ship.yml` are placed after them (for the same name, the one that appears first wins).
+- **Skills:** Only the list (names and descriptions) is announced, and the model reads the body itself when needed (the file name must be lowercase `skill.md`; a `SKILL.md` copied as is from Claude Code is not picked up). A YAML frontmatter at the top with `name` and `description` is required, and files that lack it or are invalid are excluded with a warning. A ship's `skills/*/skill.md` are scanned automatically, and those named explicitly in the roster and in `skills:` of `ship.yml` are placed after them (for the same name, the one that appears first wins). A remote host crew member cannot read these files, so it is told the names and descriptions only and reads the body with the `get_skill` tool (which gives only the skills announced to that member).
 
 ## Directory layout
 

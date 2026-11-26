@@ -13,6 +13,7 @@ First public release (alpha). Expect rough edges and breaking changes before 1.0
 - Missions: separate conversations, each with its own sessions. Pins, history and per-mission model choice.
 - Per-crew model and permission mode. Permission requests are approved in the chat.
 - Remote crew members over SSH (reverse tunnel to the board). Linux hosts with bash.
+- Skills reach remote crew members too: they are told the names and descriptions, and read the body with the `get_skill` tool of the board (it gives only the skills announced to that member).
 - Stop always works, and startup can no longer hang a mission: stopping aborts a starting session (and force-stops a provider that ignores cancel after 15 s); a session that has not started within 3 minutes, or does not answer its briefing within 90 s, fails with a clear error instead of leaving the mission busy.
 - Task authority by crew rank (`rank` in `ship.yml`: commander / chief / crew). The code no longer special-cases any role name: the default talking target, who may delegate tasks (enforced by the server), and whose reports a crew member can read all follow from the rank. One endpoint talks to any crew member.
 - A personnel record popup per crew member (click the icon): upload an icon image, change the model, restart, and read the persona. Crew without an icon get an initial-and-color avatar.
