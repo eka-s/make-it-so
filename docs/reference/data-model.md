@@ -158,8 +158,8 @@ The ship's Memory is a directory of Markdown files, `knowledge/` ([guide](../gui
 
 | Table | Columns | Meaning |
 |---|---|---|
-| `memory_docs` | `path` (primary key), `dir`, `type`, `title`, `description`, `tags_json`, `status`, `superseded_by`, `crew`, `updated_at`, `version`, `size`, `body` | One row per memo. `version` is the git blob id of the file (what a write quotes as `base`). `body` is kept so that words too short for the trigram index are looked up with `LIKE` |
-| `memory_fts` | `title`, `description`, `tags`, `body` | The full-text index (FTS5, `trigram` tokenizer: words of three characters or more, Japanese included). Its rowid is the rowid of `memory_docs` |
+| `memory_docs` | `path` (primary key), `dir`, `title`, `description`, `status`, `superseded_by`, `crew`, `updated_at`, `version`, `size`, `body` | One row per memo. `version` is the git blob id of the file (what a write quotes as `base`). `body` is kept so that words too short for the trigram index are looked up with `LIKE` |
+| `memory_fts` | `title`, `description`, `body` | The full-text index (FTS5, `trigram` tokenizer: words of three characters or more, Japanese included). Its rowid is the rowid of `memory_docs` |
 
 ## Settings and Caches
 

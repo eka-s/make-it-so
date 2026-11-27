@@ -5,7 +5,7 @@ import type { DatabaseSync, SQLInputValue } from "node:sqlite";
 import git from "isomorphic-git";
 import { stringify } from "yaml";
 import { lineDiff } from "./memory-diff.js";
-import { MEMORY_STATUSES, parseMemoryFile, serializeMemoryFile, type MemoryFront, type MemoryStatus } from "./memory-document.js";
+import { MEMORY_STATUSES, MEMORY_TYPE, parseMemoryFile, serializeMemoryFile, type MemoryFront, type MemoryStatus } from "./memory-document.js";
 import { renderIndexBody, type IndexConcept } from "./memory-index-md.js";
 import { memoryDirOf, memoryDirProblem, memoryDirsUp, memoryPathProblem } from "./memory-path.js";
 import { insideRoot, isRealDirectory, linkInPath, MAX_MEMORY_FILE_BYTES, readRegularFile, writeFileAtomic } from "./memory-files.js";
@@ -34,7 +34,6 @@ const MAX_DIFF_CHARS = 20_000;
 const REBUILD_BATCH = 500;
 const MAX_QUERY_CHARS = 1000;
 const MAX_QUERY_TERMS = 32;
-const MAX_QUERY_TAGS = 20;
 // A word under three characters is searched by scanning every body, so only a few are looked at.
 const MAX_SHORT_TERMS = 4;
 /** How far back the history of a deleted memo is looked for. */
@@ -54,10 +53,8 @@ export class MemoryError extends Error {
 
 export type MemorySummary = {
   path: string;
-  type: string;
   title: string;
   description: string;
-  tags: string[];
   status: MemoryStatus;
   supersededBy?: string;
   crew?: string;
@@ -74,11 +71,9 @@ export type MemoryDocument = MemorySummary & {
 
 export type MemoryWriteInput = {
   path: string;
-  type: string;
   title?: string;
   description: string;
   body: string;
-  tags?: string[];
   status?: MemoryStatus;
   /** The change in a sentence: it becomes the commit message. */
   message: string;
@@ -92,8 +87,6 @@ export type MemoryWriteResult = { path: string; version: string; created: boolea
 
 export type MemorySearchQuery = {
   query?: string;
-  type?: string;
-  tags?: string[];
   statuses?: MemoryStatus[];
   /** Only paths that start with this. */
   pathPrefix?: string;
@@ -127,10 +120,8 @@ export type MemoryStoreDeps = {
 type DocRow = {
   path: string;
   dir: string;
-  type: string;
   title: string;
   description: string;
-  tags_json: string;
   status: string;
   superseded_by: string | null;
   crew: string | null;
@@ -139,15 +130,13 @@ type DocRow = {
   size: number;
 };
 
-const SUMMARY_COLUMNS = "d.path, d.dir, d.type, d.title, d.description, d.tags_json, d.status, d.superseded_by, d.crew, d.updated_at, d.version, d.size";
+const SUMMARY_COLUMNS = "d.path, d.dir, d.title, d.description, d.status, d.superseded_by, d.crew, d.updated_at, d.version, d.size";
 
 function toSummary(row: DocRow): MemorySummary {
   return {
     path: row.path,
-    type: row.type,
     title: row.title,
     description: row.description,
-    tags: JSON.parse(row.tags_json) as string[],
     status: row.status as MemoryStatus,
     ...(row.superseded_by ? { supersededBy: row.superseded_by } : {}),
     ...(row.crew ? { crew: row.crew } : {}),
@@ -217,18 +206,18 @@ export function createMemoryStore(deps: MemoryStoreDeps) {
   }
 
   function upsertDoc(rel: string, front: MemoryFront, body: string, version: string, size: number): void {
-    const values = [memoryDirOf(rel), front.type, front.title, front.description, JSON.stringify(front.tags), front.status, front.supersededBy ?? null, front.crew ?? null, front.generatedAt ?? null, version, size, body] as SQLInputValue[];
+    const values = [memoryDirOf(rel), front.title, front.description, front.status, front.supersededBy ?? null, front.crew ?? null, front.generatedAt ?? null, version, size, body] as SQLInputValue[];
     const existing = rowOf(rel);
     let rowid: number;
     if (existing) {
       rowid = existing.rowid;
-      db.prepare("UPDATE memory_docs SET dir = ?, type = ?, title = ?, description = ?, tags_json = ?, status = ?, superseded_by = ?, crew = ?, updated_at = ?, version = ?, size = ?, body = ? WHERE path = ?").run(...values, rel);
+      db.prepare("UPDATE memory_docs SET dir = ?, title = ?, description = ?, status = ?, superseded_by = ?, crew = ?, updated_at = ?, version = ?, size = ?, body = ? WHERE path = ?").run(...values, rel);
       db.prepare("DELETE FROM memory_fts WHERE rowid = ?").run(rowid);
     } else {
-      const result = db.prepare("INSERT INTO memory_docs (path, dir, type, title, description, tags_json, status, superseded_by, crew, updated_at, version, size, body) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)").run(rel, ...values);
+      const result = db.prepare("INSERT INTO memory_docs (path, dir, title, description, status, superseded_by, crew, updated_at, version, size, body) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)").run(rel, ...values);
       rowid = Number(result.lastInsertRowid);
     }
-    db.prepare("INSERT INTO memory_fts (rowid, title, description, tags, body) VALUES (?, ?, ?, ?, ?)").run(rowid, front.title, front.description, front.tags.join(" "), body);
+    db.prepare("INSERT INTO memory_fts (rowid, title, description, body) VALUES (?, ?, ?, ?)").run(rowid, front.title, front.description, body);
   }
 
   function deleteDoc(rel: string): void {
@@ -248,7 +237,6 @@ export function createMemoryStore(deps: MemoryStoreDeps) {
     const rows = db.prepare(`SELECT ${SUMMARY_COLUMNS} FROM memory_docs d WHERE d.dir = ?`).all(directory) as DocRow[];
     return rows.map((row) => ({
       file: row.path.slice(directory === "" ? 0 : directory.length + 1),
-      type: row.type,
       title: row.title,
       description: row.description,
       status: row.status as MemoryStatus,
@@ -355,10 +343,8 @@ export function createMemoryStore(deps: MemoryStoreDeps) {
     const { front } = parsed;
     return {
       path: rel,
-      type: front.type,
       title: front.title,
       description: front.description,
-      tags: front.tags,
       status: front.status,
       ...(front.supersededBy ? { supersededBy: front.supersededBy } : {}),
       ...(front.crew ? { crew: front.crew } : {}),
@@ -378,11 +364,9 @@ export function createMemoryStore(deps: MemoryStoreDeps) {
 
   // --- Writing ---
 
-  function checkInput(input: MemoryWriteInput): { type: string; title: string; description: string; message: string; tags: string[] | undefined } {
+  function checkInput(input: MemoryWriteInput): { title: string; description: string; message: string } {
     const problem = memoryPathProblem(input.path);
     if (problem) throw new MemoryError("invalid", problem);
-    const type = oneLine(input.type ?? "");
-    if (type === "" || type.length > 64) throw new MemoryError("invalid", "`type` is required (a short word such as note, procedure, decision, reference, issue or glossary, up to 64 characters).");
     const description = oneLine(input.description ?? "");
     if (description === "") throw new MemoryError("invalid", "`description` is required: one line saying what the memo is and when it helps.");
     const title = oneLine(input.title ?? "");
@@ -390,13 +374,8 @@ export function createMemoryStore(deps: MemoryStoreDeps) {
     const message = oneLine(input.message ?? "");
     if (message === "") throw new MemoryError("invalid", "`message` is required: the change in a sentence.");
     if (input.status !== undefined && !MEMORY_STATUSES.includes(input.status)) throw new MemoryError("invalid", `\`status\` must be one of ${MEMORY_STATUSES.join(", ")}.`);
-    let tags: string[] | undefined;
-    if (input.tags !== undefined) {
-      tags = [...new Set(input.tags.map(oneLine).filter((tag) => tag !== ""))];
-      if (tags.length > 50 || tags.some((tag) => tag.length > 64)) throw new MemoryError("invalid", "`tags` takes up to 50 tags of up to 64 characters.");
-    }
     if (oneLine(input.crew ?? "") === "") throw new MemoryError("invalid", "The writer could not be identified.");
-    return { type, title, description, message, tags };
+    return { title, description, message };
   }
 
   /** Writes a concept file, records it in the index, brings the index.md files up to date, and commits all of that as one change. */
@@ -492,10 +471,9 @@ export function createMemoryStore(deps: MemoryStoreDeps) {
       }
       const previous = existing ? (readParsed(input.path)?.parsed ?? null) : null;
       const front: MemoryFront = {
-        type: checked.type,
+        type: previous?.front.type ?? MEMORY_TYPE,
         title: checked.title,
         description: checked.description,
-        tags: checked.tags ?? previous?.front.tags ?? [],
         status: input.status ?? previous?.front.status ?? "stable",
         ...(previous?.front.supersededBy && (input.status ?? previous.front.status) === "deprecated" ? { supersededBy: previous.front.supersededBy } : {}),
         generatedBy: deps.producer,
@@ -573,9 +551,7 @@ export function createMemoryStore(deps: MemoryStoreDeps) {
 
   // --- Searching and browsing ---
 
-  function filterClauses(query: Pick<MemorySearchQuery, "type" | "tags" | "statuses" | "pathPrefix">, clauses: string[], params: SQLInputValue[]): void {
-    if (query.type) { clauses.push("d.type = ?"); params.push(query.type); }
-    for (const tag of (query.tags ?? []).slice(0, MAX_QUERY_TAGS)) { clauses.push("EXISTS (SELECT 1 FROM json_each(d.tags_json) WHERE value = ?)"); params.push(tag); }
+  function filterClauses(query: Pick<MemorySearchQuery, "statuses" | "pathPrefix">, clauses: string[], params: SQLInputValue[]): void {
     if (query.statuses && query.statuses.length > 0) {
       clauses.push(`d.status IN (${query.statuses.map(() => "?").join(", ")})`);
       params.push(...query.statuses);
@@ -595,8 +571,8 @@ export function createMemoryStore(deps: MemoryStoreDeps) {
       } else if (shortTerms++ < MAX_SHORT_TERMS) {
         // Too short for the trigram index: look at the text itself.
         const like = `%${escapeLike(term)}%`;
-        clauses.push("(d.title LIKE ? ESCAPE '\\' OR d.description LIKE ? ESCAPE '\\' OR d.tags_json LIKE ? ESCAPE '\\' OR d.body LIKE ? ESCAPE '\\')");
-        params.push(like, like, like, like);
+        clauses.push("(d.title LIKE ? ESCAPE '\\' OR d.description LIKE ? ESCAPE '\\' OR d.body LIKE ? ESCAPE '\\')");
+        params.push(like, like, like);
       }
     }
     const matchParams: SQLInputValue[] = [];
@@ -626,7 +602,7 @@ export function createMemoryStore(deps: MemoryStoreDeps) {
     const clauses = ["d.dir = ?"];
     const params: SQLInputValue[] = [directory];
     filterClauses(filter, clauses, params);
-    const rows = db.prepare(`SELECT ${SUMMARY_COLUMNS} FROM memory_docs d WHERE ${clauses.join(" AND ")} ORDER BY d.type, d.title, d.path`).all(...params) as DocRow[];
+    const rows = db.prepare(`SELECT ${SUMMARY_COLUMNS} FROM memory_docs d WHERE ${clauses.join(" AND ")} ORDER BY d.title, d.path`).all(...params) as DocRow[];
 
     const prefix = directory === "" ? "" : `${directory}/`;
     const deepClauses = ["d.dir LIKE ? ESCAPE '\\'", "d.dir <> ?"];

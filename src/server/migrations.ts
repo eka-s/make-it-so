@@ -408,6 +408,32 @@ function addMemoryIndex(db: DatabaseSync): void {
   db.exec("CREATE VIRTUAL TABLE IF NOT EXISTS memory_fts USING fts5(title, description, tags, body, tokenize = 'trigram')");
 }
 
+/**
+ * Migration 8: the Memory has no tags and its memos have one fixed type, so the search index loses those columns. The index only holds what is read from the files (see
+ * migration 7), so it is dropped and made again; the server fills it at start.
+ */
+function dropMemoryTagsAndType(db: DatabaseSync): void {
+  db.exec("DROP TABLE IF EXISTS memory_fts");
+  db.exec("DROP TABLE IF EXISTS memory_docs");
+  db.exec(`
+    CREATE TABLE memory_docs (
+      path TEXT PRIMARY KEY,
+      dir TEXT NOT NULL,
+      title TEXT NOT NULL,
+      description TEXT NOT NULL,
+      status TEXT NOT NULL,
+      superseded_by TEXT,
+      crew TEXT,
+      updated_at TEXT,
+      version TEXT NOT NULL,
+      size INTEGER NOT NULL,
+      body TEXT NOT NULL
+    )
+  `);
+  db.exec("CREATE INDEX idx_memory_docs_dir ON memory_docs(dir)");
+  db.exec("CREATE VIRTUAL TABLE memory_fts USING fts5(title, description, body, tokenize = 'trigram')");
+}
+
 export const MIGRATIONS: Migration[] = [
   { version: 1, name: "baseline", up: baseline },
   { version: 2, name: "backfill-legacy-agents", up: backfillLegacyAgents },
@@ -416,6 +442,7 @@ export const MIGRATIONS: Migration[] = [
   { version: 5, name: "task-cancelled", up: addTaskCancelled },
   { version: 6, name: "ui-events", up: addUiEvents },
   { version: 7, name: "memory-index", up: addMemoryIndex },
+  { version: 8, name: "memory-drop-tags-and-type", up: dropMemoryTagsAndType },
 ];
 
 export function getSchemaVersion(db: DatabaseSync): number {

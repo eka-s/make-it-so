@@ -3,17 +3,21 @@ import { parse, stringify } from "yaml";
 // A concept file of the Memory bundle: YAML frontmatter, then a Markdown body (OKF v0.3). Keys this module does not know are kept as
 // they are when a file is written again, because the format asks consumers to tolerate and keep what they do not understand.
 
+// A memo has no tags: it is kept by where it lives. A flag is all it can carry, and a memo with none is the normal, settled kind
+// (`stable`), which is therefore not written to the file.
+// OKF requires a `type`, which the format means for telling kinds of concept apart. A Memory is a notebook of memos written as they come
+// to mind, where the kinds mix in one document, so the server writes one fixed value and the directory is the only classification.
+export const MEMORY_TYPE = "note";
 export const MEMORY_STATUSES = ["draft", "stable", "deprecated"] as const;
 export type MemoryStatus = (typeof MEMORY_STATUSES)[number];
 
 /** The frontmatter keys this module reads and writes itself; every other key is kept untouched. */
-const KNOWN_KEYS = ["type", "title", "description", "tags", "status", "superseded_by", "generated", "x-make-it-so-crew"];
+const KNOWN_KEYS = ["type", "title", "description", "status", "superseded_by", "generated", "x-make-it-so-crew"];
 
 export type MemoryFront = {
   type: string;
   title: string;
   description: string;
-  tags: string[];
   status: MemoryStatus;
   supersededBy?: string;
   /** The tool that wrote it last (`generated.by`). */
@@ -33,11 +37,6 @@ const FRONT_BLOCK = /^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/;
 function asString(value: unknown): string {
   if (value === undefined || value === null) return "";
   return typeof value === "string" ? value : String(value);
-}
-
-function asTags(value: unknown): string[] {
-  if (!Array.isArray(value)) return [];
-  return value.map((tag) => asString(tag).trim()).filter((tag) => tag !== "");
 }
 
 function asStatus(value: unknown): MemoryStatus {
@@ -72,7 +71,6 @@ export function parseMemoryFile(content: string): ParsedMemoryFile | null {
       type,
       title: asString(record.title).trim(),
       description: asString(record.description).trim(),
-      tags: asTags(record.tags),
       status: asStatus(record.status),
       ...(supersededBy !== "" ? { supersededBy } : {}),
       ...(generated.by !== undefined ? { generatedBy: asString(generated.by) } : {}),
@@ -90,8 +88,7 @@ export function serializeMemoryFile(front: MemoryFront, body: string): string {
   const data: Record<string, unknown> = { type: front.type };
   if (front.title !== "") data.title = front.title;
   data.description = front.description;
-  if (front.tags.length > 0) data.tags = front.tags;
-  data.status = front.status;
+  if (front.status !== "stable") data.status = front.status;
   if (front.supersededBy) data.superseded_by = front.supersededBy;
   if (front.generatedBy !== undefined || front.generatedAt !== undefined) {
     data.generated = {

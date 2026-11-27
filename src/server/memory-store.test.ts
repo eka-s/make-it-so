@@ -15,7 +15,7 @@ function makeStore(extra: { onChange?: () => void } = {}) {
 }
 
 function input(over: Partial<MemoryWriteInput> = {}): MemoryWriteInput {
-  return { path: "procedures/deploy.md", type: "procedure", title: "Deploy", description: "Check this before a release", body: "Run the checks.\n", message: "Add the deploy procedure", crew: "Alex", ...over };
+  return { path: "procedures/deploy.md", title: "Deploy", description: "Check this before a release", body: "Run the checks.\n", message: "Add the deploy procedure", crew: "Alex", ...over };
 }
 
 beforeEach(() => {
@@ -38,7 +38,7 @@ describe("write", () => {
     expect(rootIndex).toContain('okf_version: "0.3"');
     expect(rootIndex).toContain("[procedures/](procedures/index.md): 1 concept");
     const dirIndex = fs.readFileSync(path.join(root, "knowledge", "procedures", "index.md"), "utf-8");
-    expect(dirIndex).toContain("## procedure");
+    expect(dirIndex).toContain("## Concepts");
     expect(dirIndex).toContain("[Deploy](deploy.md): Check this before a release");
   });
 
@@ -50,9 +50,18 @@ describe("write", () => {
     expect(history.map((h) => h.message)).toContain("Create the memory bundle");
   });
 
-  it("refuses a missing type, description or message, and a bad path", async () => {
+  it("writes the fixed type for a new memo, and keeps the type of a file written by hand when it is updated", async () => {
     const store = makeStore();
-    await expect(store.write(input({ type: " " }))).rejects.toMatchObject({ code: "invalid" });
+    const file = path.join(root, "knowledge", "a.md");
+    await store.write(input({ path: "a.md" }));
+    expect(fs.readFileSync(file, "utf-8")).toContain("type: note");
+    fs.writeFileSync(file, fs.readFileSync(file, "utf-8").replace("type: note", "type: Playbook"));
+    await store.write(input({ path: "a.md", body: "new", base: store.read("a.md")!.version }));
+    expect(fs.readFileSync(file, "utf-8")).toContain("type: Playbook");
+  });
+
+  it("refuses a missing description or message, and a bad path", async () => {
+    const store = makeStore();
     await expect(store.write(input({ description: "" }))).rejects.toMatchObject({ code: "invalid" });
     await expect(store.write(input({ message: "" }))).rejects.toMatchObject({ code: "invalid" });
     for (const bad of ["../x.md", "/x.md", "a/.hidden.md", "index.md", "a/log.md", "x.txt", "a//b.md"]) {
@@ -69,11 +78,11 @@ describe("write", () => {
     await expect(store.write(input({ body: "third", base: first.version }))).rejects.toMatchObject({ code: "conflict", current: { body: "second" } });
   });
 
-  it("keeps the keys it does not know, and the tags and status when they are left out of an update", async () => {
+  it("keeps the keys it does not know (a hand-written `tags` among them), and the status when they are left out of an update", async () => {
     const store = makeStore();
     const file = path.join(root, "knowledge", "a.md");
-    await store.write(input({ path: "a.md", tags: ["x"], status: "draft" }));
-    fs.writeFileSync(file, fs.readFileSync(file, "utf-8").replace("---\n", "---\nsources:\n  - https://example.com\n"));
+    await store.write(input({ path: "a.md", status: "draft" }));
+    fs.writeFileSync(file, fs.readFileSync(file, "utf-8").replace("---\n", "---\nsources:\n  - https://example.com\ntags:\n  - x\n"));
     const current = store.read("a.md")!;
     await store.write(input({ path: "a.md", body: "new", base: current.version }));
     const after = fs.readFileSync(file, "utf-8");
@@ -143,9 +152,9 @@ describe("deprecate and remove", () => {
 
 describe("search and browse", () => {
   async function fill(store: ReturnType<typeof makeStore>) {
-    await store.write(input({ path: "ops/deploy.md", title: "Deploy", description: "Release steps", body: "Run the smoke tests before release.", tags: ["release"] }));
-    await store.write(input({ path: "ops/日本語.md", type: "note", title: "デプロイの手順", description: "本番へ出す前の確認", body: "本番環境を確認する", status: "draft" }));
-    await store.write(input({ path: "top.md", type: "decision", title: "Use SQLite", description: "Why SQLite", body: "Local first." }));
+    await store.write(input({ path: "ops/deploy.md", title: "Deploy", description: "Release steps", body: "Run the smoke tests before release." }));
+    await store.write(input({ path: "ops/日本語.md", title: "デプロイの手順", description: "本番へ出す前の確認", body: "本番環境を確認する", status: "draft" }));
+    await store.write(input({ path: "top.md", title: "Use SQLite", description: "Why SQLite", body: "Local first." }));
   }
 
   it("finds words of three characters or more in the body, and shorter ones too", async () => {
@@ -157,11 +166,9 @@ describe("search and browse", () => {
     expect(store.search({ query: "SQLite local" }).items.map((i) => i.path)).toEqual(["top.md"]);
   });
 
-  it("filters by type, tag, status and path, and pages", async () => {
+  it("filters by status and path, and pages", async () => {
     const store = makeStore();
     await fill(store);
-    expect(store.search({ type: "decision" }).items.map((i) => i.path)).toEqual(["top.md"]);
-    expect(store.search({ tags: ["release"] }).items.map((i) => i.path)).toEqual(["ops/deploy.md"]);
     expect(store.search({ statuses: ["draft"] }).items.map((i) => i.path)).toEqual(["ops/日本語.md"]);
     expect(store.search({ pathPrefix: "/ops" }).total).toBe(2);
     expect(store.search({ limit: 1, offset: 1 })).toMatchObject({ total: 3, items: [{ path: "ops/日本語.md" }] });
@@ -376,12 +383,11 @@ describe("a hostile bundle directory", () => {
     expect(store.search({ query: "a b c x" }).total).toBe(0);
   });
 
-  it("looks only at the first words and tags of a search, so a huge query costs no more than a normal one", async () => {
+  it("looks only at the first words of a search, so a huge query costs no more than a normal one", async () => {
     const store = makeStore();
     const words = Array.from({ length: 40 }, (_, i) => `word${String(i).padStart(2, "0")}`);
-    await store.write(input({ path: "a.md", body: words.slice(0, 32).join(" "), tags: Array.from({ length: 20 }, (_, i) => `t${i}`) }));
+    await store.write(input({ path: "a.md", body: words.slice(0, 32).join(" ") }));
     expect(store.search({ query: words.join(" ") }).total).toBe(1);
-    expect(store.search({ tags: [...Array.from({ length: 20 }, (_, i) => `t${i}`), "not-there"] }).total).toBe(1);
     expect(store.search({ query: "x".repeat(5000) }).total).toBe(0);
   });
 

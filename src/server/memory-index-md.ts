@@ -7,7 +7,6 @@ import type { MemoryStatus } from "./memory-document.js";
 export type IndexConcept = {
   /** File name inside the directory. */
   file: string;
-  type: string;
   title: string;
   description: string;
   status: MemoryStatus;
@@ -36,7 +35,7 @@ function entryLine(concept: IndexConcept): string {
   return parts.join("");
 }
 
-/** The Markdown body of the `index.md` of one directory: subdirectories first, then its concepts, grouped by `type`. */
+/** The Markdown body of the `index.md` of one directory: subdirectories first, then its concepts. */
 export function renderIndexBody(heading: string, concepts: IndexConcept[], subdirs: IndexSubdir[]): string {
   const lines = [`# ${heading}`, ""];
   if (subdirs.length > 0) {
@@ -46,17 +45,10 @@ export function renderIndexBody(heading: string, concepts: IndexConcept[], subdi
     }
     lines.push("");
   }
-  const byType = new Map<string, IndexConcept[]>();
-  for (const concept of concepts) {
-    const group = byType.get(concept.type) ?? [];
-    group.push(concept);
-    byType.set(concept.type, group);
-  }
-  for (const type of [...byType.keys()].sort((a, b) => a.localeCompare(b))) {
-    lines.push(`## ${type}`, "");
-    const group = byType.get(type) ?? [];
-    group.sort((a, b) => (a.title || a.file).localeCompare(b.title || b.file) || a.file.localeCompare(b.file));
-    for (const concept of group) lines.push(entryLine(concept));
+  if (concepts.length > 0) {
+    lines.push("## Concepts", "");
+    const sorted = [...concepts].sort((a, b) => (a.title || a.file).localeCompare(b.title || b.file) || a.file.localeCompare(b.file));
+    for (const concept of sorted) lines.push(entryLine(concept));
     lines.push("");
   }
   return `${lines.join("\n").trimEnd()}\n`;
