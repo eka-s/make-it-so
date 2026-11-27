@@ -17,6 +17,7 @@ export const en = {
   "theme.light": "Light",
   "theme.dark": "Dark",
   "app.leftPane.toggle": "Show or hide the left pane",
+  "app.shellMenu": "App menu",
   "app.split": "Split the conversation (earlier messages on top)",
   "memory.open": "Show or hide the Memory",
   "memory.title": "Memory",

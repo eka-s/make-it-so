@@ -16,8 +16,9 @@ import { createInMemoryFetch } from "./in-memory-fetch.js";
 import { createLauncherHandler } from "./launcher-handler.js";
 import { launcherLanguage, menuText, settingsLabel } from "./launcher-page.js";
 import { removeShipLock, writeShipLock } from "../server/ship-lock.js";
-import { withShellRequests, type PageAppearance, type PageReport } from "./shell-requests.js";
-import { minimumWindowWidth, windowButtonsTop } from "./window-fit.js";
+import { withShellRequests, type MenuPosition, type PageAppearance, type PageReport } from "./shell-requests.js";
+import { overlayColors, overlayHeight, popupPosition, titleBarOverlay } from "./title-bar.js";
+import { headerMinWidth, minimumWindowWidth, windowButtonsTop } from "./window-fit.js";
 import { runningInBrowser } from "./running-in-browser.js";
 import { chooseStartMode } from "./start-mode.js";
 
@@ -95,9 +96,11 @@ async function runShip(dir: string): Promise<void> {
       // Nothing else holds this ship now (the lock above), so what the last run left unfinished can be recorded as interrupted.
       await ship.recordInterrupted();
       await app.whenReady();
+      const menu = installMenu(() => window, { onSettings: openSettings, crew: true });
       const serve = withShellRequests(createInMemoryFetch(ship.app), {
         onWindow: (report) => fitWindowToPage(window, report, SHIP_MIN_WIDTH),
-        onAppearance: installMenu(() => window, { onSettings: openSettings, crew: true }),
+        onAppearance: menu.onAppearance,
+        onMenu: menu.popup,
       });
       protocol.handle(SCHEME, (request) => serve(request));
 
@@ -137,11 +140,13 @@ async function runSettings(dir: string): Promise<void> {
   restrictToOwner(dir);
   const runtime = createDesktopShipRuntime({ dir, openShip, kill: (pid, signal) => process.kill(pid, signal) });
   await app.whenReady();
+  const menu = installMenu(() => window, {});
   const serve = withShellRequests(
     createInMemoryFetch(createSettingsApp({ dir, clientDir: path.join(here, "..", "client"), runtime, desktop: true })),
     {
       onWindow: (report) => fitWindowToPage(window, report, SETTINGS_MIN_WIDTH),
-      onAppearance: installMenu(() => window, {}),
+      onAppearance: menu.onAppearance,
+      onMenu: menu.popup,
     },
   );
   protocol.handle(SCHEME, (request) => serve(request));
@@ -183,7 +188,9 @@ function fitWindowToPage(window: BrowserWindow | null, report: PageReport, minWi
   if (!window) return { zoom: 1 };
   const zoom = window.webContents.getZoomFactor();
   if (process.platform === "darwin") window.setWindowButtonPosition({ x: 16, y: windowButtonsTop(report.height, zoom) });
-  const needed = minimumWindowWidth({ minWidth, room: report.room, zoom, screenWidth: screen.getDisplayMatching(window.getBounds()).workAreaSize.width });
+  // On Linux the window buttons are drawn over the header's right end, as tall as the header is on the screen.
+  if (process.platform === "linux") window.setTitleBarOverlay({ height: overlayHeight(report.height, zoom) });
+  const needed = minimumWindowWidth({ minWidth: headerMinWidth(process.platform, minWidth, report.room), room: report.room, zoom, screenWidth: screen.getDisplayMatching(window.getBounds()).workAreaSize.width });
   const [, minHeight] = window.getMinimumSize();
   window.setMinimumSize(needed, minHeight);
   const [width, height] = window.getSize();
@@ -210,10 +217,12 @@ function openShip(id: string): void {
  * Sets the menu and gives back what to call when the page says what it shows (the View menu marks it). The page keeps its theme and its language
  * (it is where they are kept and drawn), so a choice in the menu is sent to the page, which reports back what it now shows. This and `/__shell/*` are the
  * only ways between the app and the page. `crew`: the page has a crew, whose language the menu chooses too.
+ * `popup` opens the same menu where the page's menu button is: on Linux the title bar is the page's header, which has no menu bar to click.
  */
-function installMenu(window: () => BrowserWindow | null, options: { onSettings?: () => void; crew?: boolean }): (appearance: PageAppearance) => void {
+function installMenu(window: () => BrowserWindow | null, options: { onSettings?: () => void; crew?: boolean }): { onAppearance: (appearance: PageAppearance) => void; popup: (position: MenuPosition) => void } {
   const systemLanguage = launcherLanguage(app.getLocale());
   let current: PageAppearance | null = null;
+  let menu: Menu | null = null;
   const tellPage = (change: Partial<PageAppearance>) => {
     const page = window();
     if (!page || page.isDestroyed()) return;
@@ -224,7 +233,7 @@ function installMenu(window: () => BrowserWindow | null, options: { onSettings?:
   const build = () => {
     // The words follow the language the page shows, once it has said (the system's until then).
     const language = current?.language ?? systemLanguage;
-    Menu.setApplicationMenu(Menu.buildFromTemplate(buildMenuTemplate({
+    menu = Menu.buildFromTemplate(buildMenuTemplate({
       platform: process.platform,
       appName: app.name,
       settingsLabel: options.onSettings ? `${settingsLabel(language)}…` : "",
@@ -238,12 +247,24 @@ function installMenu(window: () => BrowserWindow | null, options: { onSettings?:
         onLanguage: (next) => { tellPage({ language: next }); setImmediate(build); },
         onCrewLanguage: options.crew ? (next) => { tellPage({ crewLanguage: next }); setImmediate(build); } : undefined,
       },
-    })));
+    }));
+    Menu.setApplicationMenu(menu);
   };
   build();
-  return (appearance) => {
-    current = appearance;
-    build();
+  return {
+    onAppearance: (appearance) => {
+      const themeChanged = current?.theme !== appearance.theme;
+      current = appearance;
+      build();
+      // The window buttons that Linux draws over the header take the header's color.
+      const page = window();
+      if (themeChanged && process.platform === "linux" && page && !page.isDestroyed()) page.setTitleBarOverlay(overlayColors(appearance.theme));
+    },
+    popup: (position) => {
+      const page = window();
+      if (!menu || !page || page.isDestroyed()) return;
+      menu.popup({ window: page, ...popupPosition(position, page.webContents.getZoomFactor()) });
+    },
   };
 }
 
@@ -257,9 +278,11 @@ function createWindow(url: string, size: { width: number; height: number }, opti
     // The sizes are those of the page, not of the frame around it (which is not the same on every system): the page's own width is what the minimum is about.
     useContentSize: true,
     // The minimum is changed with the page's zoom (fitWindowToPage); this is the one before the page has said anything.
-    ...(options.minWidth ? { minWidth: options.minWidth } : {}),
+    ...(options.minWidth ? { minWidth: headerMinWidth(process.platform, options.minWidth) } : {}),
     // On macOS the page's own header is the title bar (desktop-shell.css leaves room for the window buttons, which are put at the middle of its height).
     ...(options.pageIsTitleBar && process.platform === "darwin" ? { titleBarStyle: "hidden" as const, trafficLightPosition: { x: 16, y: 20 } } : {}),
+    // On Linux it is the title bar too, with the window buttons drawn over its right end (the classic look until the page says which theme it shows).
+    ...(options.pageIsTitleBar && process.platform === "linux" ? { titleBarStyle: "hidden" as const, titleBarOverlay: titleBarOverlay("classic", 56, 1) } : {}),
     webPreferences: { contextIsolation: true, sandbox: true, nodeIntegration: false },
   });
   const origin = new URL(url).origin;

@@ -28,6 +28,7 @@ import { useMemoryPane } from "./use-memory-pane";
 import { MemoryPane } from "./MemoryPane";
 import { useShellAppearance } from "./use-shell-appearance";
 import { useShellWindow } from "./use-shell-window";
+import { ShellMenuButton } from "./ShellMenuButton";
 import { usePendingAttention } from "./usePendingAttention";
 import { countByMission, countByRole, permissionsOfMission } from "./permission-summary";
 import { usePermissions } from "./usePermissions";
@@ -914,6 +915,7 @@ export function App() {
           {t("memory.title")}
         </button>
         {shipName && <span className="app-ship-name">{shipName}</span>}
+        <ShellMenuButton />
       </header>
       <LanguageNotice />
       {!sseConnected && <div className="connection-notice" role="status">{t("app.disconnected")}</div>}

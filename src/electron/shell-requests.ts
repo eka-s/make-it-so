@@ -5,9 +5,13 @@ import type { InMemoryFetch } from "./in-memory-fetch.js";
 /** The paths the page asks the app itself on, instead of the ship: what only the window around the page can do. */
 export const WINDOW_PATH = "/__shell/window";
 export const APPEARANCE_PATH = "/__shell/appearance";
+export const MENU_PATH = "/__shell/menu";
 
 /** What the page is showing now, told to the app so that the menu can mark it. A page that has no crew to speak to (the settings) leaves `crewLanguage` out. */
 export type PageAppearance = { theme: Theme; language: Language; crewLanguage?: Language };
+
+/** Where the page asks the app's menu to open: the corner of its menu button, in CSS pixels from the top left of the page. */
+export type MenuPosition = { x: number; y: number };
 
 /** What the page tells the window, in CSS pixels: how tall its header is, and how much room the header keeps at both ends together (for the window buttons). */
 export type PageReport = { height: number; room: number };
@@ -29,6 +33,18 @@ function parseReport(text: string): PageReport | null {
   }
 }
 
+const MAX_POSITION = 20000;
+
+function parseMenuPosition(text: string): MenuPosition | null {
+  try {
+    const { x, y } = (JSON.parse(text) ?? {}) as { x?: unknown; y?: unknown };
+    const ok = (v: unknown): v is number => typeof v === "number" && Number.isFinite(v) && v >= 0 && v <= MAX_POSITION;
+    return ok(x) && ok(y) ? { x, y } : null;
+  } catch {
+    return null;
+  }
+}
+
 function parseAppearance(text: string): PageAppearance | null {
   try {
     const { theme, language, crewLanguage } = (JSON.parse(text) ?? {}) as { theme?: unknown; language?: unknown; crewLanguage?: unknown };
@@ -44,6 +60,8 @@ export type ShellHandlers = {
   /** Fits the window to the report and gives back the page's zoom, which is the answer. */
   onWindow: (report: PageReport) => { zoom: number };
   onAppearance: (appearance: PageAppearance) => void;
+  /** Opens the app's menu at the position (the page has no menu bar to click: the header's menu button asks for it). */
+  onMenu?: (position: MenuPosition) => void;
 };
 
 /**
@@ -53,9 +71,15 @@ export type ShellHandlers = {
 export function withShellRequests(serve: InMemoryFetch, handlers: ShellHandlers): InMemoryFetch {
   return async (request) => {
     const { pathname } = new URL(request.url);
-    if (pathname !== WINDOW_PATH && pathname !== APPEARANCE_PATH) return serve(request);
+    if (pathname !== WINDOW_PATH && pathname !== APPEARANCE_PATH && pathname !== MENU_PATH) return serve(request);
     if (request.method !== "POST") return new Response(null, { status: 405 });
     const text = await request.text();
+    if (pathname === MENU_PATH) {
+      const position = parseMenuPosition(text);
+      if (!position) return new Response("not a menu position", { status: 400 });
+      handlers.onMenu?.(position);
+      return new Response(null, { status: 204 });
+    }
     if (pathname === WINDOW_PATH) {
       const report = parseReport(text);
       return report ? Response.json(handlers.onWindow(report)) : new Response("not a window report", { status: 400 });

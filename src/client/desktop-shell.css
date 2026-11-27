@@ -1,5 +1,5 @@
-/* The desktop app on macOS has no title bar: the header is the title bar, and the window buttons (close, minimize, zoom) sit over its left end.
-   Everything here applies only when shell.ts marked the page, so the page in a browser is not touched. */
+/* The desktop app on macOS and on Linux has no title bar: the header is the title bar. On macOS the window buttons (close, minimize, zoom) sit over its left end, and on Linux
+   the app draws them over its right end (the last section). Everything here applies only when shell.ts marked the page, so the page in a browser is not touched. */
 
 :root[data-shell="desktop-mac"] {
   /* The page's zoom (use-shell-window.ts sets it from the app's answer). The window buttons are drawn by the app in screen points, which are not scaled by the zoom, so the room
@@ -21,19 +21,19 @@
   --window-buttons-block-right: calc(var(--window-buttons-width-right) - 12px / var(--shell-zoom));
 }
 
-/* The header moves the window; what can be clicked in it (and the menus that open from it) must not. */
-:root[data-shell="desktop-mac"] :is(.app-header, .settings-header) {
+/* The header moves the window (on macOS and on Linux); what can be clicked in it (and the menus that open from it) must not. */
+:root[data-shell] :is(.app-header, .settings-header) {
   -webkit-app-region: drag;
 }
 
-:root[data-shell="desktop-mac"] :is(.app-header, .settings-header) > :not(h1, .app-ship-name, .settings-title),
-:root[data-shell="desktop-mac"] :is(.app-header, .settings-header) :is([role="listbox"], .language-menu-popup) {
+:root[data-shell] :is(.app-header, .settings-header) > :not(h1, .app-ship-name, .settings-title),
+:root[data-shell] :is(.app-header, .settings-header) :is([role="listbox"], .language-menu-popup) {
   -webkit-app-region: no-drag;
 }
 
 /* A drag region is what the boxes marked `drag` cover, whatever is stacked over them: the modals that cover the whole window, the header strip included, are
    marked as well, or pressing on the top edge of a popup (its close button can be there) would move the window. */
-:root[data-shell="desktop-mac"] :is(.report-popup-overlay, .profile-backdrop, .qa-backdrop, .search-backdrop) {
+:root[data-shell] :is(.report-popup-overlay, .profile-backdrop, .qa-backdrop, .search-backdrop) {
   -webkit-app-region: no-drag;
 }
 
@@ -121,4 +121,77 @@
 
 :root[data-shell="desktop-mac"][data-compact]:is([data-theme="light"], [data-theme="dark"]) :is(.app-header, .settings-header) {
   padding-inline-end: var(--header-margin-narrow);
+}
+
+/* The desktop app on Linux has no title bar either: the header is the title bar, and the app draws the window buttons (minimize, maximize, close) over its
+   right end. The room they take is in screen points, which a page zoom does not scale, so it is divided by the zoom like the buttons on macOS. */
+:root[data-shell="desktop-linux"] {
+  --shell-zoom: 1;
+  /* What the buttons take at the right of the page, as the page is told by the window (Chromium's `titlebar-area` variables: the area that is left of them, in CSS pixels, so a
+     page zoom is already in it). Without them, the buttons of the system's layout (minimize and close here; a system may add maximize) are about this wide on the screen. */
+  --window-buttons-room: calc(100vw - env(titlebar-area-x, 0px) - env(titlebar-area-width, calc(100vw - 76px / var(--shell-zoom))));
+  /* The header keeps a little more than the buttons for itself, and the orange block they sit on is a little wider than they are: margins that stay the same on the
+     screen, so they are divided by the zoom like the buttons' own room. */
+  --window-buttons-width-right: calc(var(--window-buttons-room) + 16px / var(--shell-zoom));
+  --window-buttons-block-right: calc(var(--window-buttons-room) + 4px / var(--shell-zoom));
+}
+
+:root[data-shell="desktop-linux"] :is(.app-header, .settings-header) {
+  padding-right: var(--window-buttons-width-right);
+}
+
+/* The window has rounded corners of its own, and what shows past the frame's curve is the page's black. Electron cannot set that radius on Linux, so the frame goes square to
+   the edge of the window (the spine, and the ends of the strips) and the window's corner rounds it, as on macOS. */
+:root[data-shell="desktop-linux"]:not([data-theme="light"]):not([data-theme="dark"]) :is(.app, .settings-app)::before,
+:root[data-shell="desktop-linux"]:not([data-theme="light"]):not([data-theme="dark"]) :is(.app-header, .settings-header, .bottom-bar)::after {
+  border-radius: 0;
+}
+
+/* Classic: the buttons sit on a block of the frame's orange at the right end, with sky blue before it in the strip under the header (the left end is as in a browser). */
+:root[data-shell="desktop-linux"]:not([data-theme="light"]):not([data-theme="dark"]) :is(.app-header, .settings-header) {
+  background: linear-gradient(
+    to right,
+    transparent calc(100% - var(--window-buttons-block-right)),
+    var(--lc-amber) calc(100% - var(--window-buttons-block-right)) 100%
+  );
+}
+
+:root[data-shell="desktop-linux"]:not([data-theme="light"]):not([data-theme="dark"]) :is(.app-header, .settings-header)::after {
+  --right: var(--window-buttons-block-right);
+  --gap: var(--frame-gap);
+  --sky-width: 10%;
+  background: linear-gradient(
+    90deg,
+    var(--lc-amber) 0 26%,
+    transparent 26% calc(26% + var(--gap)),
+    var(--lc-lilac) calc(26% + var(--gap)) 52%,
+    transparent 52% calc(52% + var(--gap)),
+    var(--lc-peach) calc(52% + var(--gap)) 78%,
+    transparent 78% calc(78% + var(--gap)),
+    var(--lc-periwinkle) calc(78% + var(--gap)) calc(100% - var(--right) - 2 * var(--gap) - var(--sky-width)),
+    transparent calc(100% - var(--right) - 2 * var(--gap) - var(--sky-width)) calc(100% - var(--right) - var(--gap) - var(--sky-width)),
+    var(--lc-sky) calc(100% - var(--right) - var(--gap) - var(--sky-width)) calc(100% - var(--right) - var(--gap)),
+    transparent calc(100% - var(--right) - var(--gap)) calc(100% - var(--right)),
+    var(--lc-amber) calc(100% - var(--right)) 100%
+  );
+}
+
+/* The button for the app's menu (ShellMenuButton). It has a look of its own because the settings page does not load the ship's header buttons. */
+.app-shell-menu {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  background: var(--surface-3);
+  color: var(--text);
+  line-height: 1;
+  cursor: pointer;
+  z-index: 1;
+}
+
+.app-shell-menu:hover {
+  border-color: var(--lc-periwinkle);
+  background: var(--hover);
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { APPEARANCE_PATH, WINDOW_PATH, withShellRequests } from "./shell-requests.js";
+import { APPEARANCE_PATH, MENU_PATH, WINDOW_PATH, withShellRequests } from "./shell-requests.js";
 
 function setup() {
   const serve = vi.fn(async () => new Response("from the ship", { status: 200 }));
@@ -75,5 +75,32 @@ describe("the page's report of its appearance", () => {
     const { handle, onAppearance } = setup();
     expect((await handle(post(JSON.stringify({ theme: "light", language: "en", crewLanguage: "ja" }), APPEARANCE_PATH))).status).toBe(204);
     expect(onAppearance).toHaveBeenCalledWith({ theme: "light", language: "en", crewLanguage: "ja" });
+  });
+});
+
+describe("the page's request to open the app's menu", () => {
+  it("takes the position of the menu button without bothering the ship", async () => {
+    const serve = vi.fn(async () => new Response("from the ship"));
+    const onMenu = vi.fn();
+    const handle = withShellRequests(serve, { onWindow: () => ({ zoom: 1 }), onAppearance: vi.fn(), onMenu });
+    const res = await handle(post(JSON.stringify({ x: 1200.5, y: 48 }), MENU_PATH));
+    expect(res.status).toBe(204);
+    expect(onMenu).toHaveBeenCalledWith({ x: 1200.5, y: 48 });
+    expect(serve).not.toHaveBeenCalled();
+  });
+
+  it("refuses what cannot be a position, and anything but POST", async () => {
+    const serve = vi.fn(async () => new Response("from the ship"));
+    const onMenu = vi.fn();
+    const handle = withShellRequests(serve, { onWindow: () => ({ zoom: 1 }), onAppearance: vi.fn(), onMenu });
+    const bad = ["", "null", "[]", "not json", "{}", JSON.stringify({ x: "1", y: 2 }), JSON.stringify({ x: -1, y: 2 }), JSON.stringify({ x: 1, y: 20001 }), JSON.stringify({ x: 1 })];
+    for (const body of bad) expect((await handle(post(body, MENU_PATH))).status).toBe(400);
+    expect((await handle(new Request(`app://ship${MENU_PATH}`))).status).toBe(405);
+    expect(onMenu).not.toHaveBeenCalled();
+  });
+
+  it("answers 204 and does nothing in a window that has no menu to open", async () => {
+    const handle = withShellRequests(async () => new Response("from the ship"), { onWindow: () => ({ zoom: 1 }), onAppearance: vi.fn() });
+    expect((await handle(post(JSON.stringify({ x: 1, y: 2 }), MENU_PATH))).status).toBe(204);
   });
 });

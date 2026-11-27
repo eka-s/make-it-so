@@ -111,6 +111,8 @@ export function createApi(options: ApiOptions = {}) {
     reportShellWindow: (info: { height: number; room: number }) => send<{ zoom: number }>("POST", "/__shell/window", info),
     /** Tells the app around the page which theme and languages the page shows, so its View menu can mark them. Answered by the app, like the report above. */
     reportShellAppearance: (info: { theme: Theme; language: Language; crewLanguage?: Language }) => send<null>("POST", "/__shell/appearance", info),
+    /** Asks the app around the page to open its menu at this point (CSS pixels from the page's top left). The desktop app on Linux has no menu bar: the header's menu button asks for it. */
+    openShellMenu: (position: { x: number; y: number }) => send<null>("POST", "/__shell/menu", position),
     /** Saves the UI language on the server. */
     setLanguage: (language: Language) => send<{ language: Language }>("PUT", "/api/config/language", { language }),
     /** Saves the language the crew speaks on the server (separate from the UI language). */

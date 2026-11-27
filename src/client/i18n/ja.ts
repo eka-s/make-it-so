@@ -17,6 +17,7 @@ export const ja: Record<MessageKey, string> = {
   "theme.light": "ライト",
   "theme.dark": "ダーク",
   "app.leftPane.toggle": "左ペインを表示/非表示",
+  "app.shellMenu": "アプリのメニュー",
   "app.split": "分割(上に以前の会話を表示)",
   "memory.open": "Memoryを表示/非表示",
   "memory.title": "Memory",
