@@ -1,4 +1,4 @@
-import { app, BrowserWindow, dialog, Menu, protocol, screen, shell } from "electron";
+import { app, BrowserWindow, dialog, Menu, nativeImage, protocol, screen, shell } from "electron";
 import { spawn } from "node:child_process";
 import os from "node:os";
 import path from "node:path";
@@ -18,6 +18,7 @@ import { launcherLanguage, menuText, settingsLabel } from "./launcher-page.js";
 import { removeShipLock, writeShipLock } from "../server/ship-lock.js";
 import { withShellRequests, type MenuPosition, type PageAppearance, type PageReport } from "./shell-requests.js";
 import { overlayColors, overlayHeight, popupPosition, titleBarOverlay } from "./title-bar.js";
+import { appIconPath } from "./app-icon.js";
 import { headerMinWidth, minimumWindowWidth, windowButtonsTop } from "./window-fit.js";
 import { runningInBrowser } from "./running-in-browser.js";
 import { chooseStartMode } from "./start-mode.js";
@@ -272,11 +273,19 @@ function openSettings(): void {
   spawnSelf(["--settings"]);
 }
 
+/** The window icon on Linux: the app's picture at a size a window can use (the file is 1024 pixels, which the window system may refuse). */
+function windowIcon(): Electron.NativeImage {
+  const image = nativeImage.createFromPath(appIconPath({ packaged: app.isPackaged, resourcesPath: process.resourcesPath, electronDir: here }));
+  return image.isEmpty() ? image : image.resize({ width: 256, height: 256, quality: "best" });
+}
+
 function createWindow(url: string, size: { width: number; height: number }, options: { pageIsTitleBar?: boolean; minWidth?: number } = {}): BrowserWindow {
   const window = new BrowserWindow({
     ...size,
     // The sizes are those of the page, not of the frame around it (which is not the same on every system): the page's own width is what the minimum is about.
     useContentSize: true,
+    // On Linux a window has no icon of its own unless it is given one.
+    ...(process.platform === "linux" ? { icon: windowIcon() } : {}),
     // The minimum is changed with the page's zoom (fitWindowToPage); this is the one before the page has said anything.
     ...(options.minWidth ? { minWidth: headerMinWidth(process.platform, options.minWidth) } : {}),
     // On macOS the page's own header is the title bar (desktop-shell.css leaves room for the window buttons, which are put at the middle of its height).
