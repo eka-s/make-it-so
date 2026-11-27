@@ -142,7 +142,6 @@ export function MemoryPane({ open, covers, inert = false, onClose, returnFocusRe
         title={doc.description}
       >
         <span className="memory-row-title">{doc.title || fileName(doc.path)}</span>
-        <span className="memory-chip">{doc.type}</span>
         {doc.status !== "stable" && <span className={`memory-chip memory-chip--${doc.status}`}>{t(`memory.status.${doc.status}`)}</span>}
       </button>
     </li>
@@ -246,9 +245,7 @@ export function MemoryPane({ open, covers, inert = false, onClose, returnFocusRe
               <header className="memory-doc-head">
                 <h3 className="memory-doc-title">{doc.title || fileName(doc.path)}</h3>
                 <div className="memory-doc-meta">
-                  <span className="memory-chip">{doc.type}</span>
                   {doc.status !== "stable" && <span className={`memory-chip memory-chip--${doc.status}`}>{t(`memory.status.${doc.status}`)}</span>}
-                  {doc.tags.map((tag) => <span key={tag} className="memory-chip memory-chip--tag">{tag}</span>)}
                   {(doc.crew || when) && <span className="memory-written">{doc.crew && when ? t("memory.writtenBy", { crew: doc.crew, when }) : doc.crew || when}</span>}
                 </div>
                 <div className="memory-doc-path">{doc.path}</div>

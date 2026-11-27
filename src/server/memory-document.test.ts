@@ -11,6 +11,15 @@ describe("memory file", () => {
     expect(parseMemoryFile(serializeMemoryFile(parsed.front, parsed.body))?.body).toBe("Body\n");
   });
 
+  it("writes a flag only for a draft or a deprecated memo, and keeps a hand-written tags key without reading it", () => {
+    const parsed = parseMemoryFile("---\ntype: note\ndescription: Hi\ntags:\n  - x\n---\nBody\n")!;
+    expect(parsed.front.status).toBe("stable");
+    const settled = serializeMemoryFile(parsed.front, parsed.body);
+    expect(settled).not.toContain("status:");
+    expect(settled).toContain("tags:\n  - x");
+    expect(serializeMemoryFile({ ...parsed.front, status: "draft" }, parsed.body)).toContain("status: draft");
+  });
+
   it("is not a concept without frontmatter, with broken YAML, or with an empty type", () => {
     expect(parseMemoryFile("# just text")).toBeNull();
     expect(parseMemoryFile("---\ntype: [\n---\nx")).toBeNull();

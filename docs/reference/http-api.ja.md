@@ -228,9 +228,9 @@ make-it-so のサーバーが提供する HTTP API、SSE（サーバー送信イ
 | `GET /api/memory/tree?dir=&draft=&deprecated=` | 1つのディレクトリの直下にあるもの（`dir` は、ルートなら `""`）。`{ dir, dirs: { name, path, count }[], docs: MemorySummary[] }`。`count` は、そのディレクトリの下（何階層でも）にあるメモの数。安定（stable）のメモは、いつも載る。`draft=0`、`deprecated=0` で、下書きと非推奨を外す |
 | `GET /api/memory/doc?path=` | 1件のメモ。要約のフィールド、`frontmatter`（ファイルにあるままの YAML）、`body`（書かれたままの Markdown。相対リンクは、ビューアが、いま表示しているメモのパスを基準に読む）、`version`。ないメモと、正しくないパスは `404`、リンクを通るパスは `400` |
 | `GET /api/memory/history?path=&limit=&diff=` | Memory の変更の履歴を、新しい順に返す。`path` を付けると、そのメモだけ。`{ commit, message, author, at, diff? }[]`。`message` はクルーの一言、`author` はクルー。`limit` の既定は 20、最大は 100。`diff=1` で、各変更の差分も付く（大きいと切り詰める）。Memory のパスでないものは `400`。画面は、まだ使っていない |
-| `GET /api/memory/search?q=&draft=&deprecated=&limit=&offset=` | タイトル・説明・タグ・本文を検索する（すべての語が一致すること。先頭の 32 語まで（1〜2 文字の語は先頭の 4 語まで）。日本語も使える）。`{ total, items: MemorySummary[] }`。`limit` の既定は 20、最大は 100 |
+| `GET /api/memory/search?q=&draft=&deprecated=&limit=&offset=` | タイトル・説明・本文を検索する（すべての語が一致すること。先頭の 32 語まで。1〜2 文字の語は先頭の 4 語まで。日本語も使える）。`{ total, items: MemorySummary[] }`。`limit` の既定は 20、最大は 100 |
 
-- `MemorySummary` は `{ path, type, title, description, tags, status, supersededBy?, crew?, updatedAt? }`。`status` は `draft`・`stable`・`deprecated` のどれか。
+- `MemorySummary` は `{ path, title, description, status, supersededBy?, crew?, updatedAt? }`。`status` は `draft`・`stable`・`deprecated` のどれか。
 - Memory のディレクトリ名として安全でない `dir` は、`400` を返します。`supersededBy` は、Memory のルートからのパスです（クルーが書いたものがパスでないときは、含みません）。
 - パスは、ビューアやクルーが何を送っても、サーバーが、入口ごと（読む・書く・消す・一覧する・履歴）に検査します。相対パスで、`.md` で終わり、`.` や `..` の名前、ドットで始まる名前、ドットや空白で終わる名前、`\ # ? % : * " < > |` と制御文字、Windows の予約名（`con`・`nul` など）、途中のシンボリックリンクを、含められません。`index.md` と `log.md` は予約です。また、既存のパス（またはそのディレクトリ）と、大文字小文字だけが違うパスも使えません。検査に通らないパスは、メモなら `404`、ディレクトリなら `400` です。
 
@@ -292,9 +292,9 @@ make-it-so のサーバーが提供する HTTP API、SSE（サーバー送信イ
 | `dispatch_task(agent, task_name, instruction)` | クルーにタスクを委任する。`agent` は、役職名または名簿のメンバーID。実際に送り込まれるのは短い通知だけで、指示の全文は DB に記録し、委任先は `get_task` で読む。**階級が `commander` か `chief` のクルーだけ**が使える（それ以外は、サーバーが拒否する） |
 | `get_task(taskId)` | タスクの指示（完了していれば、結果も）を取得する |
 | `get_skill(name)` | 呼び出したクルーに案内したスキルの本文（frontmatter を除いたファイル）を取得する。そのクルーに案内したスキルだけを返すので、他のファイルを読むことには使えない。知らない名前には、そのクルーが使える名前の一覧つきのエラーを返す。返すのはスキルの本文だけで、そのそばにあるファイルは渡さない。スキルのファイルを読めないリモートホストのクルーが、スキルを使うための道 |
-| `search_memory(query?, type?, tags?, status?, path?, limit?, offset?)` | 艦の Memory を一覧・検索する。`query` のすべての語が一致すること（タイトル・説明・タグ・本文。日本語も使える）。`{ total, items }` を返し、各メモのパス・type・タイトル・説明・タグ・status を載せる |
+| `search_memory(query?, status?, path?, limit?, offset?)` | 艦の Memory を一覧・検索する。`query` のすべての語が一致すること（タイトル・説明・本文。日本語も使える）。`{ total, items }` を返し、各メモのパス・タイトル・説明・status を載せる |
 | `read_memory(path)` | 1件のメモを読む。フィールド、本文、`version`（ファイルの git の blob ID）を返す |
-| `write_memory(path, type, description, body, message, title?, tags?, status?, base?)` | メモを作る・更新する。`type` と `description` は必須で、変更を一言で書く `message`（コミットメッセージ）も必須。既存のメモの更新には、読んだときの `version` を `base` として渡す。`base` がない・古いときは、今のメモをつけて断る。更新で `tags` や `status` を省くと、そのまま残る。本文が 1MB、メモが 50,000 件を超えても、警告をつけて成功する。どのクルーも使える（ランクの確認はしない） |
+| `write_memory(path, description, body, message, title?, status?, base?)` | メモを作る・更新する。`description` は必須で、変更を一言で書く `message`（コミットメッセージ）も必須。既存のメモの更新には、読んだときの `version` を `base` として渡す。`base` がない・古いときは、今のメモをつけて断る。更新で `status` を省くと、そのまま残る。本文が 1MB、メモが 50,000 件を超えても、警告をつけて成功する。どのクルーも使える（ランクの確認はしない） |
 | `deprecate_memory(path, message, superseded_by?)` | メモを `deprecated`（非推奨）にする（残り、そう表示される）。`superseded_by` は、後継のメモの、先頭に `/` をつけたパス |
 | `delete_memory(path, message)` | メモを消す（履歴には残る） |
 | `get_memory_history(path?, limit?, diff?)` | 変更履歴（新しい順。既定 20 件、最大 100 件）: コミット、メッセージ、作者（クルー）、時刻。`path` を渡すと、そのメモの履歴（消したメモも）で、`diff: true` で、各変更が何をしたかを添える（20,000 字で切る） |

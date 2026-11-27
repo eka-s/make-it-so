@@ -8,8 +8,8 @@ The Memory is the ship's shared notebook: short Markdown memos the crew writes w
 
 Click "Memory" in the header. The pane opens at the right and takes half of the window (drag its left edge to change that; the choice is remembered). Drag the border between the list and the memo to change how much each takes (remembered for each of the two layouts).
 
-- The upper part is the list: directories (click to open) and memos, each with its type and, for a draft or a deprecated memo, a mark. Type in the search box to search titles, descriptions, tags and bodies instead (every word must match, up to the first 32 words, and the first four of one or two characters; Japanese works).
-- The lower part shows the memo you pick: its type, tags, who wrote it and when, its description, then its text. "Frontmatter" opens the header of the file as it is. A link to another memo moves inside the pane; a web link opens in a new tab.
+- The upper part is the list: directories (click to open) and memos, each with, for a draft or a deprecated memo, a mark. Type in the search box to search titles, descriptions and bodies instead (every word must match, up to the first 32 words, and the first four of one or two characters; Japanese works).
+- The lower part shows the memo you pick: who wrote it and when, its description, then its text. "Frontmatter" opens the header of the file as it is. A link to another memo moves inside the pane; a web link opens in a new tab.
 - The button at the top right of the pane switches between the list above the memo and the list beside it.
 - "Drafts" and "Deprecated" switch those memos on and off in the list.
 - In a window 860 px wide or less, the pane covers the whole page (Escape or × closes it).
@@ -28,7 +28,12 @@ Every crew member has a built-in skill, `memory`, that tells them when to write 
 | `delete_memory` | Remove a memo (its history stays) |
 | `get_memory_history` | Who changed what, when and why; ask a crew member to summarize recent changes |
 
-- A memo has a `type` (`note`, `procedure`, `decision`, `reference`, `issue`, `glossary`, or another word), a one-line `description`, and a `status`: `draft` for a rough note, `stable`, or `deprecated`. The keys are English; the title, the description and the text are in the language the crew speaks.
+- What a memo carries:
+  - A one-line `description`.
+  - A flag, only when it needs one: `draft` for a rough note, or `deprecated` for one that is out of date. A memo with no flag is the settled kind.
+  - No tags. Memos are kept by where they live, so choose the directory.
+  - A `type` that is always `note`, written by the server (OKF requires one). A file written by hand keeps the type it has.
+  - English keys; the title, the description and the text are in the language the crew speaks.
 - Two crew members cannot overwrite each other: to update a memo a crew member passes the version they read, and a stale one is refused with the memo as it is now.
 - There is no hard limit. A write that makes a memo bigger than 1 MB, or the Memory more than 50,000 memos, still succeeds and returns a warning, which the crew member is told to pass on to you.
 - To undo a change, ask a crew member: they read the old text from the history and write it back.
@@ -40,3 +45,12 @@ Every crew member has a built-in skill, `memory`, that tells them when to write 
 - The server writes the `index.md` files (the table of contents of each directory) after every change. Do not edit them.
 - A file you edit by hand is picked up at the next start of the ship. It is committed with the next change to that same memo, under that crew member's name; a file you delete by hand stays in the git history's tree.
 - The search index lives in the ship's DB and is rebuilt from the files at every start ([Data model](../reference/data-model.md#memory-index)); you can delete it without losing anything.
+
+## How it follows OKF
+
+The Memory follows [OKF](https://github.com/open-knowledge-format/open-knowledge-format) v0.3, and uses two of its keys in a narrower way.
+
+- **`tags`** is optional in OKF, and the Memory does not use it. A tag written by hand is kept in the file and not read.
+- **`type`** is required in OKF, so the server always writes `note`. A file written by hand keeps the type it has.
+
+OKF has these keys so that a program can sort a large, well-organized set of documents by kind. The Memory is a notebook the crew writes in as things come to mind and deletes from just as freely, and one memo often holds a procedure, the decision behind it and a known problem together. Tags and types would be a second, looser way of classifying, which scatters memos instead of gathering them, so the directory is the one classification. OKF allows this: the values of `type` are free, and no fixed set is expected.

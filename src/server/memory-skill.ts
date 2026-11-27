@@ -31,10 +31,8 @@ Do not write what the code, the task result or the conversation history already 
 
 ## How to write a memo
 
-- \`path\`: you choose it. Group by directory in a way another crew member can guess, such as \`procedures/deploy.md\`, \`decisions/use-sqlite.md\`, \`notes/2026-11-26-meeting.md\`. Use a name that says the subject. Never use \`index.md\` or \`log.md\`; the server writes the index.md files itself.
-- \`type\`: one short English word. Use \`procedure\` (steps to follow), \`decision\` (what and why), \`reference\` (facts to look up), \`issue\` (a known problem), \`glossary\` (terms), or \`note\` (anything else, especially drafts). Another word is allowed when none fits; keep using the same one.
+- \`path\`: you choose it. Group by directory in a way another crew member can guess, such as \`procedures/deploy.md\`, \`decisions/use-sqlite.md\`, \`notes/2026-11-26-meeting.md\`. Use a name that says the subject. Never use \`index.md\` or \`log.md\`; the server writes the index.md files itself. The directory is the only way a memo is classified: there is no type and there are no tags, so choose the directory with care.
 - \`title\` and \`description\` and \`body\`: in your language. The \`description\` is one line saying what the memo is and when it helps; it is what a search result shows, so write it for someone deciding whether to open the memo.
-- \`tags\`: a few lowercase words that group memos across directories.
 - \`body\`: Markdown. Link to other memos with Markdown links to their path (\`[Deploy](/procedures/deploy.md)\`); do not use wiki-style links.
 - \`message\`: the change in a sentence, written for the history ("Add the rollback step", "Correct the port"). It is required.
 

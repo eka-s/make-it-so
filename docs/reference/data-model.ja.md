@@ -158,8 +158,8 @@
 
 | テーブル | 列 | 意味 |
 |---|---|---|
-| `memory_docs` | `path`（主キー）、`dir`、`type`、`title`、`description`、`tags_json`、`status`、`superseded_by`、`crew`、`updated_at`、`version`、`size`、`body` | メモ1件が1行。`version` は、ファイルの git の blob ID（書き込みが `base` として渡すもの）。`body` を持つのは、トライグラム索引には短すぎる語を、`LIKE` で探すため |
-| `memory_fts` | `title`、`description`、`tags`、`body` | 全文検索の索引（FTS5、`trigram`: 3文字以上の語。日本語も）。rowid は `memory_docs` の rowid |
+| `memory_docs` | `path`（主キー）、`dir`、`title`、`description`、`status`、`superseded_by`、`crew`、`updated_at`、`version`、`size`、`body` | メモ1件が1行。`version` は、ファイルの git の blob ID（書き込みが `base` として渡すもの）。`body` を持つのは、トライグラム索引には短すぎる語を、`LIKE` で探すため |
+| `memory_fts` | `title`、`description`、`body` | 全文検索の索引（FTS5、`trigram`: 3文字以上の語。日本語も）。rowid は `memory_docs` の rowid |
 
 ## 設定とキャッシュ
 

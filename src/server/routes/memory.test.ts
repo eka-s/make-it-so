@@ -149,7 +149,7 @@ describe("what the crew wrote as the successor of a memo", () => {
     const file = path.join(root, "knowledge", "a", "one.md");
     const original = fs.readFileSync(file, "utf-8");
     for (const [value, expected] of [["/a/two.md", "/a/two.md"], ["two.md", "/a/two.md"], ["/%5Cevil.com", undefined], ["/.git/config", undefined], ["https://evil.example/x.md", undefined], ["../../x.md", undefined]] as const) {
-      fs.writeFileSync(file, original.replace("status: stable", `status: deprecated\nsuperseded_by: ${JSON.stringify(value)}`));
+      fs.writeFileSync(file, original.replace(/^(description: .*)$/m, `$1\nstatus: deprecated\nsuperseded_by: ${JSON.stringify(value)}`));
       const body = (await server.get("/api/memory/doc?path=a/one.md")).body as { supersededBy?: string };
       expect(body.supersededBy, value).toBe(expected);
     }

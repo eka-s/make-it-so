@@ -447,10 +447,8 @@ export type MemoryStatus = "draft" | "stable" | "deprecated";
 
 export type MemorySummary = {
   path: string;
-  type: string;
   title: string;
   description: string;
-  tags: string[];
   status: MemoryStatus;
   supersededBy?: string;
   crew?: string;
