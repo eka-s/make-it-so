@@ -14,6 +14,7 @@ import { ThemeMenu } from "./ThemeMenu";
 import { useTheme } from "./use-theme";
 import { useShellAppearance } from "./use-shell-appearance";
 import { useShellWindow } from "./use-shell-window";
+import { ShellMenuButton } from "./ShellMenuButton";
 import { confirmDiscard, type DirtyRegistry } from "./use-unsaved";
 import "./SettingsApp.css";
 
@@ -80,6 +81,7 @@ export function SettingsApp() {
             {t("settings.status.running", { running: runtime.filter((s) => s.state === "running").length, total: runtime.length })}
           </span>
         )}
+        <ShellMenuButton />
       </header>
       <div className="settings-body">
         <nav className="settings-nav" aria-label={t("settings.title")}>

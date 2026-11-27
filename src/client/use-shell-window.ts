@@ -4,9 +4,9 @@ import { inDesktop } from "./shell";
 
 /**
  * The desktop app needs to know about the header to size its window: how wide the window has to be (the header's room at both ends, which changes with the
- * theme) and, on macOS, where the window buttons go (the header is the title bar and they sit over it, in screen points, which a page zoom does not scale: the
- * app keeps them in the middle of the header's height). It answers with the page's zoom, which the minimum width follows on every system; on macOS
- * the room kept for the buttons is divided by it (`--shell-zoom`, desktop-shell.css) to stay the same size on the screen. The zoom comes from the app,
+ * theme) and, on macOS and on Linux, where the window buttons go (the header is the title bar and they sit over it, in screen points, which a page zoom does not scale:
+ * on macOS the app keeps them in the middle of the header's height, and on Linux it makes them as tall as the header). It answers with the page's zoom, which the minimum
+ * width follows on every system; the room kept for the buttons is divided by it (`--shell-zoom`, desktop-shell.css) to stay the same size on the screen. The zoom comes from the app,
  * which knows it exactly; working it out from the widths in the page is wrong while the window is being resized.
  * Reported when the header first shows and whenever the header or the page's area changes size (a zoom changes the area).
  */

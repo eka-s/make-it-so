@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { minimumWindowWidth, windowButtonsTop } from "./window-fit.js";
+import { headerMinWidth, minimumWindowWidth, windowButtonsTop } from "./window-fit.js";
 
 describe("where the window buttons go", () => {
   it("puts them in the middle of the header on the screen, at any zoom", () => {
@@ -36,5 +36,20 @@ describe("the narrowest window", () => {
 
   it("is never wider than the screen", () => {
     expect(minimumWindowWidth({ ...classic(2), screenWidth: 600 })).toBe(600);
+  });
+});
+
+describe("the width the header needs on each system", () => {
+  it("is wider on Linux, which keeps room for its window buttons and holds the menu button, and the same elsewhere", () => {
+    expect(headerMinWidth("darwin", 375)).toBe(375);
+    expect(headerMinWidth("linux", 375)).toBe(463);
+    expect(headerMinWidth("win32", 375)).toBe(375);
+  });
+
+  it("grows by what the window buttons take beyond the 92 pixels measured, and never shrinks below it", () => {
+    expect(headerMinWidth("linux", 375, 92)).toBe(463);
+    expect(headerMinWidth("linux", 375, 120)).toBe(491); // wider buttons (a system's theme with all three)
+    expect(headerMinWidth("linux", 375, 60)).toBe(463);
+    expect(headerMinWidth("darwin", 375, 120)).toBe(375);
   });
 });

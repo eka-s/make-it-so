@@ -13,9 +13,17 @@ describe("which window the page is in", () => {
     expect(shellOf("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36")).toBeNull();
   });
 
-  it("leaves the desktop app on other systems alone: only macOS hides the title bar", () => {
+  it("knows the desktop app on Linux", () => {
+    expect(shellOf("Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Electron/45.4.1 Safari/537.36")).toBe("desktop-linux");
+  });
+
+  it("leaves a browser on Linux alone", () => {
+    expect(shellOf("Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36")).toBeNull();
+    expect(shellOf("Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Mobile Safari/537.36")).toBeNull();
+  });
+
+  it("leaves the desktop app on Windows alone: its title bar is not hidden", () => {
     expect(shellOf("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Electron/45.4.1 Safari/537.36")).toBeNull();
-    expect(shellOf("Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Electron/45.4.1 Safari/537.36")).toBeNull();
   });
 });
 
